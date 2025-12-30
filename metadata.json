@@ -1,0 +1,7 @@
+{
+  "name": "Copy of CCOS",
+  "description": "A comprehensive real-time monitoring dashboard for security cameras and access control systems, featuring analytics, alerts, and detailed reporting.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
