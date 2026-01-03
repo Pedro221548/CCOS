@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { X, ChevronRight, ChevronLeft, Shield, LayoutDashboard, Video, Settings, Bell, CheckCircle2, ClipboardList, MessageSquare, HelpCircle, Smartphone, ArrowUpCircle, Warehouse, Volume2 } from 'lucide-react';
 import { UserRole } from '../types';
@@ -16,13 +15,13 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ role, onFinish }) => {
 
   const steps = [
     {
-      title: "Manual ControlVision v2.5",
+      title: "Manual CCOS v2.5",
       description: "Bem-vindo à nova versão! O sistema foi atualizado com melhorias de performance, novos recursos de gestão e total compatibilidade com celulares.",
       icon: <HelpCircle size={48} className="text-amber-400" />,
     },
     {
       title: "CCOS no seu Bolso",
-      description: "Agora o ControlVision é totalmente responsivo. Você pode monitorar câmeras, responder chats e gerenciar tarefas diretamente do seu smartphone com layout adaptado.",
+      description: "Agora o CCOS é totalmente responsivo. Você pode monitorar câmeras, responder chats e gerenciar tarefas diretamente do seu smartphone com layout adaptado.",
       icon: <Smartphone size={48} className="text-blue-400" />,
     },
     {

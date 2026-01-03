@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Shield, Lock, Mail, Loader2, LogIn, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { authService } from '../services/auth';
@@ -42,13 +41,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         {/* Glow Line */}
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500/50 to-transparent"></div>
         
-        {/* Header - Reduzido para Mobile */}
+        {/* Header */}
         <div className="p-8 sm:p-10 pb-6 sm:pb-8 flex flex-col items-center justify-center border-b border-slate-800 bg-slate-950/30">
             <div className="relative mb-4 sm:mb-5 group transform transition-transform hover:scale-105 duration-300">
                 <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full"></div>
-                <Shield className="w-16 h-16 sm:w-24 sm:h-24 text-amber-400 relative z-10 fill-amber-400/20 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)]" />
+                <Shield className="w-16 h-16 sm:w-24 sm:h-24 text-amber-400 relative z-10 fill-amber-400/20 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)] transition-colors duration-300" />
             </div>
-            <h1 className="text-4xl sm:text-6xl font-black text-amber-400 tracking-tighter leading-none drop-shadow-2xl mb-4 font-sans text-center uppercase">
+            <h1 className="text-5xl sm:text-7xl font-black text-amber-400 tracking-tighter leading-none drop-shadow-2xl mb-4 font-sans text-center uppercase">
                 CCOS
             </h1>
             <div className="flex items-center justify-center gap-2 sm:gap-3">

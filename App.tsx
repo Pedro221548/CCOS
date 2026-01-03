@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
-import { LayoutDashboard, Video, DoorClosed, Menu, Bell, X, Power, FileSpreadsheet, Trash2, Check, AlertCircle, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, Calendar, Settings, Camera as CameraIcon, Save, Briefcase, Mail, User as UserIcon, Image as ImageIcon, Sun, Moon, ClipboardList, CheckSquare, Ban, HelpCircle, Lock, Activity, Grid, Volume2, ChevronUp } from 'lucide-react';
+import { LayoutDashboard, Video, DoorClosed, Menu, Bell, X, Power, FileSpreadsheet, Trash2, Check, AlertCircle, CheckCircle2, Shield, Eye, Loader2, LogOut, Users, PlusSquare, Calendar, Settings, Camera as CameraIcon, Save, Briefcase, Mail, User as UserIcon, Image as ImageIcon, Sun, Moon, ClipboardList, CheckSquare, Ban, HelpCircle, Lock, Activity, Grid, Volume2, ChevronUp } from 'lucide-react';
 import { Camera, AccessPoint, User, PublicDocument, Note, ProcessedWorker, AppNotification, Status, ThirdPartyImport, ShiftNote } from './types';
 import { authService } from './services/auth';
 import { monitoringService } from './services/monitoring';
@@ -40,7 +39,8 @@ const App: React.FC = () => {
   // --- STATE ---
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'cameras' | 'access' | 'organizer' | 'data' | 'users' | 'registration' | 'third-party' | 'pendencies' | 'task-management' | 'my-tasks' | 'access-management' | 'heatmap'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'organizer' | 'data' | 'users' | 'registration' | 'third-party' | 'pendencies' | 'task-management' | 'my-tasks' | 'access-management' | 'heatmap'>('dashboard');
+  const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'access'>('cameras');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -104,7 +104,7 @@ const App: React.FC = () => {
               bannerURL: currentUser.bannerURL || ''
           });
 
-          const tourKey = `controlvision_tour_seen_${currentUser.uid}`;
+          const tourKey = `ccos_tour_seen_${currentUser.uid}`;
           if (!localStorage.getItem(tourKey)) setShowTour(true);
       }
     });
@@ -148,7 +148,7 @@ const App: React.FC = () => {
           }
           
           // Manager Routes Guard
-          if (isManager && !['dashboard', 'access-management', 'heatmap', 'third-party', 'cameras', 'access'].includes(activeTab)) {
+          if (isManager && !['dashboard', 'access-management', 'heatmap', 'third-party', 'monitoring'].includes(activeTab)) {
               setActiveTab('dashboard');
           }
       }
@@ -176,7 +176,7 @@ const App: React.FC = () => {
     }
 
     // Manager Guard
-    if (isManager && !['dashboard', 'access-management', 'heatmap', 'third-party', 'cameras', 'access'].includes(tab)) {
+    if (isManager && !['dashboard', 'access-management', 'heatmap', 'third-party', 'monitoring'].includes(tab)) {
         alert("Acesso não permitido para o perfil de Gestor.");
         return;
     }
@@ -365,14 +365,14 @@ const App: React.FC = () => {
     <div className="h-screen w-full bg-slate-200 dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex font-sans overflow-hidden transition-colors duration-300">
       
       <Suspense fallback={null}>
-        {showTour && <OnboardingTour role={user.role} onFinish={() => { localStorage.setItem(`controlvision_tour_seen_${user.uid}`, 'true'); setShowTour(false); }} />}
+        {showTour && <OnboardingTour role={user.role} onFinish={() => { localStorage.setItem(`ccos_tour_seen_${user.uid}`, 'true'); setShowTour(false); }} />}
       </Suspense>
 
       <aside className={`fixed inset-y-0 left-0 z-40 bg-slate-50 dark:bg-slate-900 border-r border-slate-300 dark:border-slate-800 transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-[280px] sm:w-64 lg:translate-x-0 lg:static lg:h-full lg:w-64 flex flex-col shadow-2xl lg:shadow-none`}>
         <div className="flex flex-col items-center justify-center py-6 lg:py-8 px-4 border-b border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-gradient-to-b dark:from-slate-900 dark:to-slate-950 relative shrink-0">
             <div onClick={() => handleTabChange('dashboard')} className="flex flex-col items-center group transform transition-transform hover:scale-105 duration-300 cursor-pointer">
-                <Shield className="w-10 h-10 lg:w-12 lg:h-12 text-amber-500 dark:text-amber-400 mb-2 lg:mb-3 fill-amber-400/20 drop-shadow-[0_0_12px_rgba(251,191,36,0.6)]" />
-                <h1 className="text-4xl lg:text-5xl font-black text-amber-500 dark:text-amber-400 tracking-tighter leading-none drop-shadow-xl mb-4 font-sans uppercase">CCOS</h1>
+                <Shield className="w-10 h-10 lg:w-12 lg:h-12 text-amber-500 dark:text-amber-400 mb-2 lg:mb-3 fill-amber-400/20 drop-shadow-[0_0_12px_rgba(251,191,36,0.6)] transition-colors duration-300" />
+                <h1 className="text-3xl lg:text-4xl font-black text-amber-500 dark:text-amber-400 tracking-tighter leading-none drop-shadow-xl mb-4 font-sans uppercase text-center">CCOS</h1>
                 <div className="flex items-center gap-2">
                      <div className="bg-white border border-slate-200 dark:border-0 px-2 py-0.5 rounded-[3px] h-7 flex items-center justify-center shadow-md"><span className="text-[8px] font-extrabold text-red-700 leading-none text-center tracking-tighter">UNILOG<br/>EXPRESS</span></div>
                      <div className="bg-white border border-slate-200 dark:border-0 px-2 py-0.5 rounded-[3px] h-7 flex items-center justify-center shadow-md"><span className="text-[8px] font-extrabold text-cyan-600 leading-none text-center tracking-tighter">4ELOS<br/>DISTRIB.</span></div>
@@ -412,11 +412,14 @@ const App: React.FC = () => {
             <Briefcase size={20} className="shrink-0" /> <span className="text-sm font-medium">Status Terceirizados</span>
           </button>
 
-          <button onClick={() => handleTabChange('cameras')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${activeTab === 'cameras' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
-                <Video size={20} className="shrink-0" /> <span className="text-sm font-medium">Câmeras</span> {data.cameras.length > 0 && isAdmin && <span className="ml-auto text-xs bg-slate-300 dark:bg-slate-800 px-2 py-0.5 rounded-full">{data.cameras.length}</span>}
-          </button>
-          <button onClick={() => handleTabChange('access')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${activeTab === 'access' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
-                <DoorClosed size={20} className="shrink-0" /> <span className="text-sm font-medium">Acessos</span> {data.accessPoints.length > 0 && isAdmin && <span className="ml-auto text-xs bg-slate-300 dark:bg-slate-800 px-2 py-0.5 rounded-full">{data.accessPoints.length}</span>}
+          {/* ABA UNIFICADA MONITORAMENTO */}
+          <button onClick={() => handleTabChange('monitoring')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${activeTab === 'monitoring' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
+                <Shield size={20} className="shrink-0" /> <span className="text-sm font-medium">Monitoramento</span> 
+                {(data.cameras.length > 0 || data.accessPoints.length > 0) && isAdmin && (
+                  <span className="ml-auto text-xs bg-slate-300 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                    {data.cameras.length + data.accessPoints.length}
+                  </span>
+                )}
           </button>
 
           {!isManager && (
@@ -471,7 +474,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-2 lg:gap-3">
              <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"><Menu size={24} /></button>
              <div onClick={() => handleTabChange('dashboard')} className="flex items-center gap-1.5 lg:hidden cursor-pointer">
-                <Shield className="w-5 h-5 text-amber-500 dark:text-amber-400 fill-amber-400/20" />
+                <Shield className="w-5 h-5 text-amber-500 dark:text-amber-400 fill-amber-400/20 transition-colors duration-300" />
                 <span className="text-xl font-black text-amber-500 dark:text-amber-400 tracking-tighter uppercase">CCOS</span>
              </div>
           </div>
@@ -507,14 +510,37 @@ const App: React.FC = () => {
             <Suspense fallback={<LoadingFallback />}>
                 {activeTab === 'dashboard' && <Dashboard data={data} thirdPartyWorkers={thirdPartyWorkers} onSetWarehouseStatus={handleSetWarehouseStatus} currentUser={user} />}
                 
-                {/* Renders for Manager and Admin */}
+                {/* Visualização Unificada de Monitoramento */}
+                {activeTab === 'monitoring' && (
+                  <div className="space-y-6 animate-fade-in">
+                    <div className="flex bg-slate-900 border border-slate-800 p-1 rounded-xl shadow-sm w-full sm:w-fit mx-auto sm:mx-0">
+                      <button 
+                        onClick={() => setMonitoringSubTab('cameras')}
+                        className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${monitoringSubTab === 'cameras' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+                      >
+                        <Video size={16} /> Câmeras ({data.cameras.length})
+                      </button>
+                      <button 
+                        onClick={() => setMonitoringSubTab('access')}
+                        className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${monitoringSubTab === 'access' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+                      >
+                        <DoorClosed size={16} /> Acessos ({data.accessPoints.length})
+                      </button>
+                    </div>
+
+                    <div className="transition-all duration-300">
+                      {monitoringSubTab === 'cameras' ? (
+                        <CameraList cameras={data.cameras} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} onAdd={isAdmin ? handleAddCamera : undefined} onEdit={isAdmin ? handleEditCamera : undefined} onDelete={isAdmin ? handleDeleteCamera : undefined} readOnly={!isAdmin} allowedWarehouses={isManager ? user.allowedWarehouses : undefined} />
+                      ) : (
+                        <AccessControlList accessPoints={data.accessPoints} onToggleStatus={handleToggleAccessStatus} onAdd={isAdmin ? handleAddAccess : undefined} onEdit={isAdmin ? handleEditAccess : undefined} onDelete={isAdmin ? handleDeleteAccess : undefined} readOnly={!isAdmin} allowedWarehouses={isManager ? user.allowedWarehouses : undefined} />
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {activeTab === 'access-management' && <AccessManagement accessPoints={data.accessPoints} thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
                 {activeTab === 'heatmap' && <Heatmap thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
                 {activeTab === 'third-party' && <ThirdPartyStatus workers={thirdPartyWorkers} currentUser={user} />}
-
-                {/* VISIBLE FOR ADMIN, OPERATOR AND MANAGER (Filtered for Manager) */}
-                {activeTab === 'cameras' && <CameraList cameras={data.cameras} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} onAdd={isAdmin ? handleAddCamera : undefined} onEdit={isAdmin ? handleEditCamera : undefined} onDelete={isAdmin ? handleDeleteCamera : undefined} readOnly={!isAdmin} allowedWarehouses={isManager ? user.allowedWarehouses : undefined} />}
-                {activeTab === 'access' && <AccessControlList accessPoints={data.accessPoints} onToggleStatus={handleToggleAccessStatus} onAdd={isAdmin ? handleAddAccess : undefined} onEdit={isAdmin ? handleEditAccess : undefined} onDelete={isAdmin ? handleDeleteAccess : undefined} readOnly={!isAdmin} allowedWarehouses={isManager ? user.allowedWarehouses : undefined} />}
 
                 {/* Restricted Renders (Not for Manager) */}
                 {!isManager && (
