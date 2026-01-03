@@ -1,9 +1,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, AccessPoint, PublicDocument, UserRole } from '../types';
-import { Video, DoorClosed, CheckCircle2, Info, Camera as CameraIcon, Upload, Image as ImageIcon, X, ScanLine, List, FileText, Search, Copy, CheckSquare, Square, Trash2, ClipboardList, Loader2, ArrowDown, AlertTriangle, Table, Settings, Plus, FileBadge, Calendar, Edit3, Save } from 'lucide-react';
+import { Video, DoorClosed, CheckCircle2, Info, Camera as CameraIcon, Upload, Image as ImageIcon, X, ScanLine, List, FileText, Search, Copy, CheckSquare, Square, Trash2, ClipboardList, Loader2, ArrowDown, AlertTriangle, Table, Settings, Plus, FileBadge, Calendar, Edit3, Save, Scan } from 'lucide-react';
 import { ref, onValue, set, update } from 'firebase/database';
 import { db } from '../services/firebase';
+import { GoogleGenAI } from "@google/genai";
 
 interface RegistrationProps {
   onAddCamera: (cam: Camera) => void;
@@ -46,7 +47,6 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
   // --- LIST PROCESSING STATE ---
   const [rawListText, setRawListText] = useState('');
   const [processedPeople, setProcessedPeople] = useState<any[]>([]);
-  const [showTable, setShowTable] = useState(false);
   const [cleanMode, setCleanMode] = useState(true);
   
   const [listMetadata, setListMetadata] = useState({
@@ -144,7 +144,7 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       if (videoRef.current) videoRef.current.srcObject = stream;
-    } catch (err) { alert("Erro câmera."); setShowCamera(false); }
+    } catch (err) { alert("Acesso à câmera negado ou não disponível."); setShowCamera(false); }
   };
 
   const capturePhoto = () => {
@@ -170,22 +170,41 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
       setNewDoc({ name: '', organ: '', expirationDate: '' });
   };
 
+  // --- MOTOR OCR GEMINI ---
   const handleExtractText = async () => {
-      if (!selectedImage) return;
+      if (!selectedImage) {
+          alert("Selecione ou capture uma imagem primeiro.");
+          return;
+      }
       setIsProcessingOCR(true);
       try {
-          const img = new Image(); img.src = selectedImage; await new Promise(r => img.onload = r);
-          const canvas = document.createElement('canvas'); let w = img.width; let h = img.height; const max = 1200;
-          if (w > max || h > max) { if (w > h) { h *= max/w; w = max; } else { w *= max/h; h = max; } }
-          canvas.width = w; canvas.height = h; canvas.getContext('2d')?.drawImage(img, 0, 0, w, h);
-          const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', 0.7));
-          if (!blob) throw new Error();
-          const fd = new FormData(); fd.append('apikey', 'K89510033988957'); fd.append('language', 'por'); fd.append('OCREngine', '2'); fd.append('file', blob);
-          const res = await fetch('https://api.ocr.space/parse/image', { method: 'POST', body: fd });
-          const d = await res.json();
-          if (d.ParsedResults?.[0]?.ParsedText) { setRawListText(d.ParsedResults[0].ParsedText); setSuccessMsg("OK!"); }
-      } catch (e) { alert("Erro OCR."); }
-      finally { setIsProcessingOCR(false); setTimeout(() => setSuccessMsg(''), 3000); }
+          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+          const base64Data = selectedImage.split(',')[1];
+          
+          const response = await ai.models.generateContent({
+              model: 'gemini-3-flash-preview',
+              contents: [{
+                  parts: [
+                      { inlineData: { data: base64Data, mimeType: 'image/png' } },
+                      { text: "Extract all full names and CPFs from this document or list. Return ONLY the text found, one person per line. If it is an ID, extract Name and CPF." }
+                  ]
+              }]
+          });
+
+          const text = response.text;
+          if (text) {
+              setRawListText(text);
+              setSuccessMsg("Escaneamento Concluído!");
+          } else {
+              throw new Error("Nenhum texto detectado.");
+          }
+      } catch (e: any) {
+          console.error("Erro no OCR Gemini:", e);
+          alert("Erro ao processar imagem: " + (e.message || "Tente novamente."));
+      } finally {
+          setIsProcessingOCR(false);
+          setTimeout(() => setSuccessMsg(''), 3000);
+      }
   };
 
   const handleOrganizeList = () => {
@@ -202,7 +221,7 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
           let name = text.replace(/\s+/g, ' ').trim().toLowerCase().replace(/(?:^|\s)\S/g, a => a.toUpperCase());
           if (name.length > 3) newPeople.push({ id: `p-${Date.now()}-${idx}`, name, cpf: cpf || '-', done: false });
       });
-      setProcessedPeople(newPeople); setSuccessMsg(`${newPeople.length} itens.`); setTimeout(() => setSuccessMsg(''), 3000);
+      setProcessedPeople(newPeople); setSuccessMsg(`${newPeople.length} registros organizados.`); setTimeout(() => setSuccessMsg(''), 3000);
   };
 
   const copyToClipboard = (text: string) => {
@@ -210,22 +229,22 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
   };
 
   return (
-    <div className="max-w-5xl mx-auto animate-fade-in space-y-4 sm:space-y-6 pb-12">
+    <div className="max-w-6xl mx-auto animate-fade-in space-y-4 sm:space-y-6 pb-12 px-4 sm:px-0">
       
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-6 shadow-lg">
         <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 uppercase tracking-tighter">
-            <div className="p-2 rounded-lg bg-amber-600"><ClipboardList size={24} /></div>
+            <div className="p-2 rounded-lg bg-amber-600 shadow-lg shadow-amber-900/20"><ClipboardList size={24} /></div>
             Central Cadastro
         </h2>
-        <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 w-full md:w-auto">
-             <button onClick={() => setActiveType('LIST')} className={`flex-1 md:flex-none px-4 py-2.5 rounded-lg text-xs font-bold uppercase transition-all ${activeType === 'LIST' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-white'}`}>Listas OCR</button>
-             <button onClick={() => setActiveType('DOCUMENT')} className={`flex-1 md:flex-none px-4 py-2.5 rounded-lg text-xs font-bold uppercase transition-all ${activeType === 'DOCUMENT' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-white'}`}>Documentos</button>
+        <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 w-full md:w-auto shadow-inner">
+             <button onClick={() => setActiveType('LIST')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-xs font-bold uppercase transition-all ${activeType === 'LIST' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:text-white'}`}>Listas OCR</button>
+             <button onClick={() => setActiveType('DOCUMENT')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-xs font-bold uppercase transition-all ${activeType === 'DOCUMENT' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:text-white'}`}>Documentos</button>
         </div>
       </div>
 
       {successMsg && (
-          <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl flex items-center gap-3 animate-fade-in shadow-lg sticky top-4 z-50 backdrop-blur-md mx-2 sm:mx-0">
-              <CheckCircle2 size={24} /> <span className="font-bold text-xs uppercase">{successMsg}</span>
+          <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl flex items-center gap-3 animate-fade-in shadow-lg sticky top-4 z-50 backdrop-blur-md">
+              <CheckCircle2 size={24} /> <span className="font-bold text-xs uppercase tracking-widest">{successMsg}</span>
           </div>
       )}
 
@@ -233,22 +252,22 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
           <div className="space-y-4 sm:space-y-6 animate-fade-in">
               {isAdmin && (
                   <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 sm:p-6 shadow-lg">
-                      <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2 uppercase"><FileBadge className="text-blue-500" size={20} /> Novo Documento</h3>
+                      <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2 uppercase tracking-widest"><FileBadge className="text-blue-500" size={20} /> Novo Documento</h3>
                       <form onSubmit={handleSaveDocument} className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome Doc</label><input type="text" placeholder="Ex: AVCB" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:border-blue-500 outline-none" value={newDoc.name} onChange={e => setNewDoc({...newDoc, name: e.target.value})} /></div>
                           <div><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Órgão Emissor</label><input type="text" placeholder="Ex: Bombeiros" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:border-blue-500 outline-none" value={newDoc.organ} onChange={e => setNewDoc({...newDoc, organ: e.target.value})} /></div>
                           <div><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Validade</label><input type="date" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white text-sm [color-scheme:dark] outline-none" value={newDoc.expirationDate} onChange={e => setNewDoc({...newDoc, expirationDate: e.target.value})} /></div>
-                          <div className="md:col-span-3 flex justify-end pt-2"><button type="submit" className="w-full md:w-auto px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 uppercase text-xs tracking-widest transition-transform active:scale-95"><Plus size={18} /> Adicionar</button></div>
+                          <div className="md:col-span-3 flex justify-end pt-2"><button type="submit" className="w-full md:w-auto px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 uppercase text-xs tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-900/20"><Plus size={18} /> Adicionar</button></div>
                       </form>
                   </div>
               )}
               <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
                    <div className="p-4 bg-slate-950/50 border-b border-slate-800"><h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Documentos Monitorados</h3></div>
                    <div className="overflow-x-auto">
-                        {documents.length === 0 ? <div className="p-10 text-center text-slate-600 text-xs italic">Nenhum documento.</div> : (
+                        {documents.length === 0 ? <div className="p-10 text-center text-slate-600 text-xs italic">Nenhum documento cadastrado.</div> : (
                             <table className="w-full text-left text-sm min-w-[500px]">
                                 <thead className="bg-slate-950 text-slate-500 text-[10px] uppercase font-bold"><tr><th className="p-4">Nome</th><th className="p-4">Órgão</th><th className="p-4">Validade</th><th className="p-4 text-right">Ação</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800/50 text-slate-300">{documents.map(doc => (<tr key={doc.uuid} className="hover:bg-slate-800/30"><td className="p-4 font-bold text-white">{doc.name}</td><td className="p-4 text-slate-500">{doc.organ}</td><td className="p-4 font-mono text-xs">{new Date(doc.expirationDate).toLocaleDateString('pt-BR')}</td><td className="p-4 text-right">{isAdmin && <button onClick={() => onDeleteDocument(doc.uuid)} className="text-slate-500 hover:text-rose-500 p-2"><Trash2 size={16}/></button>}</td></tr>))}</tbody>
+                                <tbody className="divide-y divide-slate-800/50 text-slate-300">{documents.map(doc => (<tr key={doc.uuid} className="hover:bg-slate-800/30 transition-colors"><td className="p-4 font-bold text-white">{doc.name}</td><td className="p-4 text-slate-500">{doc.organ}</td><td className="p-4 font-mono text-xs">{new Date(doc.expirationDate).toLocaleDateString('pt-BR')}</td><td className="p-4 text-right">{isAdmin && <button onClick={() => onDeleteDocument(doc.uuid)} className="text-slate-500 hover:text-rose-500 p-2 transition-colors"><Trash2 size={16}/></button>}</td></tr>))}</tbody>
                             </table>
                         )}
                    </div>
@@ -257,70 +276,159 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
       )}
 
       {activeType === 'LIST' && (
-          <div className="space-y-4 sm:space-y-6 animate-fade-in">
-                <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl relative">
-                    <div className="bg-slate-900 px-4 sm:px-6 py-4 border-b border-slate-800 flex items-center justify-between"><h3 className="text-sm sm:text-base font-bold text-amber-400 flex items-center gap-2 uppercase tracking-widest"><ScanLine size={18} /> 1. Captura OCR</h3></div>
-                    <div className="p-5 sm:p-8 flex flex-col lg:flex-row gap-6 lg:gap-10">
-                        <div className="w-full lg:w-1/3">
-                            <div className="aspect-square sm:aspect-video lg:aspect-square bg-black rounded-2xl border-2 border-dashed border-slate-800 flex flex-col items-center justify-center relative overflow-hidden group">
-                                {selectedImage ? (<><img src={selectedImage} alt="Preview" className="w-full h-full object-cover" />{isAdmin && <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><button onClick={() => setSelectedImage(null)} className="p-3 bg-rose-600 text-white rounded-full"><X size={24} /></button></div>}</>) : (<div className="text-slate-700 text-center p-4"><ImageIcon size={48} className="mx-auto mb-2 opacity-20" /><span className="text-[10px] font-bold uppercase tracking-widest">Sem Imagem</span></div>)}
-                                {showCamera && (<div className="absolute inset-0 bg-black z-20 flex flex-col"><video ref={videoRef} autoPlay playsInline className="flex-1 w-full h-full object-cover" /><div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4"><button onClick={stopCamera} className="p-3 bg-rose-600 rounded-full text-white"><X size={20}/></button><button onClick={capturePhoto} className="p-3 bg-emerald-600 rounded-full text-white px-6 flex items-center gap-2 font-bold uppercase text-[10px]"><CameraIcon size={18}/> Usar Foto</button></div></div>)}
+          <div className="space-y-6 animate-fade-in">
+                {/* --- SEÇÃO CAPTURA OCR --- */}
+                <div className="bg-[#05070a] border border-slate-800/50 rounded-2xl overflow-hidden shadow-2xl">
+                    <div className="bg-slate-900/40 px-6 py-4 border-b border-slate-800/50 flex items-center justify-between">
+                        <h3 className="text-sm font-bold text-amber-500 flex items-center gap-3 uppercase tracking-[0.1em]">
+                            <Scan size={18} className="text-amber-500" /> 1. CAPTURA OCR
+                        </h3>
+                    </div>
+                    
+                    <div className="p-6 sm:p-10 flex flex-col lg:flex-row gap-8 items-center">
+                        <div className="w-full lg:w-1/2 flex justify-center">
+                            <div className="w-full max-w-[400px] aspect-[4/3] bg-[#020406] rounded-2xl border border-slate-800 relative overflow-hidden flex items-center justify-center group shadow-2xl">
+                                {selectedImage ? (
+                                    <>
+                                        <img src={selectedImage} alt="Capture" className="w-full h-full object-contain" />
+                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <button onClick={() => setSelectedImage(null)} className="p-4 bg-rose-600 text-white rounded-full shadow-lg hover:bg-rose-500 transition-all"><X size={28} /></button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex flex-col items-center gap-4 opacity-20">
+                                        <ImageIcon size={64} className="text-slate-500" />
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Aguardando Imagem</span>
+                                    </div>
+                                )}
+                                
+                                {showCamera && (
+                                    <div className="absolute inset-0 bg-black z-30 flex flex-col animate-fade-in">
+                                        <video ref={videoRef} autoPlay playsInline className="flex-1 w-full h-full object-cover" />
+                                        <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-6">
+                                            <button onClick={stopCamera} className="p-4 bg-rose-600 rounded-full text-white shadow-xl hover:bg-rose-500"><X size={24}/></button>
+                                            <button onClick={capturePhoto} className="p-4 bg-emerald-600 rounded-full text-white px-8 flex items-center gap-3 font-bold uppercase text-xs tracking-widest shadow-xl hover:bg-emerald-500 transition-all active:scale-95"><CameraIcon size={20}/> Capturar</button>
+                                        </div>
+                                    </div>
+                                )}
                                 <canvas ref={canvasRef} width="640" height="480" className="hidden"></canvas>
                             </div>
                         </div>
-                        <div className="w-full lg:w-2/3 flex flex-col justify-center">
-                            {isAdmin ? (<div className="bg-slate-900/50 p-4 sm:p-6 rounded-2xl border border-slate-800 space-y-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                                        <button type="button" onClick={startCamera} className="flex flex-col items-center justify-center gap-2 p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-200 transition-all active:scale-95"><CameraIcon size={24} className="text-amber-400" /><span className="text-[10px] font-black uppercase tracking-widest">Câmera</span></button>
-                                        <button type="button" onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center gap-2 p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-200 transition-all active:scale-95"><Upload size={24} className="text-blue-400" /><span className="text-[10px] font-black uppercase tracking-widest">Arquivo</span></button>
-                                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileSelect} />
-                                    </div>
-                                    <button type="button" onClick={handleExtractText} disabled={isProcessingOCR || !selectedImage} className="w-full py-4 bg-slate-900 border border-slate-700 text-amber-500 font-black rounded-xl uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 disabled:opacity-30 transition-all active:scale-95 shadow-lg shadow-black/40">{isProcessingOCR ? <Loader2 className="animate-spin" /> : <ScanLine size={18} />} Iniciar Escaneamento</button>
-                                </div>) : <div className="text-center p-10 border border-dashed border-slate-800 rounded-2xl text-slate-600 uppercase text-[10px] font-black tracking-widest">Acesso Administrativo Requerido</div>}
+
+                        <div className="w-full lg:w-1/2">
+                            <div className="bg-[#0a0c10] border border-slate-800/80 rounded-3xl p-6 sm:p-8 space-y-6 shadow-inner">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <button 
+                                        onClick={startCamera} 
+                                        className="flex flex-col items-center justify-center gap-3 p-8 bg-[#161b22] hover:bg-[#1c2128] border border-slate-800 rounded-2xl text-slate-300 transition-all group active:scale-95"
+                                    >
+                                        <CameraIcon size={32} className="text-amber-500 group-hover:scale-110 transition-transform" />
+                                        <span className="text-[11px] font-black uppercase tracking-[0.1em]">CÂMERA</span>
+                                    </button>
+                                    <button 
+                                        onClick={() => fileInputRef.current?.click()} 
+                                        className="flex flex-col items-center justify-center gap-3 p-8 bg-[#161b22] hover:bg-[#1c2128] border border-slate-800 rounded-2xl text-slate-300 transition-all group active:scale-95"
+                                    >
+                                        <Upload size={32} className="text-blue-500 group-hover:scale-110 transition-transform" />
+                                        <span className="text-[11px] font-black uppercase tracking-[0.1em]">ARQUIVO</span>
+                                    </button>
+                                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileSelect} />
+                                </div>
+                                
+                                <button 
+                                    onClick={handleExtractText} 
+                                    disabled={isProcessingOCR || !selectedImage} 
+                                    className="w-full py-5 bg-[#0d1117] border border-slate-700/50 hover:border-amber-500/50 text-amber-500 font-black rounded-2xl uppercase text-[13px] tracking-[0.15em] flex items-center justify-center gap-4 disabled:opacity-30 transition-all active:scale-[0.98] shadow-2xl group"
+                                >
+                                    {isProcessingOCR ? <Loader2 className="animate-spin" size={24} /> : <Scan size={24} className="group-hover:rotate-90 transition-transform duration-500" />} 
+                                    INICIAR ESCANEAMENTO
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-lg">
-                    <h3 className="text-amber-400 font-bold text-xs sm:text-sm flex items-center gap-2 uppercase tracking-widest mb-4"><FileText size={18} /> 2. Texto Bruto</h3>
-                    <textarea value={rawListText} onChange={e => isAdmin && setRawListText(e.target.value)} readOnly={!isAdmin} placeholder="O texto extraído aparecerá aqui..." className="w-full h-32 sm:h-48 bg-slate-950 border border-slate-700 rounded-xl p-4 text-slate-300 font-mono text-xs sm:text-sm resize-none focus:border-amber-500 outline-none"></textarea>
-                    {isAdmin && <button onClick={handleOrganizeList} className="w-full mt-4 py-3 bg-slate-800 border border-slate-700 text-amber-500 font-bold rounded-xl uppercase tracking-widest text-[10px] sm:text-xs active:scale-95 transition-all">Organizar Registros</button>}
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-lg">
+                    <h3 className="text-amber-500 font-bold text-xs sm:text-sm flex items-center gap-2 uppercase tracking-widest mb-4"><FileText size={18} /> 2. Texto Bruto Detectado</h3>
+                    <textarea 
+                        value={rawListText} 
+                        onChange={e => setRawListText(e.target.value)} 
+                        placeholder="O texto detectado pela IA aparecerá aqui para revisão..." 
+                        className="w-full h-40 sm:h-56 bg-slate-950 border border-slate-800 rounded-2xl p-5 text-slate-300 font-mono text-sm leading-relaxed resize-none focus:border-amber-500 outline-none transition-colors shadow-inner"
+                    ></textarea>
+                    <button onClick={handleOrganizeList} className="w-full mt-4 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-500 font-black rounded-2xl uppercase tracking-[0.2em] text-xs active:scale-[0.99] transition-all shadow-lg">ORGANIZAR REGISTROS</button>
                 </div>
 
-                {/* METADATA CARDS - Empilhados no Mobile */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                    <div className="bg-slate-900 border border-amber-900/20 rounded-xl p-4 shadow-lg flex flex-col gap-2">
-                        <div className="flex items-center justify-between"><label className="text-amber-500 font-black text-[9px] uppercase tracking-[0.15em]">Responsável</label>{isAdmin && <button onClick={() => setEditingCategory('responsibles')} className="text-slate-600 hover:text-amber-500"><Settings size={14}/></button>}</div>
-                        <select value={listMetadata.responsible} onChange={e => setListMetadata({...listMetadata, responsible: e.target.value})} className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-white text-xs font-bold focus:border-amber-500 outline-none">{customOptions.responsibles?.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>
-                        <button onClick={() => copyToClipboard(listMetadata.responsible)} className="w-full py-2 bg-slate-800/50 hover:bg-slate-800 text-slate-400 rounded text-[9px] font-black uppercase tracking-widest">Copiar</button>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex flex-col gap-3">
+                        <div className="flex items-center justify-between"><label className="text-amber-500 font-black text-[9px] uppercase tracking-[0.2em]">Responsável</label>{isAdmin && <button onClick={() => setEditingCategory('responsibles')} className="text-slate-600 hover:text-amber-500"><Settings size={14}/></button>}</div>
+                        <select value={listMetadata.responsible} onChange={e => setListMetadata({...listMetadata, responsible: e.target.value})} className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs font-bold focus:border-amber-500 outline-none">{customOptions.responsibles?.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>
+                        <button onClick={() => copyToClipboard(listMetadata.responsible)} className="w-full py-2 bg-slate-800/40 hover:bg-slate-800 text-slate-500 hover:text-slate-200 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors">Copiar Valor</button>
                     </div>
-                    <div className="bg-slate-900 border border-amber-900/20 rounded-xl p-4 shadow-lg flex flex-col gap-2">
-                        <div className="flex items-center justify-between"><label className="text-amber-500 font-black text-[9px] uppercase tracking-[0.15em]">Empresa</label>{isAdmin && <button onClick={() => setEditingCategory('contractors')} className="text-slate-600 hover:text-amber-500"><Settings size={14}/></button>}</div>
-                        <select value={listMetadata.contractor} onChange={e => setListMetadata({...listMetadata, contractor: e.target.value})} className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-white text-xs font-bold focus:border-amber-500 outline-none">{customOptions.contractors?.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>
-                        <button onClick={() => copyToClipboard(listMetadata.contractor)} className="w-full py-2 bg-slate-800/50 hover:bg-slate-800 text-slate-400 rounded text-[9px] font-black uppercase tracking-widest">Copiar</button>
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex flex-col gap-3">
+                        <div className="flex items-center justify-between"><label className="text-amber-500 font-black text-[9px] uppercase tracking-[0.2em]">Empresa / Contratada</label>{isAdmin && <button onClick={() => setEditingCategory('contractors')} className="text-slate-600 hover:text-amber-500"><Settings size={14}/></button>}</div>
+                        <select value={listMetadata.contractor} onChange={e => setListMetadata({...listMetadata, contractor: e.target.value})} className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs font-bold focus:border-amber-500 outline-none">{customOptions.contractors?.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>
+                        <button onClick={() => copyToClipboard(listMetadata.contractor)} className="w-full py-2 bg-slate-800/40 hover:bg-slate-800 text-slate-500 hover:text-slate-200 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors">Copiar Valor</button>
                     </div>
-                    <div className="bg-slate-900 border border-amber-900/20 rounded-xl p-4 shadow-lg flex flex-col gap-2">
-                        <div className="flex items-center justify-between"><label className="text-amber-500 font-black text-[9px] uppercase tracking-[0.15em]">Tipo</label>{isAdmin && <button onClick={() => setEditingCategory('types')} className="text-slate-600 hover:text-amber-500"><Settings size={14}/></button>}</div>
-                        <select value={listMetadata.type} onChange={e => setListMetadata({...listMetadata, type: e.target.value})} className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-white text-xs font-bold focus:border-amber-500 outline-none">{customOptions.types?.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>
-                        <button onClick={() => copyToClipboard(listMetadata.type)} className="w-full py-2 bg-slate-800/50 hover:bg-slate-800 text-slate-400 rounded text-[9px] font-black uppercase tracking-widest">Copiar</button>
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex flex-col gap-3">
+                        <div className="flex items-center justify-between"><label className="text-amber-500 font-black text-[9px] uppercase tracking-[0.2em]">Tipo de Acesso</label>{isAdmin && <button onClick={() => setEditingCategory('types')} className="text-slate-600 hover:text-amber-500"><Settings size={14}/></button>}</div>
+                        <select value={listMetadata.type} onChange={e => setListMetadata({...listMetadata, type: e.target.value})} className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs font-bold focus:border-amber-500 outline-none">{customOptions.types?.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>
+                        <button onClick={() => copyToClipboard(listMetadata.type)} className="w-full py-2 bg-slate-800/40 hover:bg-slate-800 text-slate-500 hover:text-slate-200 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors">Copiar Valor</button>
                     </div>
                 </div>
 
+                {/* --- TABELA DE RESULTADOS ESTILO IMAGEM --- */}
                 {processedPeople.length > 0 && (
-                    <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
-                        <div className="p-4 border-b border-slate-800 bg-slate-950/30">
-                            <div className="relative w-full"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} /><input type="text" value={listSearch} onChange={e => setListSearch(e.target.value)} placeholder="Pesquisar na lista..." className="w-full pl-9 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none" /></div>
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
+                        <div className="p-5 border-b border-slate-800 bg-slate-950/30 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2"><List size={18} className="text-amber-500" /> Registros Processados</h3>
+                            <div className="relative w-full sm:w-auto"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} /><input type="text" value={listSearch} onChange={e => setListSearch(e.target.value)} placeholder="Filtrar por nome..." className="w-full sm:w-64 pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500 shadow-inner" /></div>
                         </div>
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm min-w-[500px]">
-                                <thead className="bg-slate-800 text-slate-500 text-[10px] uppercase font-black tracking-widest"><tr><th className="p-3 w-14 text-center">F</th><th className="p-3">Nome</th><th className="p-3 w-40">CPF</th><th className="p-3 w-10"></th></tr></thead>
-                                <tbody className="divide-y divide-slate-800/50 text-slate-300">
+                            <table className="w-full text-left text-sm min-w-[600px] border-collapse">
+                                <thead className="bg-slate-800/50 text-slate-400 text-[11px] font-black uppercase tracking-[0.2em] border-b border-slate-800">
+                                    <tr>
+                                        <th className="p-5 w-24 text-center">FEITO</th>
+                                        <th className="p-5">NOME</th>
+                                        <th className="p-5 w-64 text-center">CPF</th>
+                                        <th className="p-5 w-16"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800/40 text-slate-300">
                                     {processedPeople.filter(p => p.name.toLowerCase().includes(listSearch.toLowerCase())).map(p => (
-                                        <tr key={p.id} className={`transition-all ${p.done ? 'bg-slate-950/80 grayscale opacity-40 line-through' : 'hover:bg-slate-800/30'}`}>
-                                            <td className="p-3 text-center"><button onClick={() => setProcessedPeople(prev => prev.map(x => x.id === p.id ? { ...x, done: !x.done } : x))} className={`p-2 ${p.done ? 'text-emerald-500' : 'text-slate-500'}`}>{p.done ? <CheckSquare size={22}/> : <Square size={22}/>}</button></td>
-                                            <td className="p-3"><div className="flex items-center justify-between group"><span className="text-xs sm:text-sm font-bold text-white uppercase">{p.name}</span><button onClick={() => copyToClipboard(p.name)} className="p-2 text-slate-500 hover:text-white"><Copy size={14}/></button></div></td>
-                                            <td className="p-3 font-mono text-[11px]"><div className="flex items-center justify-between group"><div className="flex items-center gap-1.5"><span>{cleanMode ? p.cpf.replace(/\D/g, '') : p.cpf}</span>{!isValidCPF(p.cpf) && p.cpf !== '-' && !p.done && <AlertTriangle size={14} className="text-amber-500"/>}</div><button onClick={() => copyToClipboard(cleanMode ? p.cpf.replace(/\D/g, '') : p.cpf)} className="p-2 text-slate-500 hover:text-white"><Copy size={14}/></button></div></td>
-                                            <td className="p-3 text-center">{isAdmin && <button onClick={() => setProcessedPeople(prev => prev.filter(x => x.id !== p.id))} className="text-slate-600 hover:text-rose-500 p-1"><Trash2 size={16}/></button>}</td>
+                                        <tr key={p.id} className={`transition-all duration-300 ${p.done ? 'bg-slate-950/80 grayscale opacity-40 line-through' : 'hover:bg-slate-800/20'}`}>
+                                            <td className="p-5 text-center">
+                                                <button 
+                                                    onClick={() => setProcessedPeople(prev => prev.map(x => x.id === p.id ? { ...x, done: !x.done } : x))} 
+                                                    className={`w-6 h-6 rounded flex items-center justify-center border transition-all ${p.done ? 'bg-amber-500 border-amber-500 text-slate-950 shadow-[0_0_10px_rgba(245,158,11,0.4)]' : 'bg-white border-slate-400 text-white shadow-inner'}`}
+                                                >
+                                                    {p.done && <CheckSquare size={16}/>}
+                                                </button>
+                                            </td>
+                                            <td className="p-5">
+                                                <div className="flex items-center gap-2">
+                                                    <div 
+                                                        onClick={() => copyToClipboard(p.name)}
+                                                        className="flex-1 bg-[#1a1c1e] border border-slate-800 rounded-lg px-6 py-3 text-center cursor-pointer hover:border-amber-500/50 transition-all active:scale-95 shadow-md"
+                                                    >
+                                                        <span className="text-sm font-bold text-amber-500 tracking-tight">{p.name}</span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="p-5">
+                                                <div 
+                                                    onClick={() => copyToClipboard(cleanMode ? p.cpf.replace(/\D/g, '') : p.cpf)}
+                                                    className="w-full bg-[#1a1c1e] border border-slate-800 rounded-lg px-6 py-3 text-center cursor-pointer hover:border-amber-500/50 transition-all active:scale-95 shadow-md flex items-center justify-center gap-3"
+                                                >
+                                                    <span className="text-sm font-bold text-amber-500 font-mono tracking-wider">
+                                                        {cleanMode ? p.cpf.replace(/\D/g, '') : p.cpf}
+                                                    </span>
+                                                    {!isValidCPF(p.cpf) && p.cpf !== '-' && !p.done && <AlertTriangle size={14} className="text-amber-500 animate-pulse shrink-0"/>}
+                                                </div>
+                                            </td>
+                                            <td className="p-5 text-center">
+                                                {isAdmin && <button onClick={() => setProcessedPeople(prev => prev.filter(x => x.id !== p.id))} className="text-slate-600 hover:text-rose-500 p-2 rounded-lg hover:bg-rose-500/5 transition-all"><Trash2 size={20}/></button>}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -329,23 +437,26 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
                     </div>
                 )}
 
+                {/* Modal Edição Listas */}
                 {editingCategory && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-                        <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm p-6">
-                            <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4"><h3 className="text-sm font-black text-white flex items-center gap-2 uppercase tracking-widest"><Settings size={18} className="text-amber-500" /> Editar Lista</h3><button onClick={() => {setEditingCategory(null); setRenamingItem(null);}} className="text-slate-500 hover:text-white"><X size={20} /></button></div>
-                            <form onSubmit={handleAddItem} className="flex gap-2 mb-6"><input type="text" autoFocus value={newItemName} onChange={e => setNewItemName(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="Novo item..." /><button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-transform active:scale-95"><Plus size={20} /></button></form>
-                            <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                                {(customOptions[editingCategory] || []).map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/50 group">
-                                        {renamingItem?.index === idx ? (
-                                            <div className="flex flex-1 gap-2"><input type="text" autoFocus className="flex-1 bg-slate-950 border border-blue-500 rounded-lg px-2 py-1.5 text-white text-[11px] outline-none" value={renamingItem.value} onChange={e => setRenamingItem({...renamingItem, value: e.target.value})} onKeyDown={e => e.key === 'Enter' && handleSaveRename()} /><button onClick={handleSaveRename} className="text-emerald-500 p-1"><Save size={16}/></button><button onClick={() => setRenamingItem(null)} className="text-rose-500 p-1"><X size={16}/></button></div>
-                                        ) : (
-                                            <><span className="text-xs text-slate-300 font-bold uppercase pl-2">{item}</span><div className="flex gap-1.5"><button onClick={() => handleStartRename(idx, item)} className="p-1.5 text-slate-500 hover:text-blue-400 transition-colors"><Edit3 size={14}/></button><button onClick={() => handleDeleteItem(editingCategory, item)} className="p-1.5 text-slate-500 hover:text-rose-500 transition-colors"><Trash2 size={14}/></button></div></>
-                                        )}
-                                    </div>
-                                ))}
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
+                        <div className="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+                            <div className="flex justify-between items-center px-6 py-5 border-b border-slate-800 bg-slate-950/50"><h3 className="text-sm font-black text-white flex items-center gap-3 uppercase tracking-widest"><Settings size={18} className="text-amber-500" /> Editar Opções</h3><button onClick={() => {setEditingCategory(null); setRenamingItem(null);}} className="text-slate-500 hover:text-white"><X size={24} /></button></div>
+                            <div className="p-6">
+                                <form onSubmit={handleAddItem} className="flex gap-2 mb-6"><input type="text" autoFocus value={newItemName} onChange={e => setNewItemName(e.target.value)} className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:border-amber-500 outline-none shadow-inner" placeholder="Novo item..." /><button type="submit" className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-blue-900/20"><Plus size={20} /></button></form>
+                                <div className="max-h-[350px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                                    {(customOptions[editingCategory] || []).map((item, idx) => (
+                                        <div key={idx} className="flex justify-between items-center bg-slate-800/40 p-3 rounded-2xl border border-slate-700/50 group hover:border-slate-600 transition-colors">
+                                            {renamingItem?.index === idx ? (
+                                                <div className="flex flex-1 gap-2"><input type="text" autoFocus className="flex-1 bg-slate-950 border border-blue-500 rounded-xl px-3 py-2 text-white text-[12px] outline-none" value={renamingItem.value} onChange={e => setRenamingItem({...renamingItem, value: e.target.value})} onKeyDown={e => e.key === 'Enter' && handleSaveRename()} /><button onClick={handleSaveRename} className="text-emerald-500 p-2 hover:bg-emerald-500/10 rounded-lg"><Save size={18}/></button><button onClick={() => setRenamingItem(null)} className="text-rose-500 p-2 hover:bg-rose-500/10 rounded-lg"><X size={18}/></button></div>
+                                            ) : (
+                                                <><span className="text-xs text-slate-300 font-bold uppercase pl-2 truncate pr-2">{item}</span><div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all"><button onClick={() => handleStartRename(idx, item)} className="p-2 text-slate-500 hover:text-blue-400 hover:bg-blue-400/5 rounded-lg transition-colors"><Edit3 size={16}/></button><button onClick={() => handleDeleteItem(editingCategory, item)} className="p-2 text-slate-500 hover:text-rose-500 hover:bg-rose-500/5 rounded-lg transition-colors"><Trash2 size={16}/></button></div></>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="mt-6 pt-4 border-t border-slate-800 flex justify-end"><button onClick={() => {setEditingCategory(null); setRenamingItem(null);}} className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all">Fechar</button></div>
+                            <div className="px-6 py-5 bg-slate-950/50 border-t border-slate-800 flex justify-end"><button onClick={() => {setEditingCategory(null); setRenamingItem(null);}} className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-black uppercase tracking-[0.2em] active:scale-95 transition-all shadow-lg">Fechar</button></div>
                         </div>
                     </div>
                 )}

@@ -64,6 +64,15 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #64748b; 
       }
+
+      /* Scrollbar hiding utility */
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
     </style>
 <script type="importmap">
 {
@@ -73,7 +82,8 @@
     "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "recharts": "https://esm.sh/recharts@^3.6.0",
-    "firebase/": "https://esm.sh/firebase@^12.7.0/"
+    "firebase/": "https://esm.sh/firebase@^12.7.0/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
   }
 }
 </script>

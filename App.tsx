@@ -169,22 +169,23 @@ const App: React.FC = () => {
   return (
     <div className="h-screen w-full bg-slate-200 dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex font-sans overflow-hidden">
       
-      {/* SIDEBAR FIEL À IMAGEM */}
+      {/* SIDEBAR */}
       <aside className={`fixed inset-y-0 left-0 z-40 bg-slate-50 dark:bg-slate-950 border-r border-slate-300 dark:border-slate-800 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 lg:translate-x-0 lg:static lg:h-full lg:w-64 flex flex-col shadow-2xl lg:shadow-none`}>
         
-        {/* LOGO AREA - REPLICA DA IMAGEM */}
+        {/* LOGO AREA - REPLICA DO LOGIN */}
         <div className="flex flex-col items-center justify-center py-10 px-4 shrink-0 select-none">
-            <div onClick={() => handleTabChange('dashboard')} className="flex flex-col items-center cursor-pointer group">
-                <div className="relative mb-3">
-                    <Shield className="w-14 h-14 text-[#f59e0b] fill-[#f59e0b]/5 drop-shadow-[0_0_15px_rgba(245,158,11,0.6)]" strokeWidth={2} />
+            <div onClick={() => handleTabChange('dashboard')} className="flex flex-col items-center cursor-pointer group w-full">
+                <div className="relative mb-4 transform transition-transform group-hover:scale-105 duration-300">
+                    <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full"></div>
+                    <Shield className="w-16 h-16 text-amber-400 relative z-10 fill-amber-400/20 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)]" strokeWidth={2} />
                 </div>
-                <h1 className="text-5xl font-black italic text-[#f59e0b] tracking-tighter uppercase mb-5 leading-none">CCOS</h1>
-                <div className="flex items-center gap-3">
-                     <div className="bg-white px-2.5 py-1.5 rounded-[4px] min-w-[90px] h-9 flex items-center justify-center shadow-lg border border-slate-100">
-                        <span className="text-[9px] font-black text-[#b91c1c] leading-tight text-center tracking-tighter uppercase">UNILOG<br/>EXPRESS</span>
+                <h1 className="text-6xl font-black italic text-amber-400 tracking-tighter uppercase mb-6 leading-none drop-shadow-2xl font-sans">CCOS</h1>
+                <div className="flex items-center gap-3 w-full justify-center">
+                     <div className="bg-white px-2 py-1 rounded-[4px] flex-1 max-w-[95px] h-9 flex items-center justify-center shadow-lg border border-slate-100">
+                        <span className="text-[8px] font-black text-red-700 leading-tight text-center tracking-tighter uppercase">UNILOG<br/>EXPRESS</span>
                      </div>
-                     <div className="bg-white px-2.5 py-1.5 rounded-[4px] min-w-[90px] h-9 flex items-center justify-center shadow-lg border border-slate-100">
-                        <span className="text-[9px] font-black text-[#0891b2] leading-tight text-center tracking-tighter uppercase">4ELOS<br/>DISTRIB.</span>
+                     <div className="bg-white px-2 py-1 rounded-[4px] flex-1 max-w-[95px] h-9 flex items-center justify-center shadow-lg border border-slate-100">
+                        <span className="text-[8px] font-black text-cyan-600 leading-tight text-center tracking-tighter uppercase">4ELOS<br/>DISTRIB.</span>
                      </div>
                 </div>
             </div>
@@ -225,7 +226,7 @@ const App: React.FC = () => {
           )}
         </nav>
         
-        {/* PERFIL DO USUÁRIO - REPLICA DA IMAGEM */}
+        {/* PERFIL DO USUÁRIO */}
         <div className="mt-auto p-4 border-t border-slate-800/50 bg-slate-950/50">
            <div className="flex items-center gap-3 mb-2">
               <div className="relative group cursor-pointer" onClick={() => setShowProfileModal(true)}>
@@ -278,18 +279,33 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-6 lg:p-8 scroll-smooth custom-scrollbar" ref={mainContentRef} onScroll={handleScroll}>
+        <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 scroll-smooth custom-scrollbar" ref={mainContentRef} onScroll={handleScroll}>
           <div className="max-w-[1600px] mx-auto space-y-8">
             <Suspense fallback={<LoadingFallback />}>
                 {activeTab === 'dashboard' && <Dashboard data={data} thirdPartyWorkers={thirdPartyWorkers} onSetWarehouseStatus={handleSetWarehouseStatus} currentUser={user} />}
                 
                 {activeTab === 'monitoring' && (
                   <div className="space-y-8 animate-fade-in">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900/50 p-4 rounded-2xl border border-slate-800/50 shadow-sm">
-                        <div className="flex bg-slate-950 border border-slate-800 p-1.5 rounded-xl shadow-inner w-full md:w-fit">
-                            <button onClick={() => setMonitoringSubTab('cameras')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${monitoringSubTab === 'cameras' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-500 hover:text-slate-200'}`}><Video size={14} /> Câmeras ({data.cameras.filter(c => c.channelType === 'video').length})</button>
-                            <button onClick={() => setMonitoringSubTab('alarms')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${monitoringSubTab === 'alarms' ? 'bg-amber-600 text-white shadow-lg shadow-amber-900/40' : 'text-slate-500 hover:text-slate-200'}`}><BellRing size={14} /> Alarmes ({data.cameras.filter(c => c.channelType === 'alarm').length})</button>
-                            <button onClick={() => setMonitoringSubTab('access')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${monitoringSubTab === 'access' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-500 hover:text-slate-200'}`}><DoorClosed size={14} /> Acessos ({data.accessPoints.length})</button>
+                    <div className="bg-slate-900/50 p-1 rounded-2xl border border-slate-800/50 shadow-sm overflow-hidden">
+                        <div className="flex bg-[#0a0c10] border border-slate-800 p-1.5 rounded-xl shadow-inner w-full overflow-x-auto no-scrollbar scroll-smooth gap-2">
+                            <button onClick={() => setMonitoringSubTab('cameras')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${monitoringSubTab === 'cameras' ? 'bg-[#2563eb] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest">
+                                    <Video size={14} /> CÂMERAS
+                                </div>
+                                <span className="text-[10px] font-bold opacity-80">({data.cameras.filter(c => c.channelType === 'video').length})</span>
+                            </button>
+                            <button onClick={() => setMonitoringSubTab('alarms')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${monitoringSubTab === 'alarms' ? 'bg-[#ea580c] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest">
+                                    <BellRing size={14} /> ALARMES
+                                </div>
+                                <span className="text-[10px] font-bold opacity-80">({data.cameras.filter(c => c.channelType === 'alarm').length})</span>
+                            </button>
+                            <button onClick={() => setMonitoringSubTab('access')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${monitoringSubTab === 'access' ? 'bg-[#2563eb] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest">
+                                    <DoorClosed size={14} /> ACESSO
+                                </div>
+                                <span className="text-[10px] font-bold opacity-80">({data.accessPoints.length})</span>
+                            </button>
                         </div>
                     </div>
 
@@ -303,9 +319,22 @@ const App: React.FC = () => {
 
                 {activeTab === 'third-party-mgmt' && (
                   <div className="space-y-6 animate-fade-in">
-                    <div className="flex bg-slate-900 border border-slate-800 p-1 rounded-xl w-fit shadow-md">
-                      <button onClick={() => setThirdPartySubTab('status')} className={`px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${thirdPartySubTab === 'status' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}>Status</button>
-                      {(isAdmin || isManager) && (<><button onClick={() => setThirdPartySubTab('access-mgmt')} className={`px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${thirdPartySubTab === 'access-mgmt' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}>Relatórios</button><button onClick={() => setThirdPartySubTab('heatmap')} className={`px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${thirdPartySubTab === 'heatmap' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}>Mapa Calor</button></>)}
+                    <div className="bg-slate-900/50 p-1 rounded-2xl border border-slate-800/50 shadow-sm overflow-hidden">
+                        <div className="flex bg-[#0a0c10] border border-slate-800 p-1.5 rounded-xl shadow-inner w-full overflow-x-auto no-scrollbar scroll-smooth gap-2">
+                            <button onClick={() => setThirdPartySubTab('status')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${thirdPartySubTab === 'status' ? 'bg-[#2563eb] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest">STATUS</div>
+                            </button>
+                            {(isAdmin || isManager) && (
+                                <>
+                                    <button onClick={() => setThirdPartySubTab('access-mgmt')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${thirdPartySubTab === 'access-mgmt' ? 'bg-[#2563eb] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                                        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-center">RELATÓRIOS</div>
+                                    </button>
+                                    <button onClick={() => setThirdPartySubTab('heatmap')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${thirdPartySubTab === 'heatmap' ? 'bg-[#2563eb] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                                        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-center">MAPA CALOR</div>
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
                     {thirdPartySubTab === 'status' && <ThirdPartyStatus workers={thirdPartyWorkers} currentUser={user} />}
                     {thirdPartySubTab === 'access-mgmt' && <AccessManagement accessPoints={data.accessPoints} thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
@@ -315,10 +344,18 @@ const App: React.FC = () => {
 
                 {activeTab === 'work-mgmt' && !isManager && (
                   <div className="space-y-6 animate-fade-in">
-                    <div className="flex bg-slate-900 border border-slate-800 p-1.5 rounded-xl w-fit shadow-md">
-                      <button onClick={() => setWorkSubTab('tasks')} className={`px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${workSubTab === 'tasks' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}>{isAdmin ? 'Tarefas Adm' : 'Minhas Tarefas'}</button>
-                      <button onClick={() => setWorkSubTab('pendencies')} className={`px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${workSubTab === 'pendencies' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}>E-mails</button>
-                      <button onClick={() => setWorkSubTab('notes')} className={`px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${workSubTab === 'notes' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}>Agenda</button>
+                    <div className="bg-slate-900/50 p-1 rounded-2xl border border-slate-800/50 shadow-sm overflow-hidden">
+                        <div className="flex bg-[#0a0c10] border border-slate-800 p-1.5 rounded-xl shadow-inner w-full overflow-x-auto no-scrollbar scroll-smooth gap-2">
+                            <button onClick={() => setWorkSubTab('tasks')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${workSubTab === 'tasks' ? 'bg-[#2563eb] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-center">{isAdmin ? 'TAREFAS ADM' : 'MINHAS TAREFAS'}</div>
+                            </button>
+                            <button onClick={() => setWorkSubTab('pendencies')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${workSubTab === 'pendencies' ? 'bg-[#2563eb] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-center">E-MAILS</div>
+                            </button>
+                            <button onClick={() => setWorkSubTab('notes')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${workSubTab === 'notes' ? 'bg-[#2563eb] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-center">AGENDA</div>
+                            </button>
+                        </div>
                     </div>
                     {workSubTab === 'tasks' && (isAdmin ? <TaskManagement currentUser={user} /> : <MyTasks currentUser={user} />)}
                     {workSubTab === 'pendencies' && <EmailPendencies currentUser={user} />}
@@ -335,7 +372,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Profile Modal - Acionado pela engrenagem ou clique no avatar */}
+      {/* Profile Modal */}
       {showProfileModal && user && (
           <ProfileModal user={user} onClose={() => setShowProfileModal(false)} />
       )}
