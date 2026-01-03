@@ -31,26 +31,15 @@ export interface AppNotification {
 }
 
 export interface Camera {
-  uuid: string;        // Unique internal ID
-  id: string;          // ID_Camera
-  name: string;        // Nome_Camera
-  location: string;    // Localização
-  module: string;      // Módulo
-  warehouse: string;   // Galpão
-  responsible: string; // Responsável
+  uuid: string;        // Unique internal ID for React keys and specific targeting
+  id: string;          // ID_Camera (e.g., MÓDULO A/B – 13/13)
+  name: string;        // Nome_Camera (e.g., EME MD F PT 3)
+  location: string;    // Localização (e.g., G2 MODULO B MEZANINO)
+  module: string;      // Módulo (e.g., A, B, C)
+  warehouse: string;   // Galpão (e.g., Galpão 1, Geral)
+  responsible: string; // Responsável (e.g., Robson)
   status: Status;      // ONLINE / OFFLINE
   ticket?: string;     // Número do chamado/ticket
-}
-
-export interface Alarm {
-  uuid: string;
-  id: string;
-  name: string;
-  type: 'Entrada' | 'Saída' | 'Geral';
-  location: string;
-  warehouse: string;
-  status: Status;
-  responsible: string;
 }
 
 export interface AccessPoint {
@@ -72,6 +61,8 @@ export interface PublicDocument {
   expirationDate: string; // YYYY-MM-DD
   status?: 'VALID' | 'WARNING' | 'EXPIRED'; // Calculated on runtime
 }
+
+// --- NEW FEATURES INTERFACES ---
 
 export interface Note {
   id: string;
@@ -112,12 +103,14 @@ export interface ChatMessage {
   senderId: string;
   senderName: string;
   senderPhoto?: string;
-  text: string;
-  fileUrl?: string;
+  text: string; // Para arquivos, pode ser o nome do arquivo. Para localização, lat,long.
+  fileUrl?: string; // Base64 ou URL
   type: MessageType;
-  timestamp: string;
+  timestamp: string; // ISO String
+  
+  // Advanced Features
   replyTo?: { id: string; text: string; senderName: string };
-  reactions?: { [emoji: string]: string[] };
+  reactions?: { [emoji: string]: string[] }; // Emoji -> Array of UserIDs
   edited?: boolean;
   pinned?: boolean;
   status?: 'sent' | 'delivered' | 'read';
@@ -130,9 +123,9 @@ export interface ProcessedWorker {
     company: string;
     unit: string;
     time: string;
-    date: string;
+    date: string; // YYYY-MM-DD
     accessPoint: string;
-    eventType: string;
+    eventType: string; // 'Entrada' ou 'Desbloqueio'
 }
 
 export interface ThirdPartyImport {
@@ -154,11 +147,13 @@ export interface EmailPendency {
     resolvedAt?: string;
 }
 
+// --- TASK SYSTEM INTERFACES ---
+
 export type TaskStatus = 'pending' | 'in_progress' | 'completed';
 
 export interface TaskAttachment {
     name: string;
-    url: string;
+    url: string; // Base64 or URL
     type: 'image' | 'document';
 }
 
@@ -166,28 +161,27 @@ export interface Task {
     id: string;
     title: string;
     description: string;
-    createdBy: string;
-    assignedToId: string;
-    assignedToName: string;
+    createdBy: string; // Supervisor Name
+    assignedToId: string; // Operator UID
+    assignedToName: string; // Operator Name
     createdAt: string;
-    dueDate: string;
+    dueDate: string; // YYYY-MM-DD
     status: TaskStatus;
     attachments?: TaskAttachment[];
     startedAt?: string;
     completedAt?: string;
-    completionNote?: string;
+    completionNote?: string; // Comentário final do operador
 }
 
 export interface AppData {
   cameras: Camera[];
-  alarms: Alarm[];
   accessPoints: AccessPoint[];
   documents: PublicDocument[];
   notes: Note[];
-  shiftNotes?: ShiftNote[];
+  shiftNotes?: ShiftNote[]; // Ocorrências de plantão
   meetings: Meeting[];
   events: CalendarEvent[];
-  thirdPartyImports?: ThirdPartyImport[];
+  thirdPartyImports?: ThirdPartyImport[]; // Histórico de lotes
   lastSync: string;
 }
 

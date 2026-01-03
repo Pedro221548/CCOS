@@ -4,10 +4,8 @@ import { ref, onValue } from 'firebase/database';
 import { db } from '../services/firebase';
 import { AppData, ProcessedWorker, User, ThirdPartyImport, ShiftNote } from '../types';
 
-// Fix: Added missing 'alarms' property to satisfy the AppData interface
 const INITIAL_DATA: AppData = {
   cameras: [],
-  alarms: [],
   accessPoints: [],
   documents: [],
   notes: [],
@@ -31,8 +29,6 @@ export const useAppData = (user: User | null) => {
 
     // Refs
     const camerasRef = ref(db, 'monitoramento/cameras');
-    // Fix: Added reference for alarms node in the database
-    const alarmsRef = ref(db, 'monitoramento/alarms');
     const accessRef = ref(db, 'monitoramento/access_points');
     const documentsRef = ref(db, 'monitoramento/documents');
     const importsRef = ref(db, 'monitoramento/third_party_imports');
@@ -44,11 +40,6 @@ export const useAppData = (user: User | null) => {
     const unsubCameras = onValue(camerasRef, (snap) => {
         setData(prev => ({ ...prev, cameras: snap.val() || [] }));
         setIsLoading(false);
-    });
-
-    // Fix: Added listener to sync alarms from Firebase Realtime Database
-    const unsubAlarms = onValue(alarmsRef, (snap) => {
-        setData(prev => ({ ...prev, alarms: snap.val() || [] }));
     });
 
     const unsubAccess = onValue(accessRef, (snap) => {
@@ -95,8 +86,6 @@ export const useAppData = (user: User | null) => {
 
     return () => {
         unsubCameras();
-        // Fix: Added cleanup for the alarms listener
-        unsubAlarms();
         unsubAccess();
         unsubDocs();
         unsubImports();
