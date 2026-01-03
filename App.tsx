@@ -459,6 +459,11 @@ const App: React.FC = () => {
              </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-4 relative">
+             {/* SELO BETA */}
+             <div className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-[9px] font-black text-amber-500 uppercase tracking-tighter animate-pulse shadow-sm">
+                BETA
+             </div>
+
              <div className="hidden md:flex px-3 py-1 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] lg:text-xs text-slate-500 dark:text-slate-400 items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 Atualizado: {data.lastSync}
