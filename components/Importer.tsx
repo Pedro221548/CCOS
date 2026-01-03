@@ -1,7 +1,7 @@
 
 import React, { useRef, useState } from 'react';
 import { FileSpreadsheet, RotateCcw, AlertCircle, Power, Upload, Video, DoorClosed, Save, Briefcase, FileUp, AlertTriangle, X, Trash2, Clock, CheckCircle2 } from 'lucide-react';
-import { Camera, AccessPoint, Status, ProcessedWorker, ThirdPartyImport } from '../types';
+import { Camera, AccessPoint, Status, ProcessedWorker, ThirdPartyImport, ChannelType } from '../types';
 
 const VALID_COMPANIES = ['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PRIMUS', 'PRAYLOG'];
 
@@ -133,12 +133,21 @@ const parseCSV = (csv: string, type: 'camera' | 'access'): any[] => {
       const warehouse = normalizeWarehouse(warehouseRaw, location, module, name);
       const responsibleRaw = getValue(obj, ['Responsável', 'Responsavel', 'Resp', 'Tecnico']);
       const responsible = getResponsibleByWarehouse(warehouse, responsibleRaw);
+      
+      // REGRAS DE TIPO DE CANAL
+      const channelTypeRaw = getValue(obj, ['Tipo de Canal', 'Tipo', 'TIPO_CANAL', 'ChannelType'])?.toUpperCase() || '';
+      let channelType: ChannelType = 'video';
+      if (channelTypeRaw.includes('ALARME')) {
+          channelType = 'alarm';
+      }
+
       const statusRaw = getValue(obj, ['Canal on-line/off-line', 'Status ONLINE', 'Status', 'Status OFFLINE', 'STATUS', 'Estado', 'SITUACAO'])?.toUpperCase() || '';
       let status: Status = 'ONLINE';
       const offlineKeywords = ['OFFLINE', 'OFF', 'SEM SINAL', 'NO SIGNAL', 'ERRO', 'FALHA', 'DESLIGADO', 'INATIVO', '0', 'FALSE', 'NAO', 'NO', 'PERDA'];
       if (offlineKeywords.some(k => statusRaw.includes(k))) status = 'OFFLINE';
+      
       if (!name) return null;
-      return { uuid, id: id || 'N/A', name: name || 'Sem Nome', location: location || 'N/A', module: module || 'Geral', warehouse, responsible, status } as Camera;
+      return { uuid, id: id || 'N/A', name: name || 'Sem Nome', location: location || 'N/A', module: module || 'Geral', warehouse, responsible, status, channelType } as Camera;
     } else {
       const name = getValue(obj, ['Nome do dispositivo', 'Nome', 'Name', 'Dispositivo', 'Equipamento']);
       const id = getValue(obj, ['IP', 'ID', 'Id', 'Cod', 'Código', 'Serial']);
@@ -285,7 +294,7 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <button onClick={() => cameraInputRef.current?.click()} className="w-full bg-slate-900 border-2 border-dashed border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800/50 transition-all rounded-xl p-6 flex flex-col items-center justify-center gap-3 group min-h-[180px]">
                 <div className="p-4 bg-slate-800 rounded-full group-hover:bg-emerald-500/20 transition-colors"><Video className="w-8 h-8 text-slate-400 group-hover:text-emerald-500" /></div>
-                <div className="text-center"><h3 className="text-lg font-semibold text-white group-hover:text-emerald-400 transition-colors">Câmeras</h3><p className="text-slate-500 text-xs mt-1">Carregar planilha (.xlsx/.csv)</p></div>
+                <div className="text-center"><h3 className="text-lg font-semibold text-white group-hover:text-emerald-400 transition-colors">Dispositivos / Alarmes</h3><p className="text-slate-500 text-xs mt-1">Carregar planilha (.xlsx/.csv)</p></div>
                 <input type="file" accept=".csv, .xlsx, .xls" ref={cameraInputRef} className="hidden" onChange={(e) => handleFileUpload(e, 'camera')} />
             </button>
 
@@ -366,7 +375,7 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-3">
-                <label className="flex items-center gap-2 text-slate-200 font-medium"><FileSpreadsheet className="w-5 h-5 text-emerald-500" /> CSV Câmeras</label>
+                <label className="flex items-center gap-2 text-slate-200 font-medium"><FileSpreadsheet className="w-5 h-5 text-emerald-500" /> CSV Câmeras / Alarmes</label>
                 <textarea value={cameraCsv} onChange={(e) => setCameraCsv(e.target.value)} className="w-full h-40 bg-slate-900 border border-slate-700 rounded-xl p-4 font-mono text-xs text-slate-300 focus:outline-none resize-none" spellCheck={false} />
             </div>
             <div className="space-y-3">

@@ -1,5 +1,6 @@
 
 export type Status = 'ONLINE' | 'OFFLINE';
+export type ChannelType = 'video' | 'alarm';
 
 export type UserRole = 'admin' | 'viewer' | 'manager';
 export type UserStatus = 'pending' | 'active' | 'blocked';
@@ -10,8 +11,7 @@ export interface User {
   name: string;
   role: UserRole;
   status?: UserStatus;
-  allowedWarehouses?: string[]; // Array of Warehouse IDs allowed for Managers
-  // Profile fields
+  allowedWarehouses?: string[]; 
   photoURL?: string;
   bannerURL?: string;
   jobTitle?: string;
@@ -21,48 +21,47 @@ export interface User {
 export interface AppNotification {
   id: string;
   recipientId: string;
-  senderId?: string; // Para mensagens
+  senderId?: string; 
   senderName?: string;
   message: string;
   type: 'message' | 'alert' | 'info' | 'system' | 'success';
   timestamp: string;
   read: boolean;
-  linkTo?: string; // Tab to open (e.g., 'chat', 'tasks')
+  linkTo?: string; 
 }
 
 export interface Camera {
-  uuid: string;        // Unique internal ID for React keys and specific targeting
-  id: string;          // ID_Camera (e.g., MÓDULO A/B – 13/13)
-  name: string;        // Nome_Camera (e.g., EME MD F PT 3)
-  location: string;    // Localização (e.g., G2 MODULO B MEZANINO)
-  module: string;      // Módulo (e.g., A, B, C)
-  warehouse: string;   // Galpão (e.g., Galpão 1, Geral)
-  responsible: string; // Responsável (e.g., Robson)
-  status: Status;      // ONLINE / OFFLINE
-  ticket?: string;     // Número do chamado/ticket
+  uuid: string;        
+  id: string;          
+  name: string;        
+  location: string;    
+  module: string;      
+  warehouse: string;   
+  responsible: string; 
+  status: Status;      
+  ticket?: string;     
+  channelType: ChannelType; // Novo campo para distinção
 }
 
 export interface AccessPoint {
-  uuid: string;        // Unique internal ID
+  uuid: string;        
   id: string;
   name: string;
   type: string;
   location: string;
-  warehouse: string;   // Galpão
+  warehouse: string;   
   status: Status;
   lastLog: string;
-  latency?: string;    // Ping result (e.g., '12ms' or 'timeout')
+  latency?: string;    
 }
 
 export interface PublicDocument {
   uuid: string;
-  name: string;        // Ex: AVCB, Alvará
-  organ: string;       // Ex: Corpo de Bombeiros, Prefeitura
-  expirationDate: string; // YYYY-MM-DD
-  status?: 'VALID' | 'WARNING' | 'EXPIRED'; // Calculated on runtime
+  name: string;        
+  organ: string;       
+  expirationDate: string; 
+  status?: 'VALID' | 'WARNING' | 'EXPIRED'; 
 }
-
-// --- NEW FEATURES INTERFACES ---
 
 export interface Note {
   id: string;
@@ -76,14 +75,14 @@ export interface ShiftNote {
   author: string;
   authorId: string;
   content: string;
-  createdAt: string; // ISO string
+  createdAt: string; 
 }
 
 export interface Meeting {
   id: string;
   title: string;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
+  date: string; 
+  time: string; 
   participants: string;
   observations: string;
 }
@@ -92,8 +91,8 @@ export interface CalendarEvent {
   id: string;
   title: string;
   description: string;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
+  date: string; 
+  time: string; 
 }
 
 export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'file' | 'location';
@@ -103,14 +102,12 @@ export interface ChatMessage {
   senderId: string;
   senderName: string;
   senderPhoto?: string;
-  text: string; // Para arquivos, pode ser o nome do arquivo. Para localização, lat,long.
-  fileUrl?: string; // Base64 ou URL
+  text: string; 
+  fileUrl?: string; 
   type: MessageType;
-  timestamp: string; // ISO String
-  
-  // Advanced Features
+  timestamp: string; 
   replyTo?: { id: string; text: string; senderName: string };
-  reactions?: { [emoji: string]: string[] }; // Emoji -> Array of UserIDs
+  reactions?: { [emoji: string]: string[] }; 
   edited?: boolean;
   pinned?: boolean;
   status?: 'sent' | 'delivered' | 'read';
@@ -123,9 +120,9 @@ export interface ProcessedWorker {
     company: string;
     unit: string;
     time: string;
-    date: string; // YYYY-MM-DD
+    date: string; 
     accessPoint: string;
-    eventType: string; // 'Entrada' ou 'Desbloqueio'
+    eventType: string; 
 }
 
 export interface ThirdPartyImport {
@@ -147,13 +144,11 @@ export interface EmailPendency {
     resolvedAt?: string;
 }
 
-// --- TASK SYSTEM INTERFACES ---
-
 export type TaskStatus = 'pending' | 'in_progress' | 'completed';
 
 export interface TaskAttachment {
     name: string;
-    url: string; // Base64 or URL
+    url: string; 
     type: 'image' | 'document';
 }
 
@@ -161,16 +156,16 @@ export interface Task {
     id: string;
     title: string;
     description: string;
-    createdBy: string; // Supervisor Name
-    assignedToId: string; // Operator UID
-    assignedToName: string; // Operator Name
+    createdBy: string; 
+    assignedToId: string; 
+    assignedToName: string; 
     createdAt: string;
-    dueDate: string; // YYYY-MM-DD
+    dueDate: string; 
     status: TaskStatus;
     attachments?: TaskAttachment[];
     startedAt?: string;
     completedAt?: string;
-    completionNote?: string; // Comentário final do operador
+    completionNote?: string; 
 }
 
 export interface AppData {
@@ -178,10 +173,10 @@ export interface AppData {
   accessPoints: AccessPoint[];
   documents: PublicDocument[];
   notes: Note[];
-  shiftNotes?: ShiftNote[]; // Ocorrências de plantão
+  shiftNotes?: ShiftNote[]; 
   meetings: Meeting[];
   events: CalendarEvent[];
-  thirdPartyImports?: ThirdPartyImport[]; // Histórico de lotes
+  thirdPartyImports?: ThirdPartyImport[]; 
   lastSync: string;
 }
 
