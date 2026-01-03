@@ -25,7 +25,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ role, onFinish }) => {
       icon: <Smartphone size={48} className="text-blue-400" />,
     },
     {
-      title: "Monitoramento Unificado",
+      title: "Câmeras/Acessos Unificados",
       description: "Simplificamos as unidades! 'Expressa SJM' e 'Meriti' agora são uma única unidade (MERITI) para facilitar a geração de relatórios e a filtragem de dados.",
       icon: <Warehouse size={48} className="text-emerald-500" />,
     },
@@ -35,7 +35,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ role, onFinish }) => {
       icon: <ArrowUpCircle size={48} className="text-purple-500" />,
     },
     {
-        title: isAdmin ? "Gestão de Tarefas (Supervisão)" : "Minhas Tarefas (Operador)",
+        title: isAdmin ? "Relatórios e Tarefas (Supervisão)" : "Relatórios e Tarefas (Operador)",
         description: isAdmin 
             ? "Delegue tarefas e receba alertas sonoros quando um operador concluir um chamado. Use os novos botões de exclusão para remover tarefas concluídas e manter o banco limpo." 
             : "Visualize suas tarefas, anexe evidências fotográficas e registre comentários. Agora o sistema emite um 'ding' sempre que uma nova tarefa lhe for atribuída.",
@@ -43,7 +43,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ role, onFinish }) => {
     },
     {
         title: "Pendências e Comunicação",
-        description: "No Chat e nas Pendências de E-mail, você pode registrar solicitações críticas. Administradores agora possuem o botão de 'Apagar' para remover registros resolvidos permanentemente.",
+        description: "No painel de Relatórios, você pode registrar solicitações críticas. Administradores agora possuem o botão de 'Apagar' para remover registros resolvidos permanentemente.",
         icon: <MessageSquare size={48} className="text-pink-500" />
     },
     {

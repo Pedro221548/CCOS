@@ -39,8 +39,10 @@ const App: React.FC = () => {
   // --- STATE ---
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'organizer' | 'data' | 'users' | 'registration' | 'third-party' | 'pendencies' | 'task-management' | 'my-tasks' | 'access-management' | 'heatmap'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'third-party-mgmt' | 'work-mgmt' | 'organizer' | 'data' | 'users' | 'registration'>('dashboard');
   const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'access'>('cameras');
+  const [thirdPartySubTab, setThirdPartySubTab] = useState<'status' | 'access-mgmt' | 'heatmap'>('status');
+  const [workSubTab, setWorkSubTab] = useState<'tasks' | 'pendencies' | 'notes'>('tasks');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -142,13 +144,13 @@ const App: React.FC = () => {
           const isManager = user.role === 'manager';
 
           // Admin Routes Guard
-          if (!isAdmin && ['data', 'users', 'task-management'].includes(activeTab)) {
+          if (!isAdmin && ['data', 'users'].includes(activeTab)) {
               setActiveTab('dashboard');
               alert("Acesso negado: Área restrita.");
           }
           
           // Manager Routes Guard
-          if (isManager && !['dashboard', 'access-management', 'heatmap', 'third-party', 'monitoring'].includes(activeTab)) {
+          if (isManager && !['dashboard', 'third-party-mgmt', 'monitoring'].includes(activeTab)) {
               setActiveTab('dashboard');
           }
       }
@@ -170,13 +172,13 @@ const App: React.FC = () => {
     const isManager = user?.role === 'manager';
 
     // Admin Guard
-    if (['data', 'users', 'task-management'].includes(tab) && !isAdmin) {
+    if (['data', 'users'].includes(tab) && !isAdmin) {
         alert("Acesso negado.");
         return;
     }
 
     // Manager Guard
-    if (isManager && !['dashboard', 'access-management', 'heatmap', 'third-party', 'monitoring'].includes(tab)) {
+    if (isManager && !['dashboard', 'third-party-mgmt', 'monitoring'].includes(tab)) {
         alert("Acesso não permitido para o perfil de Gestor.");
         return;
     }
@@ -382,7 +384,7 @@ const App: React.FC = () => {
         </div>
         
         <div className="px-4 py-3 bg-slate-100 dark:bg-slate-950/50 border-b border-slate-300 dark:border-slate-800 flex items-center gap-3 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800/80 transition-colors group relative shrink-0" onClick={() => setShowProfileModal(true)}>
-            <div className="w-9 h-9 rounded-full flex items-center justify-center overflow-hidden bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center overflow-hidden bg-white dark:bg-slate-800 border border-slate-300 dark:border-700">
                 {user.photoURL ? <img src={user.photoURL} alt={user.name} className="w-full h-full object-cover" /> : <span className={`text-xs font-bold ${isAdmin ? 'text-amber-500' : 'text-blue-500'}`}>{user.name.charAt(0)}</span>}
             </div>
             <div className="flex-1 min-w-0">
@@ -396,51 +398,29 @@ const App: React.FC = () => {
           <button onClick={() => handleTabChange('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
             <LayoutDashboard size={20} className="shrink-0" /> <span className="text-sm font-medium">Dashboard</span>
           </button>
-          
-          {(isAdmin || isManager) && (
-              <>
-                <button onClick={() => handleTabChange('access-management')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${activeTab === 'access-management' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
-                    <Activity size={20} className="shrink-0" /> <span className="text-sm font-medium">Gestão de Acessos</span>
-                </button>
-                <button onClick={() => handleTabChange('heatmap')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${activeTab === 'heatmap' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
-                    <Grid size={20} className="shrink-0" /> <span className="text-sm font-medium">Mapa de Calor</span>
-                </button>
-              </>
-          )}
-          
-          <button onClick={() => handleTabChange('third-party')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${activeTab === 'third-party' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
-            <Briefcase size={20} className="shrink-0" /> <span className="text-sm font-medium">Status Terceirizados</span>
-          </button>
 
-          {/* ABA UNIFICADA MONITORAMENTO */}
+          {/* ABA UNIFICADA CÂMERAS/ACESSOS */}
           <button onClick={() => handleTabChange('monitoring')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${activeTab === 'monitoring' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
-                <Shield size={20} className="shrink-0" /> <span className="text-sm font-medium">Monitoramento</span> 
+                <Shield size={20} className="shrink-0" /> <span className="text-sm font-medium">Câmeras/Acessos</span> 
                 {(data.cameras.length > 0 || data.accessPoints.length > 0) && isAdmin && (
                   <span className="ml-auto text-xs bg-slate-300 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                     {data.cameras.length + data.accessPoints.length}
                   </span>
                 )}
           </button>
+          
+          {/* ABA UNIFICADA GESTÃO DE ACESSOS */}
+          <button onClick={() => handleTabChange('third-party-mgmt')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${activeTab === 'third-party-mgmt' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
+            <Users size={20} className="shrink-0" /> <span className="text-sm font-medium">Gestão de Acessos</span>
+          </button>
 
           {!isManager && (
               <>
-                {isAdmin ? (
-                    <button onClick={() => handleTabChange('task-management')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${activeTab === 'task-management' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
-                        <ClipboardList size={20} className="shrink-0" /> <span className="text-sm font-medium">Gestão de Tarefas</span>
-                    </button>
-                ) : (
-                    <button onClick={() => handleTabChange('my-tasks')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${activeTab === 'my-tasks' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
-                        <CheckSquare size={20} className="shrink-0" /> <span className="text-sm font-medium">Minhas Tarefas</span>
-                    </button>
-                )}
+                {/* ABA UNIFICADA RELATÓRIOS E TAREFAS */}
+                <button onClick={() => handleTabChange('work-mgmt')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${activeTab === 'work-mgmt' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
+                    <ClipboardList size={20} className="shrink-0" /> <span className="text-sm font-medium">Relatórios e Tarefas</span>
+                </button>
 
-                <button onClick={() => handleTabChange('pendencies')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${activeTab === 'pendencies' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
-                    <Mail size={20} className="shrink-0" /> <span className="text-sm font-medium">Pendências E-mail</span>
-                </button>
-                <button onClick={() => handleTabChange('organizer')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${activeTab === 'organizer' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
-                    <Calendar size={20} className="shrink-0" /> <span className="text-sm font-medium">Agenda e Notas</span>
-                </button>
-                
                 <button onClick={() => handleTabChange('registration')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${activeTab === 'registration' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
                     <PlusSquare size={20} className="shrink-0" /> <span className="text-sm font-medium">Central de Cadastro</span>
                 </button>
@@ -510,9 +490,12 @@ const App: React.FC = () => {
             <Suspense fallback={<LoadingFallback />}>
                 {activeTab === 'dashboard' && <Dashboard data={data} thirdPartyWorkers={thirdPartyWorkers} onSetWarehouseStatus={handleSetWarehouseStatus} currentUser={user} />}
                 
-                {/* Visualização Unificada de Monitoramento */}
+                {/* Visualização Unificada Câmeras/Acessos */}
                 {activeTab === 'monitoring' && (
                   <div className="space-y-6 animate-fade-in">
+                    <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                        <Video className="text-blue-500" /> Câmeras/Acessos Unificados
+                    </h2>
                     <div className="flex bg-slate-900 border border-slate-800 p-1 rounded-xl shadow-sm w-full sm:w-fit mx-auto sm:mx-0">
                       <button 
                         onClick={() => setMonitoringSubTab('cameras')}
@@ -538,17 +521,83 @@ const App: React.FC = () => {
                   </div>
                 )}
 
-                {activeTab === 'access-management' && <AccessManagement accessPoints={data.accessPoints} thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
-                {activeTab === 'heatmap' && <Heatmap thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
-                {activeTab === 'third-party' && <ThirdPartyStatus workers={thirdPartyWorkers} currentUser={user} />}
+                {/* VISUALIZAÇÃO UNIFICADA GESTÃO DE ACESSOS */}
+                {activeTab === 'third-party-mgmt' && (
+                  <div className="space-y-6 animate-fade-in">
+                    <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                        <Users className="text-purple-500" /> Gestão de Acessos Nominal
+                    </h2>
+                    <div className="flex bg-slate-900 border border-slate-800 p-1 rounded-xl shadow-sm w-full sm:w-fit mx-auto sm:mx-0 overflow-x-auto custom-scrollbar whitespace-nowrap">
+                      <button 
+                        onClick={() => setThirdPartySubTab('status')}
+                        className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${thirdPartySubTab === 'status' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+                      >
+                        <Briefcase size={16} /> Status
+                      </button>
+                      {(isAdmin || isManager) && (
+                        <>
+                          <button 
+                            onClick={() => setThirdPartySubTab('access-mgmt')}
+                            className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${thirdPartySubTab === 'access-mgmt' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+                          >
+                            <Activity size={16} /> Histórico/Relatório
+                          </button>
+                          <button 
+                            onClick={() => setThirdPartySubTab('heatmap')}
+                            className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${thirdPartySubTab === 'heatmap' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+                          >
+                            <Grid size={16} /> Mapa Calor
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="transition-all duration-300">
+                      {thirdPartySubTab === 'status' && <ThirdPartyStatus workers={thirdPartyWorkers} currentUser={user} />}
+                      {thirdPartySubTab === 'access-mgmt' && (isAdmin || isManager) && <AccessManagement accessPoints={data.accessPoints} thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
+                      {thirdPartySubTab === 'heatmap' && (isAdmin || isManager) && <Heatmap thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
+                    </div>
+                  </div>
+                )}
+
+                {/* VISUALIZAÇÃO UNIFICADA RELATÓRIOS E TAREFAS */}
+                {activeTab === 'work-mgmt' && !isManager && (
+                  <div className="space-y-6 animate-fade-in">
+                    <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                        <ClipboardList className="text-amber-500" /> Relatórios e Tarefas da Equipe
+                    </h2>
+                    <div className="flex bg-slate-900 border border-slate-800 p-1 rounded-xl shadow-sm w-full sm:w-fit mx-auto sm:mx-0 overflow-x-auto custom-scrollbar whitespace-nowrap">
+                      <button 
+                        onClick={() => setWorkSubTab('tasks')}
+                        className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${workSubTab === 'tasks' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+                      >
+                        <CheckSquare size={16} /> {isAdmin ? 'Gestão de Tarefas' : 'Minhas Tarefas'}
+                      </button>
+                      <button 
+                        onClick={() => setWorkSubTab('pendencies')}
+                        className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${workSubTab === 'pendencies' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+                      >
+                        <Mail size={16} /> Pendências E-mail
+                      </button>
+                      <button 
+                        onClick={() => setWorkSubTab('notes')}
+                        className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${workSubTab === 'notes' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
+                      >
+                        <Calendar size={16} /> Agenda e Notas
+                      </button>
+                    </div>
+
+                    <div className="transition-all duration-300">
+                      {workSubTab === 'tasks' && (isAdmin ? <TaskManagement currentUser={user} /> : <MyTasks currentUser={user} />)}
+                      {workSubTab === 'pendencies' && <EmailPendencies currentUser={user} />}
+                      {workSubTab === 'notes' && <Organizer currentUser={user} notes={data.notes} shiftNotes={data.shiftNotes || []} onAddNote={handleAddNote} onToggleNote={handleToggleNote} onDeleteNote={handleDeleteNote} onEditNote={handleEditNote} onAddShiftNote={handleAddShiftNote} onDeleteShiftNote={handleDeleteShiftNote} />}
+                    </div>
+                  </div>
+                )}
 
                 {/* Restricted Renders (Not for Manager) */}
                 {!isManager && (
                     <>
-                        {activeTab === 'pendencies' && user && <EmailPendencies currentUser={user} />}
-                        {activeTab === 'organizer' && user && <Organizer currentUser={user} notes={data.notes} shiftNotes={data.shiftNotes || []} onAddNote={handleAddNote} onToggleNote={handleToggleNote} onDeleteNote={handleDeleteNote} onEditNote={handleEditNote} onAddShiftNote={handleAddShiftNote} onDeleteShiftNote={handleDeleteShiftNote} />}
-                        {activeTab === 'task-management' && isAdmin && <TaskManagement currentUser={user} />}
-                        {activeTab === 'my-tasks' && user && <MyTasks currentUser={user} />}
                         {activeTab === 'registration' && <Registration onAddCamera={handleAddCamera} onAddAccess={handleAddAccess} onAddDocument={handleAddDocument} onDeleteDocument={handleDeleteDocument} documents={data.documents} userRole={user.role} />}
                     </>
                 )}
