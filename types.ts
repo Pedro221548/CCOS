@@ -40,7 +40,7 @@ export interface Camera {
   responsible: string; 
   status: Status;      
   ticket?: string;     
-  channelType: ChannelType; // Novo campo para distinção
+  channelType: ChannelType;
 }
 
 export interface AccessPoint {
@@ -76,6 +76,18 @@ export interface ShiftNote {
   authorId: string;
   content: string;
   createdAt: string; 
+}
+
+export interface AppFeedback {
+  id: string;
+  userId: string;
+  userName: string;
+  content: string;
+  timestamp: string;
+  type: 'bug' | 'suggestion' | 'praise';
+  status?: 'pending' | 'completed';
+  adminReply?: string;
+  repliedAt?: string;
 }
 
 export interface Meeting {
