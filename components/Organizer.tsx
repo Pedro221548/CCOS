@@ -70,14 +70,15 @@ const Organizer: React.FC<OrganizerProps> = ({
               const promises: Promise<any>[] = [];
               Object.keys(usersData).forEach(uid => {
                   if (uid !== currentUser.uid) {
-                      promises.push(push(ref(db, `notifications/${uid}`), {
+                      // Fix TS2345 by wrapping push in Promise.resolve
+                      promises.push(Promise.resolve(push(ref(db, `notifications/${uid}`), {
                           recipientId: uid,
                           message: `${currentUser.name} postou um novo Relatório de Plantão`,
                           type: 'success',
                           timestamp: new Date().toISOString(),
                           read: false,
                           linkTo: 'work-mgmt'
-                      }));
+                      })));
                   }
               });
               await Promise.all(promises);

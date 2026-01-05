@@ -44,14 +44,15 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ user, onClose }) => {
         Object.keys(usersData).forEach(uid => {
           if (usersData[uid].role === 'admin') {
             const notifRef = ref(db, `notifications/${uid}`);
-            notificationPromises.push(push(notifRef, {
+            // Fix TS2345 by casting push return to any or wrapping in Promise.resolve
+            notificationPromises.push(Promise.resolve(push(notifRef, {
                 recipientId: uid,
                 message: `Novo feedback de ${user.name} (${typeLabel})`,
                 type: 'alert',
                 timestamp: new Date().toISOString(),
                 read: false,
                 linkTo: 'users'
-            }));
+            })));
           }
         });
         await Promise.all(notificationPromises);
