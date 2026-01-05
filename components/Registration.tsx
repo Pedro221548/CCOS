@@ -170,7 +170,7 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
       setNewDoc({ name: '', organ: '', expirationDate: '' });
   };
 
-  // --- MOTOR OCR GEMINI ---
+  // --- MOTOR OCR GEMINI (ATUALIZADO PARA MELHOR PAREAMENTO) ---
   const handleExtractText = async () => {
       if (!selectedImage) {
           alert("Selecione ou capture uma imagem primeiro.");
@@ -186,7 +186,7 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
               contents: [{
                   parts: [
                       { inlineData: { data: base64Data, mimeType: 'image/png' } },
-                      { text: "Extract all full names and CPFs from this document or list. Return ONLY the text found, one person per line. If it is an ID, extract Name and CPF." }
+                      { text: "Analise a imagem e extraia todos os Nomes Completos e CPFs. Mesmo que o CPF esteja em uma linha abaixo do nome, junte-os na mesma linha. Formate o resultado estritamente assim: NOME | CPF. Retorne uma pessoa por linha. Se não houver CPF, escreva N/A. Não retorne nenhum outro texto explicativo." }
                   ]
               }]
           });
@@ -209,19 +209,66 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
 
   const handleOrganizeList = () => {
       if (!rawListText.trim()) return;
+      
       const lines = rawListText.split(/\r?\n/);
       const newPeople: any[] = [];
       const cpfRegex = /(\d{3}[\.]?\d{3}[\.]?\d{3}[-]?\d{2})|(\d{11})/;
       const blocklist = /\b(RG|SSP|DATA|NASCIMENTO|MAE|PAI|FILIACAO|CARGO|EMPRESA|ADMISSAO|CPF|NOME|EMAIL|TEL|CEL|CNPJ|PAGINA|PAGE|TOTAL|ASSINATURA|LISTA|PRESENCA|DOCUMENTO)\b/gi;
+
       lines.forEach((line, idx) => {
-          let text = line.trim(); if (!text) return;
-          let cpf = ''; const m = text.match(cpfRegex);
-          if (m) { const d = m[0].replace(/\D/g, ''); if (d.length === 11) cpf = `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9,11)}`; text = text.replace(m[0], ''); }
-          text = text.replace(/[\w.-]+@[\w.-]+\.\w+/g, '').replace(blocklist, '').replace(/[^a-zA-Z\u00C0-\u00FF\s]/g, ' ');
-          let name = text.replace(/\s+/g, ' ').trim().toLowerCase().replace(/(?:^|\s)\S/g, a => a.toUpperCase());
-          if (name.length > 3) newPeople.push({ id: `p-${Date.now()}-${idx}`, name, cpf: cpf || '-', done: false });
+          let text = line.trim(); 
+          if (!text) return;
+
+          let name = '';
+          let cpf = '';
+
+          // Se a linha contém o separador "|", processamos as partes
+          if (text.includes('|')) {
+              const parts = text.split('|');
+              name = parts[0].trim();
+              cpf = parts[1]?.trim() || '';
+          } else {
+              // Fallback para o modo antigo caso a IA não use o separador
+              const m = text.match(cpfRegex);
+              if (m) {
+                  cpf = m[0];
+                  text = text.replace(m[0], '');
+              }
+              name = text;
+          }
+
+          // Limpeza do Nome
+          name = name.replace(/[\w.-]+@[\w.-]+\.\w+/g, '')
+                     .replace(blocklist, '')
+                     .replace(/[^a-zA-Z\u00C0-\u00FF\s]/g, ' ')
+                     .replace(/\s+/g, ' ')
+                     .trim()
+                     .toLowerCase()
+                     .replace(/(?:^|\s)\S/g, a => a.toUpperCase());
+
+          // Formatação do CPF
+          if (cpf && cpf.toUpperCase() !== 'N/A') {
+              const digits = cpf.replace(/\D/g, '');
+              if (digits.length === 11) {
+                  cpf = `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9,11)}`;
+              }
+          } else {
+              cpf = '-';
+          }
+
+          if (name.length > 3) {
+              newPeople.push({ 
+                  id: `p-${Date.now()}-${idx}`, 
+                  name, 
+                  cpf: cpf, 
+                  done: false 
+              });
+          }
       });
-      setProcessedPeople(newPeople); setSuccessMsg(`${newPeople.length} registros organizados.`); setTimeout(() => setSuccessMsg(''), 3000);
+
+      setProcessedPeople(newPeople); 
+      setSuccessMsg(`${newPeople.length} registros organizados.`); 
+      setTimeout(() => setSuccessMsg(''), 3000);
   };
 
   const copyToClipboard = (text: string) => {
