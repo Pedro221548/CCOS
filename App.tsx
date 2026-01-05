@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy, useRef, useMemo } from 'react';
 import { LayoutDashboard, Video, DoorClosed, Menu, Bell, X, Power, FileSpreadsheet, Trash2, Check, AlertCircle, CheckCircle2, Shield, Eye, Loader2, LogOut, Users, PlusSquare, Calendar, Settings, Camera as CameraIcon, Save, Briefcase, Mail, User as UserIcon, Image as ImageIcon, Sun, Moon, ClipboardList, CheckSquare, Ban, HelpCircle, Lock, Activity, Grid, Volume2, ChevronUp, BellRing } from 'lucide-react';
 import { Camera, AccessPoint, User, PublicDocument, Note, ProcessedWorker, AppNotification, Status, ThirdPartyImport, ShiftNote } from './types';
 import { authService } from './services/auth';
@@ -38,6 +38,22 @@ const LoadingFallback = () => (
     <Loader2 className="animate-spin text-blue-500 w-8 h-8" />
   </div>
 );
+
+// Função auxiliar para verificar permissão de galpão (Busca flexível)
+const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehouse: string) => {
+    if (!allowedList || allowedList.length === 0) return false;
+    const normalizedTarget = (targetWarehouse || '').toUpperCase();
+    return allowedList.some(allowed => {
+        const normalizedAllowed = allowed.toUpperCase();
+        if (normalizedAllowed === normalizedTarget) return true;
+        if (normalizedAllowed.includes(normalizedTarget) || normalizedTarget.includes(normalizedAllowed)) return true;
+        if (normalizedAllowed.includes('SP-IP') && normalizedTarget.includes('ITAPEVI')) return true;
+        if (normalizedAllowed.includes('PAVUNA') && normalizedTarget.includes('PAVUNA')) return true;
+        if (normalizedAllowed.includes('MERITI') && normalizedTarget.includes('MERITI')) return true;
+        if (normalizedAllowed.includes('4 ELOS') && normalizedTarget.includes('ELOS')) return true;
+        return false;
+    });
+};
 
 const App: React.FC = () => {
   // --- STATE ---
@@ -163,6 +179,23 @@ const App: React.FC = () => {
   const isAdmin = user?.role === 'admin';
   const isManager = user?.role === 'manager';
 
+  // --- FILTRO DE CONTTAGEM POR PERMISSÃO COM LÓGICA FLEXÍVEL ---
+  const counts = useMemo(() => {
+    let filteredCameras = data.cameras;
+    let filteredAccess = data.accessPoints;
+
+    if (isManager && user?.allowedWarehouses && user.allowedWarehouses.length > 0) {
+      filteredCameras = data.cameras.filter(c => hasWarehousePermission(user.allowedWarehouses, c.warehouse));
+      filteredAccess = data.accessPoints.filter(a => hasWarehousePermission(user.allowedWarehouses, a.warehouse));
+    }
+
+    return {
+      video: filteredCameras.filter(c => c.channelType === 'video').length,
+      alarm: filteredCameras.filter(c => c.channelType === 'alarm').length,
+      access: filteredAccess.length
+    };
+  }, [data.cameras, data.accessPoints, isManager, user]);
+
   if (authLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="animate-spin text-blue-500 w-10 h-10" /></div>;
   if (!user) return <Suspense fallback={<LoadingFallback />}><Login onLogin={() => {}} /></Suspense>;
 
@@ -179,7 +212,7 @@ const App: React.FC = () => {
                     <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full"></div>
                     <Shield className="w-16 h-16 text-amber-400 relative z-10 fill-amber-400/20 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)]" strokeWidth={2} />
                 </div>
-                <h1 className="text-6xl font-black italic text-amber-400 tracking-tighter uppercase mb-6 leading-none drop-shadow-2xl font-sans">CCOS</h1>
+                <h1 className="text-6xl font-black italic text-amber-400 tracking-tighter uppercase mb-6 leading-none drop-shadow-2xl font-sans text-center">CCOS</h1>
                 <div className="flex items-center gap-3 w-full justify-center">
                      <div className="bg-white px-2 py-1 rounded-[4px] flex-1 max-w-[95px] h-9 flex items-center justify-center shadow-lg border border-slate-100">
                         <span className="text-[8px] font-black text-red-700 leading-tight text-center tracking-tighter uppercase">UNILOG<br/>EXPRESS</span>
@@ -292,19 +325,19 @@ const App: React.FC = () => {
                                 <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest">
                                     <Video size={14} /> CÂMERAS
                                 </div>
-                                <span className="text-[10px] font-bold opacity-80">({data.cameras.filter(c => c.channelType === 'video').length})</span>
+                                <span className="text-[10px] font-bold opacity-80">({counts.video})</span>
                             </button>
                             <button onClick={() => setMonitoringSubTab('alarms')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${monitoringSubTab === 'alarms' ? 'bg-[#ea580c] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
                                 <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest">
                                     <BellRing size={14} /> ALARMES
                                 </div>
-                                <span className="text-[10px] font-bold opacity-80">({data.cameras.filter(c => c.channelType === 'alarm').length})</span>
+                                <span className="text-[10px] font-bold opacity-80">({counts.alarm})</span>
                             </button>
                             <button onClick={() => setMonitoringSubTab('access')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${monitoringSubTab === 'access' ? 'bg-[#2563eb] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
                                 <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest">
                                     <DoorClosed size={14} /> ACESSO
                                 </div>
-                                <span className="text-[10px] font-bold opacity-80">({data.accessPoints.length})</span>
+                                <span className="text-[10px] font-bold opacity-80">({counts.access})</span>
                             </button>
                         </div>
                     </div>
