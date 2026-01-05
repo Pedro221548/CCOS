@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Camera, AccessPoint, PublicDocument, UserRole } from '../types';
 import { Video, DoorClosed, CheckCircle2, Info, Camera as CameraIcon, Upload, Image as ImageIcon, X, ScanLine, List, FileText, Search, Copy, CheckSquare, Square, Trash2, ClipboardList, Loader2, ArrowDown, AlertTriangle, Table, Settings, Plus, FileBadge, Calendar, Edit3, Save, Scan } from 'lucide-react';
 import { ref, onValue, set, update } from 'firebase/database';
@@ -170,7 +170,7 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
       setNewDoc({ name: '', organ: '', expirationDate: '' });
   };
 
-  // --- MOTOR OCR GEMINI (ATUALIZADO PARA MELHOR PAREAMENTO) ---
+  // --- MOTOR OCR GEMINI ---
   const handleExtractText = async () => {
       if (!selectedImage) {
           alert("Selecione ou capture uma imagem primeiro.");
@@ -186,7 +186,7 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
               contents: [{
                   parts: [
                       { inlineData: { data: base64Data, mimeType: 'image/png' } },
-                      { text: "Analise a imagem e extraia todos os Nomes Completos e CPFs. Mesmo que o CPF esteja em uma linha abaixo do nome, junte-os na mesma linha. Formate o resultado estritamente assim: NOME | CPF. Retorne uma pessoa por linha. Se não houver CPF, escreva N/A. Não retorne nenhum outro texto explicativo." }
+                      { text: "Extraia todos os nomes completos e CPFs da imagem. Se o CPF estiver em uma linha separada logo abaixo do nome, identifique-os como pertencentes à mesma pessoa. Retorne no formato: NOME | CPF. Um por linha." }
                   ]
               }]
           });
@@ -194,13 +194,13 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
           const text = response.text;
           if (text) {
               setRawListText(text);
-              setSuccessMsg("Escaneamento Concluído!");
+              setSuccessMsg("Texto extraído!");
           } else {
               throw new Error("Nenhum texto detectado.");
           }
       } catch (e: any) {
-          console.error("Erro no OCR Gemini:", e);
-          alert("Erro ao processar imagem: " + (e.message || "Tente novamente."));
+          console.error("Erro no OCR:", e);
+          alert("Erro ao processar imagem.");
       } finally {
           setIsProcessingOCR(false);
           setTimeout(() => setSuccessMsg(''), 3000);
@@ -210,31 +210,46 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
   const handleOrganizeList = () => {
       if (!rawListText.trim()) return;
       
-      const lines = rawListText.split(/\r?\n/);
+      const lines = rawListText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
       const newPeople: any[] = [];
       const cpfRegex = /(\d{3}[\.]?\d{3}[\.]?\d{3}[-]?\d{2})|(\d{11})/;
       const blocklist = /\b(RG|SSP|DATA|NASCIMENTO|MAE|PAI|FILIACAO|CARGO|EMPRESA|ADMISSAO|CPF|NOME|EMAIL|TEL|CEL|CNPJ|PAGINA|PAGE|TOTAL|ASSINATURA|LISTA|PRESENCA|DOCUMENTO)\b/gi;
 
-      lines.forEach((line, idx) => {
-          let text = line.trim(); 
-          if (!text) return;
-
+      for (let i = 0; i < lines.length; i++) {
+          let currentLine = lines[i];
           let name = '';
           let cpf = '';
 
-          // Se a linha contém o separador "|", processamos as partes
-          if (text.includes('|')) {
-              const parts = text.split('|');
+          // Se a linha já tem o separador da IA
+          if (currentLine.includes('|')) {
+              const parts = currentLine.split('|');
               name = parts[0].trim();
               cpf = parts[1]?.trim() || '';
           } else {
-              // Fallback para o modo antigo caso a IA não use o separador
-              const m = text.match(cpfRegex);
-              if (m) {
-                  cpf = m[0];
-                  text = text.replace(m[0], '');
+              // Se não tem separador, verifica se a linha atual é um CPF
+              const matchCpf = currentLine.match(cpfRegex);
+              if (matchCpf) {
+                  // Se for CPF e o último registro não tinha CPF, anexa a ele
+                  if (newPeople.length > 0 && (newPeople[newPeople.length - 1].cpf === '-' || !newPeople[newPeople.length - 1].cpf)) {
+                      const digits = matchCpf[0].replace(/\D/g, '');
+                      if (digits.length === 11) {
+                        newPeople[newPeople.length - 1].cpf = `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9,11)}`;
+                      }
+                      continue;
+                  }
+                  cpf = matchCpf[0];
+                  name = currentLine.replace(cpf, '').trim();
+              } else {
+                  // Se parece um nome, anota e checa se a próxima linha é um CPF
+                  name = currentLine;
+                  if (i + 1 < lines.length) {
+                      const nextLineMatch = lines[i+1].match(cpfRegex);
+                      if (nextLineMatch) {
+                          cpf = nextLineMatch[0];
+                          i++; // Pula a próxima linha pois já processamos como CPF
+                      }
+                  }
               }
-              name = text;
           }
 
           // Limpeza do Nome
@@ -258,13 +273,13 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
 
           if (name.length > 3) {
               newPeople.push({ 
-                  id: `p-${Date.now()}-${idx}`, 
+                  id: `p-${Date.now()}-${i}`, 
                   name, 
                   cpf: cpf, 
                   done: false 
               });
           }
-      });
+      }
 
       setProcessedPeople(newPeople); 
       setSuccessMsg(`${newPeople.length} registros organizados.`); 
@@ -274,6 +289,17 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
   const copyToClipboard = (text: string) => {
       navigator.clipboard.writeText(text); setSuccessMsg('Copiado!'); setTimeout(() => setSuccessMsg(''), 1500);
   };
+
+  // Ordenação: Pendentes Primeiro, Concluídos no final
+  // Fix: Added useMemo to React imports to resolve "Cannot find name 'useMemo'" error.
+  const sortedAndFilteredPeople = useMemo(() => {
+    return processedPeople
+        .filter(p => p.name.toLowerCase().includes(listSearch.toLowerCase()))
+        .sort((a, b) => {
+            if (a.done === b.done) return 0;
+            return a.done ? 1 : -1;
+        });
+  }, [processedPeople, listSearch]);
 
   return (
     <div className="max-w-6xl mx-auto animate-fade-in space-y-4 sm:space-y-6 pb-12 px-4 sm:px-0">
@@ -424,7 +450,7 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
                     </div>
                 </div>
 
-                {/* --- TABELA DE RESULTADOS ESTILO IMAGEM --- */}
+                {/* --- TABELA DE RESULTADOS --- */}
                 {processedPeople.length > 0 && (
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
                         <div className="p-5 border-b border-slate-800 bg-slate-950/30 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -442,8 +468,8 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800/40 text-slate-300">
-                                    {processedPeople.filter(p => p.name.toLowerCase().includes(listSearch.toLowerCase())).map(p => (
-                                        <tr key={p.id} className={`transition-all duration-300 ${p.done ? 'bg-slate-950/80 grayscale opacity-40 line-through' : 'hover:bg-slate-800/20'}`}>
+                                    {sortedAndFilteredPeople.map(p => (
+                                        <tr key={p.id} className={`transition-all duration-500 ${p.done ? 'bg-slate-950/80 grayscale opacity-40 line-through' : 'hover:bg-slate-800/20'}`}>
                                             <td className="p-5 text-center">
                                                 <button 
                                                     onClick={() => setProcessedPeople(prev => prev.map(x => x.id === p.id ? { ...x, done: !x.done } : x))} 
