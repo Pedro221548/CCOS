@@ -4,6 +4,7 @@ import { AppData, Camera, ProcessedWorker, Status, User } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Video, WifiOff, Users, Box, AlertTriangle, MessageSquare, Copy, ShieldAlert, DoorClosed, ShieldCheck, PieChart as PieChartIcon, Ticket, Shield, FileText, Calendar, Briefcase, Save, CheckCircle, Warehouse, Power, Clock, Activity, BellRing, Info, Loader2, Crown, TrendingUp } from 'lucide-react';
 import { monitoringService } from '../services/monitoring';
+import { WAREHOUSE_LIST } from '../constants';
 
 interface DashboardProps {
   data: AppData;
@@ -37,6 +38,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const [selectedChartDate, setSelectedChartDate] = useState<string>('');
+  const [selectedWarehouseChart, setSelectedWarehouseChart] = useState<string>('ALL');
   const [currentTime, setCurrentTime] = useState(new Date());
 
   const isAdmin = currentUser?.role === 'admin';
@@ -149,13 +151,16 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
         const counts = new Array(24).fill(0);
         filteredWorkers.forEach(w => {
             if (w.date !== selectedChartDate) return;
+            // Warehouse filter logic
+            if (selectedWarehouseChart !== 'ALL' && w.unit !== selectedWarehouseChart) return;
+            
             if (w.time && w.time.includes(':')) {
                 const hour = parseInt(w.time.split(':')[0], 10);
                 if (!isNaN(hour) && hour >= 0 && hour < 24) counts[hour]++;
             }
         });
         return counts.map((count, hour) => ({ hour: `${hour.toString().padStart(2, '0')}:00`, acessos: count }));
-  }, [filteredWorkers, selectedChartDate]);
+  }, [filteredWorkers, selectedChartDate, selectedWarehouseChart]);
 
   const { systemState, systemColor } = useMemo(() => {
       let state = 'CRÍTICO';
@@ -270,7 +275,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
           </div>
       )}
 
-      {/* KPIs Grid - Adjusted for 6 columns on large screens */}
+      {/* KPIs Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 animate-fade-in">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-lg flex flex-col justify-between">
             <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold tracking-wider">Câmeras de Vídeo</p>
@@ -346,7 +351,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
         </div>
       </div>
 
-      {/* Access Flow Chart Section - MOVED UP */}
+      {/* Access Flow Chart Section */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-lg animate-fade-in">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <h3 className="text-slate-800 dark:text-white font-bold text-lg flex items-center gap-2">
@@ -354,17 +359,36 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                   Fluxo de Acessos
               </h3>
               
-              <div className="relative w-full sm:w-auto">
-                  <select 
-                      value={selectedChartDate} 
-                      onChange={(e) => setSelectedChartDate(e.target.value)}
-                      className="w-full sm:w-48 pl-3 pr-10 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
-                  >
-                      {availableChartDates.map(date => (
-                          <option key={date} value={date}>{date.split('-').reverse().join('/')}</option>
-                      ))}
-                  </select>
-                  <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                  {/* WAREHOUSE FILTER (ADMIN/VIEWER ONLY) */}
+                  {(isAdmin || isViewer) && (
+                      <div className="relative w-full sm:w-auto">
+                          <select 
+                              value={selectedWarehouseChart} 
+                              onChange={(e) => setSelectedWarehouseChart(e.target.value)}
+                              className="w-full sm:w-48 pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
+                          >
+                              <option value="ALL">Todos Galpões</option>
+                              {WAREHOUSE_LIST.map(wh => (
+                                  <option key={wh} value={wh}>{wh}</option>
+                              ))}
+                          </select>
+                          <Warehouse className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                      </div>
+                  )}
+
+                  <div className="relative w-full sm:w-auto">
+                      <select 
+                          value={selectedChartDate} 
+                          onChange={(e) => setSelectedChartDate(e.target.value)}
+                          className="w-full sm:w-48 pl-3 pr-10 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
+                      >
+                          {availableChartDates.map(date => (
+                              <option key={date} value={date}>{date.split('-').reverse().join('/')}</option>
+                          ))}
+                      </select>
+                      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                  </div>
               </div>
           </div>
 
@@ -387,12 +411,16 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
               <Info size={16} className="text-blue-500 shrink-0" />
               <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed italic">
                   O gráfico reflete a intensidade de acessos na data de <span className="font-bold text-blue-500">{selectedChartDate.split('-').reverse().join('/')}</span>. 
-                  A unidade com maior carga detectada no dia foi <span className="font-bold text-amber-500">{topUnitForDate.name}</span>.
+                  {selectedWarehouseChart !== 'ALL' ? (
+                      <> Visualizando dados exclusivos da unidade <span className="font-bold text-purple-500">{selectedWarehouseChart}</span>.</>
+                  ) : (
+                      <> A unidade com maior carga detectada no dia foi <span className="font-bold text-amber-500">{topUnitForDate.name}</span>.</>
+                  )}
               </p>
           </div>
       </div>
 
-      {/* Reports and Incidents - MOVED DOWN */}
+      {/* Reports and Incidents */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
         <div className="lg:col-span-1 space-y-4 sm:space-y-6">
             {canEditOfflineInfo && (
