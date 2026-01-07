@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { Camera, AccessPoint, PublicDocument, UserRole } from '../types';
-import { CheckCircle2, Camera as CameraIcon, Upload, Image as ImageIcon, X, List, FileText, Search, CheckSquare, Trash2, ClipboardList, Loader2, Scan, Wand2, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Camera as CameraIcon, Upload, Image as ImageIcon, X, List, FileText, Search, CheckSquare, Trash2, ClipboardList, Loader2, Scan, Wand2 } from 'lucide-react';
 
 interface RegistrationProps {
   onAddCamera: (cam: Camera) => void;
@@ -14,8 +14,8 @@ interface RegistrationProps {
 
 const OCR_SPACE_KEY = "K89510033988957";
 
-// Utilitário para validar CPF brasileiro
-const validateCPF = (cpf: string) => {
+// Validação oficial de CPF
+const validateCPF = (cpf: string): boolean => {
     const cleanCPF = cpf.replace(/\D/g, '');
     if (cleanCPF.length !== 11) return false;
     if (/^(\d)\1{10}$/.test(cleanCPF)) return false;
@@ -37,8 +37,8 @@ const validateCPF = (cpf: string) => {
     return true;
 };
 
-// Utilitário para formatar nome (Title Case)
-const formatName = (name: string) => {
+// Formatação para Nome Normal (Primeiras letras maiúsculas, restante minúsculo)
+const formatNameNormal = (name: string) => {
     return name
         .toLowerCase()
         .split(' ')
@@ -149,6 +149,9 @@ const Registration: React.FC<RegistrationProps> = ({ userRole = 'viewer' }) => {
               let cpfRaw = cpfMatch[0];
               let cpfFormatted = cpfRaw.replace(/\D/g, '');
               
+              // Validação estrita
+              if (!validateCPF(cpfFormatted)) return;
+
               if (cpfFormatted.length === 11) {
                   cpfFormatted = `${cpfFormatted.slice(0,3)}.${cpfFormatted.slice(3,6)}.${cpfFormatted.slice(6,9)}-${cpfFormatted.slice(9,11)}`;
               }
@@ -161,9 +164,8 @@ const Registration: React.FC<RegistrationProps> = ({ userRole = 'viewer' }) => {
               if (nameCandidate.length > 3) {
                   newPeople.push({
                       id: `p-${Date.now()}-${index}`,
-                      name: formatName(nameCandidate),
+                      name: formatNameNormal(nameCandidate),
                       cpf: cpfFormatted,
-                      isValidCPF: validateCPF(cpfFormatted),
                       done: false
                   });
               }
@@ -172,9 +174,9 @@ const Registration: React.FC<RegistrationProps> = ({ userRole = 'viewer' }) => {
 
       if (newPeople.length > 0) {
           setProcessedPeople(prev => [...newPeople, ...prev]);
-          setSuccessMsg(`${newPeople.length} registros extraídos!`);
+          setSuccessMsg(`${newPeople.length} registros válidos extraídos!`);
       } else {
-          alert("Não foi possível identificar nomes ou CPFs claros no texto.");
+          alert("Nenhum registro com nome e CPF válido encontrado.");
       }
       setTimeout(() => setSuccessMsg(''), 3000);
   };
@@ -200,7 +202,7 @@ const Registration: React.FC<RegistrationProps> = ({ userRole = 'viewer' }) => {
         </div>
         <div>
           <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic leading-tight">Scanner de Cadastro</h2>
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Extração rápida de Nome e CPF</p>
+          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Extração rápida e validação de documentos</p>
         </div>
       </div>
 
@@ -300,7 +302,7 @@ const Registration: React.FC<RegistrationProps> = ({ userRole = 'viewer' }) => {
       {processedPeople.length > 0 && (
           <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
               <div className="p-5 border-b border-slate-800 bg-slate-950/30 flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2"><List size={18} className="text-amber-500" /> 3. RESULTADOS</h3>
+                  <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2"><List size={18} className="text-amber-500" /> 3. REGISTROS VÁLIDOS</h3>
                   <div className="relative w-full sm:w-auto">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                     <input type="text" value={listSearch} onChange={e => setListSearch(e.target.value)} placeholder="Filtrar..." className="w-full sm:w-56 pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500 shadow-inner" />
@@ -336,12 +338,9 @@ const Registration: React.FC<RegistrationProps> = ({ userRole = 'viewer' }) => {
                                   <td className="p-5">
                                       <div 
                                         onClick={() => copyToClipboard(p.cpf.replace(/\D/g, ''))} 
-                                        className={`w-full bg-[#1a1c1e] border rounded-xl px-6 py-3 text-center cursor-pointer transition-all active:scale-95 shadow-md flex items-center justify-center gap-3 group/cpf
-                                            ${p.isValidCPF ? 'border-slate-800 hover:border-emerald-500/50' : 'border-rose-500/50 hover:border-rose-500'}
-                                        `}
+                                        className="w-full bg-[#1a1c1e] border border-slate-800 rounded-xl px-6 py-3 text-center cursor-pointer transition-all active:scale-95 shadow-md flex items-center justify-center gap-3 group/cpf"
                                       >
-                                          <span className={`text-sm font-bold font-mono tracking-wider ${p.isValidCPF ? 'text-emerald-500' : 'text-rose-500'}`}>{p.cpf}</span>
-                                          {!p.isValidCPF && <AlertTriangle size={14} className="text-rose-500 animate-pulse" title="CPF Inválido" />}
+                                          <span className="text-sm font-bold text-emerald-500 font-mono tracking-wider">{p.cpf}</span>
                                           <span className="text-[8px] font-black uppercase text-slate-600 group-hover/cpf:text-slate-400 opacity-0 group-hover/cpf:opacity-100 transition-all">Copiar</span>
                                       </div>
                                   </td>
