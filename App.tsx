@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef, useMemo } from 'react';
 import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar } from 'lucide-react';
-import { Camera, AccessPoint, User, ProcessedWorker, AppNotification, ThirdPartyImport } from './types';
+import { Camera, AccessPoint, User, ProcessedWorker, AppNotification, ThirdPartyImport, Note, ShiftNote } from './types';
 import { authService } from './services/auth';
 import { monitoringService } from './services/monitoring';
+import { organizerService } from './services/organizer';
 import { ref, onValue, update, query, orderByChild } from 'firebase/database';
 import { db } from './services/firebase';
 
@@ -188,6 +189,14 @@ const App: React.FC = () => {
     };
   }, [data.cameras, data.accessPoints, user]);
 
+  // Handlers para o Organizer
+  const handleAddNote = (note: Note) => organizerService.addNote(note, data.notes);
+  const handleToggleNote = (id: string) => organizerService.toggleNote(id, data.notes);
+  const handleDeleteNote = (id: string) => organizerService.deleteNote(id, data.notes);
+  const handleEditNote = (id: string, content: string) => organizerService.editNote(id, content, data.notes);
+  const handleAddShiftNote = (note: ShiftNote) => organizerService.addShiftNote(note, data.shiftNotes || []);
+  const handleDeleteShiftNote = (id: string) => organizerService.deleteShiftNote(id, data.shiftNotes || []);
+
   if (authLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="animate-spin text-amber-500 w-10 h-10" /></div>;
   if (!user) return <Suspense fallback={<LoadingFallback />}><Login onLogin={() => {}} /></Suspense>;
 
@@ -332,7 +341,17 @@ const App: React.FC = () => {
                     <div>
                         {workSubTab === 'tasks' ? (user.role === 'admin' ? <TaskManagement currentUser={user} /> : <MyTasks currentUser={user} />) : 
                          workSubTab === 'pendencies' ? <EmailPendencies currentUser={user} /> : 
-                         <Organizer currentUser={user} notes={data.notes} shiftNotes={data.shiftNotes || []} onAddNote={() => {}} onToggleNote={() => {}} onDeleteNote={() => {}} onEditNote={() => {}} onAddShiftNote={() => {}} onDeleteShiftNote={() => {}} />}
+                         <Organizer 
+                            currentUser={user} 
+                            notes={data.notes} 
+                            shiftNotes={data.shiftNotes || []} 
+                            onAddNote={handleAddNote} 
+                            onToggleNote={handleToggleNote} 
+                            onDeleteNote={handleDeleteNote} 
+                            onEditNote={handleEditNote} 
+                            onAddShiftNote={handleAddShiftNote} 
+                            onDeleteShiftNote={handleDeleteShiftNote} 
+                         />}
                     </div>
                   </div>
                 )}
