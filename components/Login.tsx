@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Shield, Lock, Mail, Loader2, LogIn, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { authService } from '../services/auth';
@@ -47,15 +48,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full"></div>
                 <Shield className="w-16 h-16 sm:w-24 sm:h-24 text-amber-400 relative z-10 fill-amber-400/20 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)] transition-colors duration-300" />
             </div>
-            <h1 className="text-5xl sm:text-7xl font-black text-amber-400 tracking-tighter leading-none drop-shadow-2xl mb-4 font-sans text-center uppercase">
+            {/* LETRAS RETAS AQUI - Removido tracking-tighter */}
+            <h1 className="text-5xl sm:text-7xl font-black text-amber-400 tracking-normal leading-none drop-shadow-2xl mb-4 font-sans text-center uppercase not-italic">
                 CCOS
             </h1>
             <div className="flex items-center justify-center gap-2 sm:gap-3">
                  <div className="bg-white px-2 sm:px-3 py-1 rounded-[4px] h-8 sm:h-9 flex items-center justify-center shadow-lg">
-                    <span className="text-[7px] sm:text-[10px] font-extrabold text-red-700 leading-none text-center tracking-tighter uppercase">UNILOG<br/>EXPRESS</span>
+                    <span className="text-[7px] sm:text-[10px] font-extrabold text-red-700 leading-none text-center tracking-normal uppercase not-italic">UNILOG<br/>EXPRESS</span>
                  </div>
                  <div className="bg-white px-2 sm:px-3 py-1 rounded-[4px] h-8 sm:h-9 flex items-center justify-center shadow-lg">
-                    <span className="text-[7px] sm:text-[10px] font-extrabold text-cyan-600 leading-none text-center tracking-tighter uppercase">4ELOS<br/>DISTRIB.</span>
+                    <span className="text-[7px] sm:text-[10px] font-extrabold text-cyan-600 leading-none text-center tracking-normal uppercase not-italic">4ELOS<br/>DISTRIB.</span>
                  </div>
             </div>
         </div>

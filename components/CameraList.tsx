@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { Camera, Status } from '../types';
-import { Video, MapPin, Box, User, AlertCircle, Search, X, Filter, Warehouse, Plus, Edit2, Trash2, Save, PowerOff, Power } from 'lucide-react';
+import { Video, MapPin, Box, User, AlertCircle, Search, X, Filter, Warehouse, Plus, Edit2, Trash2, Save, PowerOff, Power, Clock } from 'lucide-react';
 
 interface CameraListProps {
   cameras: Camera[];
@@ -122,7 +122,7 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
             <div>
                 <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                     <Video className="text-blue-500" />
-                    Lista de Câmeras
+                    Lista de Câmeras / Alarmes
                 </h2>
                 {allowedWarehouses && (
                     <p className="text-xs text-slate-400 mt-1">
@@ -328,6 +328,14 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                             <div className="flex items-center gap-2 text-xs text-slate-400">
                                 <User size={14} className="text-slate-600 shrink-0" />
                                 <span className="truncate">Resp: <span className="text-slate-300 font-medium">{cam.responsible}</span></span>
+                            </div>
+                            {/* EXIBIÇÃO DA ÚLTIMA ALTERAÇÃO - TIMESTAMP COMPLETO */}
+                            <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-950/50 p-2 rounded border border-slate-800/50 mt-1">
+                                <Clock size={14} className="text-amber-500 shrink-0" />
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] uppercase font-bold text-slate-500">Última alteração Status</span>
+                                    <span className="text-amber-200/90 font-mono text-[11px]">{cam.lastLog || 'Aguardando Sinc.'}</span>
+                                </div>
                             </div>
                         </div>
                     </div>

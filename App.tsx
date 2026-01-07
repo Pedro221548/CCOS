@@ -78,6 +78,8 @@ const App: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { data, thirdPartyWorkers } = useAppData(user);
 
+  const isAdmin = user?.role === 'admin';
+
   const addToast = useCallback((message: string, type: Toast['type']) => {
     const id = Date.now().toString();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -122,19 +124,56 @@ const App: React.FC = () => {
   }, [user]);
 
   const handleTabChange = useCallback((tab: typeof activeTab) => {
-    const isAdmin = user?.role === 'admin';
-    const isManager = user?.role === 'manager';
     if (['data', 'users'].includes(tab) && !isAdmin) { alert("Acesso negado."); return; }
     setActiveTab(tab);
     if (window.innerWidth < 1024) setSidebarOpen(false);
-  }, [user]);
+  }, [isAdmin]);
 
   const handleLogout = useCallback(() => { authService.logout(); setActiveTab('dashboard'); }, []);
+  
   const markAllRead = async () => {
       if (!user) return;
       const updates: any = {};
       notifications.forEach(n => { if (!n.read) updates[`notifications/${user.uid}/${n.id}/read`] = true; });
       if (Object.keys(updates).length > 0) await update(ref(db), updates);
+  };
+
+  // --- LÓGICA DE IMPORTAÇÃO E RESET ---
+  const handleImportData = async (cameras: Camera[], accessPoints: AccessPoint[]) => {
+      try {
+          await monitoringService.importData(cameras, accessPoints);
+          addToast("Sistema atualizado com sucesso!", "success");
+      } catch (e) {
+          addToast("Erro ao importar dados.", "alert");
+      }
+  };
+
+  const handleImportThirdParty = async (workers: ProcessedWorker[], fileName: string) => {
+      try {
+          await monitoringService.addThirdPartyImport(workers, fileName);
+          addToast(`Importado: ${fileName}`, "success");
+      } catch (e) {
+          addToast("Erro ao importar terceirizados.", "alert");
+      }
+  };
+
+  const handleDeleteImport = async (id: string) => {
+      if (!window.confirm("Deseja remover este histórico de importação?")) return;
+      try {
+          await monitoringService.deleteThirdPartyImport(id);
+          addToast("Importação removida.", "info");
+      } catch (e) {
+          addToast("Erro ao remover.", "alert");
+      }
+  };
+
+  const handleResetDatabase = async () => {
+      try {
+          await monitoringService.fullReset();
+          addToast("Banco de dados limpo com sucesso!", "success");
+      } catch (e) {
+          addToast("Erro ao limpar banco de dados.", "alert");
+      }
   };
 
   const counts = useMemo(() => {
@@ -173,13 +212,16 @@ const App: React.FC = () => {
 
       <aside className={`fixed inset-y-0 left-0 z-40 bg-slate-50 dark:bg-slate-950 border-r border-slate-300 dark:border-slate-800 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 lg:translate-x-0 lg:static lg:h-full lg:w-64 flex flex-col shadow-2xl lg:shadow-none`}>
         <div className="flex flex-col items-center justify-center py-10 px-4 shrink-0 select-none">
-            <div onClick={() => handleTabChange('dashboard')} className="flex flex-col items-center cursor-pointer group w-full">
-                <div className="relative mb-4 transform transition-transform group-hover:scale-105 duration-300">
+            <div onClick={() => handleTabChange('dashboard')} className="flex flex-col items-center cursor-pointer group w-full text-center">
+                <div className="relative mb-4 transform transition-transform group-hover:scale-105 duration-300 mx-auto">
                     <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full"></div>
                     <Shield className="w-16 h-16 text-amber-400 relative z-10 fill-amber-400/20 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)]" strokeWidth={2} />
                 </div>
-                <h1 className="text-6xl font-black italic text-amber-400 tracking-tighter uppercase mb-2 leading-none drop-shadow-2xl font-sans text-center">CCOS</h1>
-                <div className="mb-6 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full"><span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em]">DEMONSTRAÇÃO</span></div>
+                {/* LETRAS RETAS AQUI */}
+                <h1 className="text-6xl font-black text-amber-400 uppercase mb-2 leading-none drop-shadow-2xl font-sans not-italic tracking-normal">CCOS</h1>
+                <div className="mb-6 px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full inline-block mx-auto">
+                    <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.1em] not-italic">DEMONSTRAÇÃO</span>
+                </div>
             </div>
         </div>
         <nav className="p-4 space-y-1 flex-1 overflow-y-auto custom-scrollbar border-t border-slate-800/50 mt-4">
@@ -192,7 +234,7 @@ const App: React.FC = () => {
                 <button onClick={() => handleTabChange('registration')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'registration' ? 'bg-blue-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><PlusSquare size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Cadastro</span></button>
               </>
           )}
-          {user?.role === 'admin' && (
+          {isAdmin && (
             <div className="pt-4 mt-4 border-t border-slate-800/50 shrink-0">
                 <button onClick={() => handleTabChange('data')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'data' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}`}><FileSpreadsheet size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Fonte Dados</span></button>
                 <button onClick={() => handleTabChange('users')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'users' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}`}><Users size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Usuários</span></button>
@@ -236,7 +278,6 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {/* DEMO BANNER TOP */}
         <div className="bg-amber-600/10 border-b border-amber-600/20 py-2 px-4 flex items-center justify-center gap-3 animate-fade-in relative z-10">
              <AlertTriangle size={14} className="text-amber-500" />
              <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">
@@ -279,7 +320,15 @@ const App: React.FC = () => {
                 )}
                 {activeTab === 'work-mgmt' && <div className="animate-fade-in">{workSubTab === 'tasks' ? (user.role === 'admin' ? <TaskManagement currentUser={user} /> : <MyTasks currentUser={user} />) : workSubTab === 'pendencies' ? <EmailPendencies currentUser={user} /> : <Organizer currentUser={user} notes={data.notes} shiftNotes={data.shiftNotes || []} onAddNote={() => {}} onToggleNote={() => {}} onDeleteNote={() => {}} onEditNote={() => {}} onAddShiftNote={() => {}} onDeleteShiftNote={() => {}} />}</div>}
                 {activeTab === 'registration' && <Registration onAddCamera={() => {}} onAddAccess={() => {}} onAddDocument={() => {}} onDeleteDocument={() => {}} documents={data.documents} userRole={user.role} />}
-                {activeTab === 'data' && <Importer onImport={() => {}} onImportThirdParty={() => {}} onDeleteImport={() => {}} thirdPartyImports={data.thirdPartyImports} onReset={() => {}} />}
+                {activeTab === 'data' && (
+                    <Importer 
+                        onImport={handleImportData} 
+                        onImportThirdParty={handleImportThirdParty} 
+                        onDeleteImport={handleDeleteImport} 
+                        thirdPartyImports={data.thirdPartyImports} 
+                        onReset={handleResetDatabase} 
+                    />
+                )}
                 {activeTab === 'users' && <UserManagement currentUser={user} />}
             </Suspense>
           </div>

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Filter, Search, X, Users, Briefcase, MapPin, Clock, ChevronDown, ChevronUp, Calendar, BarChart3, PieChart } from 'lucide-react';
+import { Filter, Search, X, Users, Briefcase, MapPin, Clock, ChevronDown, ChevronUp, Calendar, BarChart3, PieChart, Crown, TrendingUp } from 'lucide-react';
 import { ProcessedWorker, User } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
 
@@ -45,13 +45,12 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], curre
         return currentUser.allowedWarehouses || [];
     }, [currentUser]);
 
-    const { stats, globalTotal, companyStats } = useMemo(() => {
+    const { stats, globalTotal, companyStats, topUnit } = useMemo(() => {
         const filtered = workers.filter(w => {
             // Permission Filter
             if (currentUser?.role === 'manager' && !allowedWarehouses.includes(w.unit)) return false;
 
             // *** STICT FILTER: Only show specified Third Party Companies ***
-            // Isso garante que funcionários internos (G2, etc) não apareçam aqui, apenas as empresas da lista.
             if (!VALID_COMPANIES.includes(w.company)) return false;
 
             if (selectedDate && w.date !== 'N/A' && w.date !== selectedDate) return false;
@@ -95,10 +94,15 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], curre
             }
         });
 
+        const sortedStats = Object.values(statsMap)
+            .filter(u => selectedUnit === 'ALL' || u.id === selectedUnit)
+            .sort((a, b) => b.total - a.total);
+
         return {
-            stats: Object.values(statsMap).filter(u => selectedUnit === 'ALL' || u.id === selectedUnit).sort((a, b) => b.total - a.total),
+            stats: sortedStats,
             globalTotal: total,
-            companyStats: Object.entries(companyCountMap).sort((a, b) => b[1] - a[1]).filter(c => c[1] > 0)
+            companyStats: Object.entries(companyCountMap).sort((a, b) => b[1] - a[1]).filter(c => c[1] > 0),
+            topUnit: sortedStats.length > 0 && sortedStats[0].total > 0 ? sortedStats[0] : null
         };
 
     }, [workers, selectedDate, selectedUnit, currentUser, allowedWarehouses]);
@@ -155,59 +159,71 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], curre
                 </div>
             ) : (
                 <>
-                    {/* NEW SUMMARY DASHBOARD */}
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 animate-fade-in">
-                        {/* 1. Total Card */}
-                        <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-6 text-white shadow-lg flex flex-col justify-center items-center lg:col-span-1">
-                            <div className="p-3 bg-white/10 rounded-full mb-3">
-                                <Users size={32} className="text-white" />
+                    {/* SUMMARY DASHBOARD */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
+                        {/* 1. Global Total Card */}
+                        <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-5 text-white shadow-lg flex flex-col justify-center items-center">
+                            <div className="p-2 bg-white/10 rounded-full mb-2">
+                                <Users size={24} className="text-white" />
                             </div>
-                            <h3 className="text-sm font-bold text-blue-100 uppercase tracking-wider mb-1">Total de Terceiros</h3>
-                            <span className="text-5xl font-black tracking-tight">{globalTotal}</span>
-                            <span className="text-xs text-blue-200 mt-2 bg-black/20 px-2 py-1 rounded">Presentes Agora</span>
+                            <h3 className="text-[10px] font-bold text-blue-100 uppercase tracking-widest mb-1 text-center">Total de Terceiros</h3>
+                            <span className="text-4xl font-black tracking-tight">{globalTotal}</span>
+                            <span className="text-[9px] text-blue-200 mt-2 bg-black/20 px-2 py-0.5 rounded uppercase font-bold tracking-widest">Registros na Data</span>
                         </div>
 
-                        {/* 2. Warehouse Breakdown */}
-                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg lg:col-span-2 flex flex-col">
-                            <h3 className="text-slate-200 font-bold text-sm uppercase flex items-center gap-2 mb-4">
-                                <BarChart3 size={16} className="text-emerald-500" />
-                                Distribuição por Galpão
+                        {/* 2. TOP UNIT INDICATOR (NOVO) */}
+                        <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl p-5 text-white shadow-lg flex flex-col justify-center items-center relative overflow-hidden group">
+                            <div className="absolute -right-2 -top-2 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                                <Crown size={80} />
+                            </div>
+                            <div className="p-2 bg-white/10 rounded-full mb-2 relative z-10">
+                                <TrendingUp size={24} className="text-white" />
+                            </div>
+                            <h3 className="text-[10px] font-bold text-amber-100 uppercase tracking-widest mb-1 text-center relative z-10">Unidade Líder de Fluxo</h3>
+                            <span className="text-xl font-black tracking-tight text-center truncate w-full px-2 relative z-10">
+                                {topUnit ? topUnit.id : '---'}
+                            </span>
+                            <div className="mt-2 flex items-center gap-1.5 relative z-10 bg-black/20 px-3 py-0.5 rounded-full">
+                                <span className="text-[13px] font-black">{topUnit ? topUnit.total : 0}</span>
+                                <span className="text-[9px] font-bold uppercase opacity-80">Acessos</span>
+                            </div>
+                        </div>
+
+                        {/* 3. Warehouse Breakdown */}
+                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg lg:col-span-1 flex flex-col h-full min-h-[160px]">
+                            <h3 className="text-slate-200 font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 mb-3">
+                                <BarChart3 size={14} className="text-emerald-500" />
+                                Distribuição
                             </h3>
-                            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3 max-h-[200px]">
-                                {stats.filter(s => s.total > 0).map(s => (
-                                    <div key={s.id} className="group">
-                                        <div className="flex justify-between items-center text-xs mb-1">
-                                            <span className="text-slate-300 font-medium truncate pr-2">{s.id}</span>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-2 max-h-[100px]">
+                                {stats.filter(s => s.total > 0).slice(0, 5).map(s => (
+                                    <div key={s.id}>
+                                        <div className="flex justify-between items-center text-[10px] mb-1">
+                                            <span className="text-slate-400 font-medium truncate max-w-[120px]">{s.id}</span>
                                             <span className="text-white font-bold">{s.total}</span>
                                         </div>
-                                        <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                                        <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
                                             <div 
                                                 className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                                                style={{ width: `${(s.total / globalTotal) * 100}%` }}
+                                                style={{ width: `${(s.total / (globalTotal || 1)) * 100}%` }}
                                             ></div>
                                         </div>
                                     </div>
                                 ))}
-                                {globalTotal === 0 && <p className="text-slate-500 text-xs italic">Sem dados para exibir.</p>}
                             </div>
                         </div>
 
-                        {/* 3. Company Breakdown */}
-                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg lg:col-span-1 flex flex-col">
-                            <h3 className="text-slate-200 font-bold text-sm uppercase flex items-center gap-2 mb-4">
-                                <PieChart size={16} className="text-amber-500" />
-                                Top Empresas
+                        {/* 4. Company Breakdown */}
+                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg lg:col-span-1 flex flex-col h-full min-h-[160px]">
+                            <h3 className="text-slate-200 font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 mb-3">
+                                <PieChart size={14} className="text-amber-500" />
+                                Parceiros
                             </h3>
-                            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2 max-h-[200px]">
-                                {companyStats.map(([company, count], idx) => (
-                                    <div key={company} className="flex items-center justify-between p-2 rounded bg-slate-800/50 border border-slate-700/50">
-                                        <div className="flex items-center gap-2 overflow-hidden">
-                                            <div className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-400 shrink-0">
-                                                {idx + 1}
-                                            </div>
-                                            <span className="text-xs text-slate-300 font-medium truncate">{company}</span>
-                                        </div>
-                                        <span className="text-xs font-bold text-white bg-slate-700 px-1.5 py-0.5 rounded">{count}</span>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-2 max-h-[100px]">
+                                {companyStats.slice(0, 3).map(([company, count]) => (
+                                    <div key={company} className="flex items-center justify-between p-1.5 rounded bg-slate-800/50">
+                                        <span className="text-[10px] text-slate-300 font-bold truncate max-w-[110px]">{company}</span>
+                                        <span className="text-[10px] font-black text-white bg-slate-700 px-1.5 py-0.5 rounded">{count}</span>
                                     </div>
                                 ))}
                             </div>
@@ -217,19 +233,20 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], curre
                     {/* DETAILED SEARCH BAR */}
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                        <input type="text" className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 placeholder-slate-500 focus:outline-none focus:border-blue-500 text-sm shadow-sm" placeholder="Pesquisar terceirizado por nome em todas as unidades..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                        <input type="text" className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 placeholder-slate-500 focus:outline-none focus:border-blue-500 text-sm shadow-sm transition-all" placeholder="Pesquisar terceirizado por nome em todas as unidades..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                     </div>
 
                     {/* DETAIL CARDS GRID */}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                         {stats.map((unit) => (
-                            <div key={unit.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg flex flex-col hover:border-slate-700 transition-colors">
-                                <div className="p-5 border-b border-slate-800 bg-slate-950/30 flex justify-between items-center">
+                            <div key={unit.id} className={`bg-slate-900 border rounded-xl overflow-hidden shadow-lg flex flex-col hover:border-slate-700 transition-colors ${topUnit?.id === unit.id ? 'border-amber-500/30' : 'border-slate-800'}`}>
+                                <div className={`p-5 border-b flex justify-between items-center ${topUnit?.id === unit.id ? 'bg-amber-500/5 border-amber-500/20' : 'bg-slate-950/30 border-slate-800'}`}>
                                     <h3 className="font-bold text-white text-base flex items-center gap-2 truncate pr-2" title={unit.id}>
-                                        <MapPin size={16} className="text-emerald-500 shrink-0" />
+                                        <MapPin size={16} className={topUnit?.id === unit.id ? 'text-amber-500' : 'text-emerald-500'} />
                                         {unit.id}
+                                        {topUnit?.id === unit.id && <Crown size={14} className="text-amber-500" />}
                                     </h3>
-                                    <span className="px-2 py-1 bg-blue-600/20 text-blue-400 border border-blue-600/30 rounded text-xs font-bold whitespace-nowrap">
+                                    <span className={`px-2 py-1 rounded text-xs font-black border whitespace-nowrap ${topUnit?.id === unit.id ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-blue-600/20 text-blue-400 border-blue-600/30'}`}>
                                         {unit.total}
                                     </span>
                                 </div>

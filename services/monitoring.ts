@@ -3,6 +3,17 @@ import { ref, set, update, push, remove } from 'firebase/database';
 import { db } from './firebase';
 import { Camera, AccessPoint, PublicDocument, ProcessedWorker, Status, ThirdPartyImport } from '../types';
 
+const getNowFormatted = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
 class MonitoringService {
   // --- Cameras ---
   async addCamera(camera: Camera, currentCameras: Camera[]) {
@@ -25,8 +36,9 @@ class MonitoringService {
     if (!target) return null;
     
     const newStatus = target.status === 'ONLINE' ? 'OFFLINE' : 'ONLINE';
+    const lastLog = getNowFormatted();
     const newCameras = currentCameras.map(c => 
-        c.uuid === uuid ? { ...c, status: newStatus } : c
+        c.uuid === uuid ? { ...c, status: newStatus, lastLog } : c
     );
     await set(ref(db, 'monitoramento/cameras'), newCameras);
     return { name: target.name, newStatus };
@@ -40,21 +52,31 @@ class MonitoringService {
     await set(ref(db, 'monitoramento/cameras'), newCameras);
   }
 
-  // Resolve o problema: define como ONLINE e limpa o ticket
+  // Atualiza a observação de uma câmera específica
+  async updateCameraObservation(uuid: string, observation: string, currentCameras: Camera[]) {
+    const newCameras = currentCameras.map(c => 
+        c.uuid === uuid ? { ...c, observation } : c
+    );
+    await set(ref(db, 'monitoramento/cameras'), newCameras);
+  }
+
+  // Resolve o problema: define como ONLINE e limpa o ticket/observação
   async resolveCameraIssue(uuid: string, currentCameras: Camera[]) {
     const target = currentCameras.find(c => c.uuid === uuid);
     if (!target) return;
 
+    const lastLog = getNowFormatted();
     const newCameras = currentCameras.map(c => 
-        c.uuid === uuid ? { ...c, status: 'ONLINE', ticket: '' } : c
+        c.uuid === uuid ? { ...c, status: 'ONLINE', ticket: '', observation: '', lastLog } : c
     );
     await set(ref(db, 'monitoramento/cameras'), newCameras);
   }
 
   // Bulk update for Warehouse
   async setWarehouseStatus(warehouse: string, status: Status, currentCameras: Camera[]) {
+    const lastLog = getNowFormatted();
     const newCameras = currentCameras.map(c => 
-        c.warehouse === warehouse ? { ...c, status: status } : c
+        c.warehouse === warehouse ? { ...c, status: status, lastLog } : c
     );
     await set(ref(db, 'monitoramento/cameras'), newCameras);
   }
@@ -80,8 +102,9 @@ class MonitoringService {
     if (!target) return null;
     
     const newStatus = target.status === 'ONLINE' ? 'OFFLINE' : 'ONLINE';
+    const lastLog = getNowFormatted();
     const newAccess = currentAccess.map(ap => 
-        ap.uuid === uuid ? { ...ap, status: newStatus } : ap
+        ap.uuid === uuid ? { ...ap, status: newStatus, lastLog } : ap
     );
     await set(ref(db, 'monitoramento/access_points'), newAccess);
     return { name: target.name, newStatus };

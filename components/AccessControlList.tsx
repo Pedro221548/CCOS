@@ -296,6 +296,11 @@ const AccessControlList: React.FC<AccessControlListProps> = ({ accessPoints, onT
                                             <MapPin size={12} />
                                             {ap.location}
                                         </div>
+                                        {/* EXIBIÇÃO DA ÚLTIMA ALTERAÇÃO */}
+                                        <div className="flex items-center gap-1.5 text-[10px] text-amber-500/80 italic">
+                                            <Clock size={10} />
+                                            Ult. Alteração: {ap.lastLog || '-'}
+                                        </div>
                                     </div>
                                 </td>
                                 <td className="p-4 text-center">

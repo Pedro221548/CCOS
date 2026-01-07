@@ -40,7 +40,9 @@ export interface Camera {
   responsible: string; 
   status: Status;      
   ticket?: string;     
+  observation?: string; // Motivo do offline
   channelType: ChannelType;
+  lastLog?: string; 
 }
 
 export interface AccessPoint {
