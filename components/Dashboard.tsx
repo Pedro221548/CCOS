@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { AppData, Camera, ProcessedWorker, Status, User } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { Video, WifiOff, Users, Box, AlertTriangle, MessageSquare, Copy, ShieldAlert, DoorClosed, ShieldCheck, PieChart as PieChartIcon, Ticket, Shield, FileText, Calendar, Briefcase, Save, CheckCircle, Warehouse, Power, Clock, Activity, BellRing, Info, Loader2, Crown, TrendingUp, Building2 } from 'lucide-react';
+import { Video, WifiOff, Users, Box, AlertTriangle, MessageSquare, Copy, ShieldAlert, DoorClosed, ShieldCheck, PieChart as PieChartIcon, Ticket, Shield, FileText, Calendar, Briefcase, Save, CheckCircle, Warehouse, Power, Clock, Activity, BellRing, Info, Loader2, Crown, TrendingUp, Building2, History } from 'lucide-react';
 import { monitoringService } from '../services/monitoring';
 import { WAREHOUSE_LIST } from '../constants';
 
@@ -29,7 +29,7 @@ const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehou
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onSetWarehouseStatus, currentUser }) => {
-  const { cameras, accessPoints, documents } = data;
+  const { cameras, accessPoints, documents, shiftNotes = [] } = data;
   const [copied, setCopied] = useState(false);
   
   // Local state for editing
@@ -185,6 +185,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
       };
       return visibleDevices.filter(c => c.status === 'OFFLINE').map(c => ({ ...c, priority: getPriority(c.location) })).sort((a, b) => a.priority === 'CRÍTICO' ? -1 : 1);
   }, [visibleDevices]);
+
+  const sortedShiftNotes = useMemo(() => {
+      return [...shiftNotes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [shiftNotes]);
 
   // Handlers for Offline Info
   const handleTicketChange = (uuid: string, value: string) => setLocalTickets(prev => ({ ...prev, [uuid]: value }));
@@ -599,11 +603,41 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                 </div>
             )}
 
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-lg relative min-h-[250px]">
-                 <h3 className="text-slate-800 dark:text-slate-200 font-bold text-sm mb-2 flex items-center gap-2"><PieChartIcon size={18} className="text-blue-500" /> Rede Vídeo</h3>
-                <div className="h-[200px] w-full relative">
-                    <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={75} paddingAngle={5} dataKey="value" stroke="none">{pieData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}</Pie><Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9', borderRadius: '8px', fontSize: '10px' }} /><Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px' }} /></PieChart></ResponsiveContainer>
-                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center -mt-3 pointer-events-none"><span className="text-2xl font-bold text-slate-800 dark:text-white block">{stats.totalVideo}</span><span className="text-[8px] text-slate-500 uppercase tracking-widest">Câmeras</span></div>
+            {/* ROW WITH SHIFT NOTES AND VIDEO CHART */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Relatório de Plantão Preview */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-lg flex flex-col h-[350px]">
+                    <h3 className="text-slate-800 dark:text-slate-200 font-bold text-sm mb-3 flex items-center gap-2">
+                        <History size={18} className="text-amber-500" /> 
+                        Relatório de Plantão
+                    </h3>
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+                        {sortedShiftNotes.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-500 italic text-xs">
+                                <History size={24} className="opacity-20 mb-2" />
+                                Nenhum registro recente.
+                            </div>
+                        ) : (
+                            sortedShiftNotes.slice(0, 10).map(note => (
+                                <div key={note.id} className="bg-slate-50 dark:bg-slate-950/50 p-3 rounded-lg border border-slate-200 dark:border-slate-800/50 space-y-1">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] font-black text-amber-500 uppercase truncate max-w-[120px]">{note.author}</span>
+                                        <span className="text-[9px] text-slate-500 font-mono">{new Date(note.createdAt).toLocaleDateString('pt-BR')} {new Date(note.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-3 leading-relaxed whitespace-pre-wrap">{note.content}</p>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Rede Video Chart */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-lg relative h-[350px]">
+                     <h3 className="text-slate-800 dark:text-slate-200 font-bold text-sm mb-2 flex items-center gap-2"><PieChartIcon size={18} className="text-blue-500" /> Rede Vídeo</h3>
+                    <div className="h-[250px] w-full relative">
+                        <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={75} paddingAngle={5} dataKey="value" stroke="none">{pieData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}</Pie><Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9', borderRadius: '8px', fontSize: '10px' }} /><Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px' }} /></PieChart></ResponsiveContainer>
+                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center -mt-3 pointer-events-none"><span className="text-2xl font-bold text-slate-800 dark:text-white block">{stats.totalVideo}</span><span className="text-[8px] text-slate-500 uppercase tracking-widest">Câmeras</span></div>
+                    </div>
                 </div>
             </div>
         </div>
