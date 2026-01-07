@@ -300,7 +300,7 @@ const Registration: React.FC<RegistrationProps> = ({ userRole = 'viewer', docume
                             {selectedImage ? (
                                 <>
                                     <img src={selectedImage} alt="Preview" className="w-full h-full object-contain p-2" />
-                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                                         <button onClick={() => setSelectedImage(null)} className="p-3 bg-rose-600 text-white rounded-full"><X size={24} /></button>
                                     </div>
                                 </>
@@ -346,28 +346,28 @@ const Registration: React.FC<RegistrationProps> = ({ userRole = 'viewer', docume
                 </div>
             </div>
 
-            {/* REVISÃO */}
-            {rawText && (
-                <div className="bg-[#0d1117] border border-slate-800 rounded-2xl overflow-hidden shadow-xl animate-fade-in">
-                    <div className="bg-slate-900/40 px-6 py-4 border-b border-slate-800 flex items-center gap-3">
-                        <FileText size={18} className="text-amber-500" />
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">2. Conferência de Texto</h3>
-                    </div>
-                    <div className="p-6 space-y-4">
-                        <textarea 
-                            value={rawText}
-                            onChange={(e) => setRawText(e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-slate-300 text-sm font-mono focus:border-amber-500 outline-none h-40 resize-none leading-relaxed"
-                        />
-                        <button 
-                            onClick={handleOrganizeRecords}
-                            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl uppercase text-[11px] tracking-widest flex items-center justify-center gap-3 transition-all"
-                        >
-                            <Wand2 size={18} /> Organizar e Salvar
-                        </button>
-                    </div>
+            {/* REVISÃO - TEXTO BRUTO (SEMPRE VISÍVEL PARA COLAGEM MANUAL) */}
+            <div className="bg-[#0d1117] border border-slate-800 rounded-2xl overflow-hidden shadow-xl animate-fade-in">
+                <div className="bg-slate-900/40 px-6 py-4 border-b border-slate-800 flex items-center gap-3">
+                    <FileText size={18} className="text-amber-500" />
+                    <h3 className="text-[10px] font-black text-amber-500 uppercase tracking-[0.2em]">2. TEXTO BRUTO</h3>
                 </div>
-            )}
+                <div className="p-6 space-y-4">
+                    <textarea 
+                        value={rawText}
+                        onChange={(e) => setRawText(e.target.value)}
+                        placeholder="O texto extraído aparecerá aqui..."
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-slate-300 text-sm font-mono focus:border-amber-500 outline-none h-40 resize-none leading-relaxed"
+                    />
+                    <button 
+                        onClick={handleOrganizeRecords}
+                        disabled={!rawText.trim()}
+                        className="w-full py-4 bg-slate-900/50 hover:bg-slate-800 border border-slate-700 text-amber-500 font-black rounded-xl uppercase text-[11px] tracking-widest flex items-center justify-center gap-3 transition-all disabled:opacity-30"
+                    >
+                        ORGANIZAR REGISTROS
+                    </button>
+                </div>
+            </div>
 
             {/* LISTA */}
             <div className="bg-[#0d1117] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
