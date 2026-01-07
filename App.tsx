@@ -166,13 +166,31 @@ const App: React.FC = () => {
       }
   };
 
-  const handleResetDatabase = async () => {
-      try {
-          await monitoringService.fullReset();
-          addToast("Banco de dados limpo com sucesso!", "success");
-      } catch (e) {
-          addToast("Erro ao limpar banco de dados.", "alert");
-      }
+  const handleResetCameras = async () => {
+    try {
+        await monitoringService.resetCameras();
+        addToast("Base de câmeras limpa!", "success");
+    } catch (e) {
+        addToast("Erro ao limpar câmeras.", "alert");
+    }
+  };
+
+  const handleResetAccess = async () => {
+    try {
+        await monitoringService.resetAccessPoints();
+        addToast("Base de acessos limpa!", "success");
+    } catch (e) {
+        addToast("Erro ao limpar acessos.", "alert");
+    }
+  };
+
+  const handleResetThirdParty = async () => {
+    try {
+        await monitoringService.resetThirdParty();
+        addToast("Base de terceirizados limpa!", "success");
+    } catch (e) {
+        addToast("Erro ao limpar terceirizados.", "alert");
+    }
   };
 
   const counts = useMemo(() => {
@@ -362,7 +380,9 @@ const App: React.FC = () => {
                         onImportThirdParty={handleImportThirdParty} 
                         onDeleteImport={handleDeleteImport} 
                         thirdPartyImports={data.thirdPartyImports} 
-                        onReset={handleResetDatabase} 
+                        onResetCameras={handleResetCameras}
+                        onResetAccess={handleResetAccess}
+                        onResetThirdParty={handleResetThirdParty}
                     />
                 )}
                 {activeTab === 'users' && <UserManagement currentUser={user} />}

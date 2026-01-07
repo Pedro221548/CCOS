@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { AppData, Camera, ProcessedWorker, Status, User } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { Video, WifiOff, Users, Box, AlertTriangle, MessageSquare, Copy, ShieldAlert, DoorClosed, ShieldCheck, PieChart as PieChartIcon, Ticket, Shield, FileText, Calendar, Briefcase, Save, CheckCircle, Warehouse, Power, Clock, Activity, BellRing, Info, Loader2, Crown, TrendingUp } from 'lucide-react';
+import { Video, WifiOff, Users, Box, AlertTriangle, MessageSquare, Copy, ShieldAlert, DoorClosed, ShieldCheck, PieChart as PieChartIcon, Ticket, Shield, FileText, Calendar, Briefcase, Save, CheckCircle, Warehouse, Power, Clock, Activity, BellRing, Info, Loader2, Crown, TrendingUp, Building2 } from 'lucide-react';
 import { monitoringService } from '../services/monitoring';
 import { WAREHOUSE_LIST } from '../constants';
 
@@ -221,6 +221,17 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
       }
   };
 
+  const getDocStatus = (expirationDate: string) => {
+      const today = new Date();
+      const exp = new Date(expirationDate);
+      const diffTime = exp.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) return { label: 'EXPIRADO', color: 'text-rose-500 bg-rose-500/10 border-rose-500/20' };
+      if (diffDays <= 30) return { label: 'ALERTA', color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' };
+      return { label: 'VÁLIDO', color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' };
+  };
+
   const whatsAppMessage = useMemo(() => {
     let msg = `*RELATÓRIO DE MONITORAMENTO*\n📅 ${new Date().toLocaleDateString('pt-BR')} - ${new Date().toLocaleTimeString('pt-BR')}\n\n📊 *Status Geral: ${systemState}*\n`;
     if (stats.totalVideo > 0) msg += `📹 *CÂMERAS*\n   Total: ${stats.totalVideo} | 🟢 On: ${stats.onlineVideo} | 🔴 Off: ${stats.offlineVideo}\n   📉 Disponibilidade: ${stats.availVideo}%\n`;
@@ -381,7 +392,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                       <select 
                           value={selectedChartDate} 
                           onChange={(e) => setSelectedChartDate(e.target.value)}
-                          className="w-full sm:w-48 pl-3 pr-10 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
+                          className="w-full sm:w-48 pl-3 pr-10 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
                       >
                           {availableChartDates.map(date => (
                               <option key={date} value={date}>{date.split('-').reverse().join('/')}</option>
@@ -417,6 +428,64 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                       <> A unidade com maior carga detectada no dia foi <span className="font-bold text-amber-500">{topUnitForDate.name}</span>.</>
                   )}
               </p>
+          </div>
+      </div>
+
+      {/* DOCUMENTOS MONITORADOS SECTION - MOVIDO PARA DEPOIS DO FLUXO DE ACESSOS */}
+      <div className="bg-[#0d1117] border border-slate-800 rounded-2xl overflow-hidden shadow-xl animate-fade-in">
+          <div className="p-4 border-b border-slate-800 bg-slate-900/40">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <ShieldAlert size={16} className="text-blue-500" />
+                  Documentos Monitorados
+              </h3>
+          </div>
+          
+          <div className="overflow-x-auto">
+              {documents.length === 0 ? (
+                  <div className="p-12 text-center text-slate-600 text-xs italic">Nenhum documento cadastrado.</div>
+              ) : (
+                  <table className="w-full text-left text-sm">
+                      <thead className="bg-slate-950 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-800">
+                          <tr>
+                              <th className="p-4">Documento</th>
+                              <th className="p-4">Órgão</th>
+                              <th className="p-4">Validade</th>
+                              <th className="p-4">Status</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/50">
+                          {documents.map(doc => {
+                              const status = getDocStatus(doc.expirationDate);
+                              return (
+                                  <tr key={doc.uuid} className="hover:bg-slate-800/20 transition-colors group">
+                                      <td className="p-4">
+                                          <div className="flex items-center gap-3">
+                                              <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
+                                                  <FileText size={18} />
+                                              </div>
+                                              <span className="font-bold text-slate-200 uppercase">{doc.name}</span>
+                                          </div>
+                                      </td>
+                                      <td className="p-4">
+                                          <div className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[11px]">
+                                              <Building2 size={14} className="text-slate-600" />
+                                              {doc.organ}
+                                          </div>
+                                      </td>
+                                      <td className="p-4 font-mono text-[11px] text-slate-300 font-bold">
+                                          {new Date(doc.expirationDate).toLocaleDateString('pt-BR')}
+                                      </td>
+                                      <td className="p-4">
+                                          <span className={`px-2.5 py-1 rounded text-[10px] font-black border tracking-wider ${status.color}`}>
+                                              {status.label}
+                                          </span>
+                                      </td>
+                                  </tr>
+                              );
+                          })}
+                      </tbody>
+                  </table>
+              )}
           </div>
       </div>
 

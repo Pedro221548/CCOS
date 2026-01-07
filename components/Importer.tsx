@@ -1,6 +1,6 @@
 
 import React, { useRef, useState } from 'react';
-import { FileSpreadsheet, RotateCcw, Upload, Video, DoorClosed, Save, Briefcase, Trash2, Clock, FileText, Download, Database, Check, Layers, Power } from 'lucide-react';
+import { FileSpreadsheet, RotateCcw, Upload, Video, DoorClosed, Save, Briefcase, Trash2, Clock, FileText, Download, Database, Check, Layers, Power, X, AlertTriangle } from 'lucide-react';
 import { Camera, AccessPoint, Status, ProcessedWorker, ThirdPartyImport, ChannelType } from '../types';
 // @ts-ignore - jspdf might be loaded via CDN or missing type declarations
 import { jsPDF } from "jspdf";
@@ -55,18 +55,11 @@ const formatExcelDate = (val: any): string => {
     return String(val).trim();
 };
 
-/**
- * Função para verificar se um ID pertence exclusivamente ao G5 baseado na lista oficial.
- * Faixas: 122-138, 229-257, 264-292, 299-329, 336-367, 374-399, 406-437.
- */
 const isG5NumericId = (idStr: string | null): boolean => {
     if (!idStr) return false;
-    
     const parts = idStr.toString().split('.');
     const numericPart = parseInt(parts[parts.length - 1], 10);
-
     if (isNaN(numericPart)) return false;
-
     return (
         (numericPart >= 122 && numericPart <= 138) ||
         (numericPart >= 229 && numericPart <= 257) ||
@@ -84,11 +77,7 @@ const normalizeWarehouse = (rawWarehouse: string | null, location: string | null
     const locName = (location || '').toUpperCase();
     const modName = (module || '').toUpperCase();
     const idStr = (id || '').toString();
-    
-    // --- PRIORIDADE MÁXIMA: FILTRO POR NÚMERO (FAIXA G5) ---
     if (isG5NumericId(idStr)) return 'GALPÃO G5';
-
-    // --- PRIORIDADE 1: IDENTIFICAÇÃO PELO DISPOSITIVO ---
     if (devName.includes('G5') || devName.includes('TERABYTE')) return 'GALPÃO G5';
     if (devName.includes('G10') || devName.includes('4ELOS G4 ES') || devName.includes('ELOS ES') || devName.includes('4 ELOS ES')) return 'GALPÃO 4 ELOS ES';
     if (devName.includes('SP 01') || devName.includes('SP 02') || devName.includes('SP-IP') || devName.includes('INVD 32')) return 'GALPÃO SP';
@@ -98,36 +87,21 @@ const normalizeWarehouse = (rawWarehouse: string | null, location: string | null
     if (devName.includes('4E0') || devName.includes('ELOS RJ')) return 'GALPÃO 4 ELOS RJ';
     if (devName.includes('LSP')) return 'GALPÃO LSP';
     if (devName.includes('G2')) return 'GALPÃO G2';
-
-    // --- PRIORIDADE 2: PALAVRAS-CHAVE POR UNIDADE ---
     const textToCheck = `${channelName} ${locName} ${modName}`.toUpperCase();
-    
-    // GALPÃO G2 (REGRAS ESPECÍFICAS: BEB, MD F, CHECKOUT)
     if (textToCheck.includes('BEB') || textToCheck.includes('B E B') || textToCheck.includes('MD F') || textToCheck.includes('CHECKOUT')) return 'GALPÃO G2';
-
-    // GALPÃO 4 ELOS ES
     if (textToCheck.includes('CHK0') && !devName.includes('SP') && !devName.includes('G5')) return 'GALPÃO 4 ELOS ES';
     if (textToCheck.includes('CATRACA G10') || textToCheck.includes('FRENTE RUA G10') || textToCheck.includes('EME DOCA 3 E 4')) return 'GALPÃO 4 ELOS ES';
     if (textToCheck.includes('LOLA') && !textToCheck.includes('COS')) return 'GALPÃO 4 ELOS ES';
-
-    // GALPÃO G3 (Exclusivos)
     if (textToCheck.includes('CCOS G3') || textToCheck.includes('DIPRIVAN')) return 'GALPÃO G3';
-    
-    // GALPÃO G5 (Exclusivos da lista massiva)
     if (textToCheck.includes('MD 4') || textToCheck.includes('MD 5') || textToCheck.includes('MD 6') || 
         textToCheck.includes('MD 7') || textToCheck.includes('MD 8') || textToCheck.includes('MD 9') ||
         textToCheck.includes('HERSHEYS') || textToCheck.includes('AC BRAZIL') || 
         textToCheck.includes('BIOSANTE') || textToCheck.includes('BEYOUNG') || 
         textToCheck.includes('LOLA COS') || textToCheck.includes('CELLERA')) return 'GALPÃO G5';
-
-    // GALPÃO SP (Exclusivos)
     if (textToCheck.includes('HOSPDROGAS') || textToCheck.includes('NEURAXPHARM') || textToCheck.includes('IP0')) return 'GALPÃO SP';
-
-    // Fallback por Keywords Gerais (Último caso)
     for (const unit of VALID_UNITS) {
         if (unit.keywords.some(k => textToCheck.includes(k))) return unit.id;
     }
-
     return rawWarehouse || 'Geral';
 };
 
@@ -152,10 +126,8 @@ const mapJsonToDevices = (jsonData: any[], type: 'camera' | 'access'): any[] => 
         });
         return key ? rowObj[key] : null;
     };
-
     return jsonData.map((obj, idx) => {
         const uuid = `${type}-${idx}-${Date.now()}`;
-        
         if (type === 'camera') {
             const name = getValue(obj, ['Nome do canal', 'Nome do dispositivo', 'NOME', 'Nome_Camera', 'Nome', 'Camera', 'Canal']);
             const deviceName = getValue(obj, ['Nome do dispositivo', 'Device Name', 'NVD', 'Equipamento', 'Nome do Dispositivo']);
@@ -163,23 +135,18 @@ const mapJsonToDevices = (jsonData: any[], type: 'camera' | 'access'): any[] => 
             const location = getValue(obj, ['Nome org', 'Localização', 'Localizacao', 'Local']);
             const module = getValue(obj, ['Módulo', 'Modulo', 'MODULO', 'Setor']);
             let warehouseRaw = getValue(obj, ['Galpão', 'Galpao', 'Warehouse']);
-            
             const warehouse = normalizeWarehouse(warehouseRaw, location, module, name, deviceName, id);
             const responsibleRaw = getValue(obj, ['Responsável', 'Responsavel', 'Resp', 'Tecnico']);
             const responsible = getResponsibleByWarehouse(warehouse, responsibleRaw);
-            
             const lastLogRaw = getValue(obj, ['Última alteraçãoStatus', 'Última alteração Status', 'UltimaAlteracaoStatus', 'DataStatus', 'Data']);
             const lastLog = formatExcelDate(lastLogRaw);
-            
             const channelTypeRaw = getValue(obj, ['Tipo de Canal', 'Tipo', 'TIPO_CANAL', 'ChannelType'])?.toUpperCase() || '';
             let channelType: ChannelType = 'video';
             if (channelTypeRaw.includes('ALARME')) channelType = 'alarm';
-
             const statusRaw = getValue(obj, ['Status On-line/Off-line', 'Canal on-line/off-line', 'Status ONLINE', 'Status', 'Status OFFLINE', 'STATUS', 'Estado', 'SITUACAO'])?.toUpperCase() || '';
             let status: Status = 'ONLINE';
             const offlineKeywords = ['OFFLINE', 'OFF', 'SEM SINAL', 'NO SIGNAL', 'ERRO', 'FALHA', 'DESLIGADO', 'INATIVO', '0', 'FALSE', 'NAO', 'NO', 'PERDA'];
             if (offlineKeywords.some(k => statusRaw.includes(k))) status = 'OFFLINE';
-            
             if (!name) return null;
             return { uuid, id: id || 'N/A', name: name || 'Sem Nome', location: location || 'N/A', module: module || 'Geral', warehouse, responsible, status, channelType, lastLog } as Camera;
         } else {
@@ -187,10 +154,8 @@ const mapJsonToDevices = (jsonData: any[], type: 'camera' | 'access'): any[] => 
             const id = getValue(obj, ['IP', 'ID', 'Id', 'Cod', 'Código', 'Serial', 'IP do Dispositivo']);
             const location = getValue(obj, ['Nome org', 'Local', 'Location', 'Localização', 'Setor']);
             let warehouseRaw = getValue(obj, ['Galpão', 'Galpao', 'Warehouse']);
-            
             const lastLogRaw = getValue(obj, ['Última alteraçãoStatus', 'Última alteração Status', 'UltimoRegistro', 'LastLog', 'Data']);
             const lastLog = formatExcelDate(lastLogRaw);
-            
             if (!name && !id) return null;
             const finalName = name || id || 'Dispositivo Sem Nome';
             const finalId = id || finalName; 
@@ -209,13 +174,15 @@ interface ImporterProps {
   onImportThirdParty: (workers: ProcessedWorker[], fileName: string) => void;
   onDeleteImport: (id: string) => void;
   thirdPartyImports?: ThirdPartyImport[];
-  onReset: () => void;
+  onResetCameras: () => void;
+  onResetAccess: () => void;
+  onResetThirdParty: () => void;
 }
 
-const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDeleteImport, thirdPartyImports = [], onReset }) => {
+const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDeleteImport, thirdPartyImports = [], onResetCameras, onResetAccess, onResetThirdParty }) => {
   const [cameraData, setCameraData] = useState<any[]>([]);
   const [accessData, setAccessData] = useState<any[]>([]);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetTarget, setResetTarget] = useState<'cameras' | 'access' | 'thirdparty' | null>(null);
   
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const accessInputRef = useRef<HTMLInputElement>(null);
@@ -224,7 +191,6 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'camera' | 'access') => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (evt) => {
       const bstr = evt.target?.result;
@@ -233,7 +199,6 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const jsonData: any[] = window.XLSX.utils.sheet_to_json(ws, { defval: "" });
-        
         if (type === 'camera') setCameraData(jsonData);
         else setAccessData(jsonData);
       }
@@ -246,7 +211,6 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
     const file = e.target.files?.[0];
     if (!file) return;
     const fileName = file.name;
-
     const reader = new FileReader();
     reader.onload = (evt) => {
         const bstr = evt.target?.result;
@@ -255,25 +219,19 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
             const wsname = wb.SheetNames[0];
             const ws = wb.Sheets[wsname];
             const jsonData: any[] = window.XLSX.utils.sheet_to_json(ws);
-            
             const newWorkers: ProcessedWorker[] = [];
             jsonData.forEach((row, index) => {
                 const rawName = row['Pessoa'] || row['Nome'];
                 if (!rawName || typeof rawName !== 'string' || !rawName.trim()) return; 
-
                 const eventType = (row['Tipo de evento'] || row['Eventos'] || '').toUpperCase();
                 const status = (row['Status de Entrada/Saída'] || '').toUpperCase();
                 const isEntry = eventType.includes('ENTRADA') || eventType.includes('DESBLOQUEIO') || eventType.includes('ACESSO LIBERADO') || status.includes('ENTRADA');
-
                 if (!isEntry) return;
                 const locationString = [row['Ambiente'], row['Ponto de Acesso'], row['Tipo de ponto de acesso'], row['Local'], row['Nome do dispositivo'], row['Device']].join(' ').toUpperCase();
-                
                 const unit = normalizeWarehouse(null, locationString, null, null, locationString, null);
                 if (!unit || unit === 'Geral') return; 
-
                 const fullSearchString = [locationString, row['Grupo de pessoas'], row['Pessoa'], row['Nome']].join(' ').toUpperCase();
                 let company = row['Grupo de pessoas'] ? row['Grupo de pessoas'].trim().toUpperCase() : null;
-                
                 if (!company) {
                    if (fullSearchString.includes('PRAYLOG')) company = 'PRAYLOG';
                    else if (fullSearchString.includes('SUPERA')) company = 'SUPERA LOG';
@@ -284,20 +242,16 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
                    else if (fullSearchString.includes('MJM')) company = 'MJM';
                    else if (fullSearchString.includes('MULT')) company = 'MULT';
                 }
-
                 if (!company) company = 'NÃO IDENTIFICADO';
-
                 const dateNormalized = parseRowDate(row);
                 let timeStr = row['Hora'] || '-';
                 if (typeof timeStr === 'string' && timeStr.includes(' ')) timeStr = timeStr.split(' ')[1]; 
-
                 newWorkers.push({
                     id: `w-${index}-${Date.now()}`,
                     name: rawName.trim(),
                     company, unit, date: dateNormalized, time: timeStr, accessPoint: row['Ponto de Acesso'] || row['Ambiente'] || '-', eventType: eventType
                 });
             });
-
             if (newWorkers.length > 0) onImportThirdParty(newWorkers, fileName);
             else alert("Nenhum dado válido de terceiros encontrado na planilha.");
         }
@@ -316,6 +270,14 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
       onImport(cameras, access);
   };
 
+  const executeReset = () => {
+      if (!resetTarget) return;
+      if (resetTarget === 'cameras') onResetCameras();
+      else if (resetTarget === 'access') onResetAccess();
+      else if (resetTarget === 'thirdparty') onResetThirdParty();
+      setResetTarget(null);
+  };
+
   const generatePDFReport = () => {
     const doc = new jsPDF();
     const margin = 20;
@@ -324,13 +286,11 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
     const amberColor = [245, 158, 11];
     const slateColor = [13, 17, 23];
     let y = 0;
-
     const addFooter = (pageNum: number) => {
         doc.setFontSize(8);
         doc.setTextColor(150, 150, 150);
         doc.text(`Manual ControlVision - Página ${pageNum} | Documento Restrito`, pageWidth/2, 285, { align: "center" });
     };
-
     doc.setFillColor(slateColor[0], slateColor[1], slateColor[2]);
     doc.rect(0, 0, 210, 297, 'F');
     doc.setDrawColor(amberColor[0], amberColor[1], amberColor[2]);
@@ -351,7 +311,6 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
     doc.setTextColor(150, 150, 150);
     doc.text(`Versão do Sistema: 3.5.0-Enterprise`, 105, 250, { align: "center" });
     doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 105, 260, { align: "center" });
-
     doc.addPage();
     y = 25;
     doc.setTextColor(31, 41, 55);
@@ -364,13 +323,11 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
     const intro = "O ControlVision é um ecossistema desenvolvido para centralizar a segurança patrimonial e a gestão de fluxo de terceiros. O acesso é restrito e baseado em três níveis de permissão hierárquica:";
     doc.text(doc.splitTextToSize(intro, 170), margin, y);
     y += 15;
-
     const roles = [
         { t: "Administrador (Admin)", d: "Acesso total. Gestão de usuários, limpeza de banco, configuração de fontes de dados e auditoria de feedbacks." },
         { t: "Gestor (Manager)", d: "Visão analítica. Restrito aos galpões permitidos no cadastro. Pode gerar relatórios de acesso e visualizar dashboards de disponibilidade." },
         { t: "Operador (Viewer)", d: "Uso diário. Focado no monitoramento de status, registro de plantão e execução de tarefas delegadas pela supervisão." }
     ];
-
     roles.forEach(r => {
         doc.setFont("helvetica", "bold");
         doc.text(r.t, margin, y);
@@ -380,14 +337,12 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
         doc.text(dr, margin + 5, y);
         y += (dr.length * 5) + 5;
     });
-
     doc.setDrawColor(200);
     doc.rect(margin, y, 170, 40);
     doc.text("Fluxo de Dados", 105, y + 10, { align: "center" });
     doc.line(margin + 10, y + 25, 200, y + 25);
     doc.text("Admin -> Gestor -> Operador", 105, y + 33, { align: "center" });
     addFooter(2);
-
     doc.save("POP_COMPLETO_ControlVision_3.5.pdf");
   };
 
@@ -407,37 +362,52 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
                 </p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full xl:w-auto relative z-10">
-                <button onClick={handleProcess} className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-8 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-900/40 transition-all font-black uppercase text-xs tracking-widest active:scale-95 group">
+                <button onClick={handleProcess} className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-12 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-900/40 transition-all font-black uppercase text-xs tracking-widest active:scale-95 group">
                     <Save size={20} className="group-hover:scale-110 transition-transform" /> 
                     ATUALIZAR SISTEMA
-                </button>
-                <button onClick={() => setShowResetConfirm(true)} className="flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all text-xs font-black uppercase tracking-widest">
-                    <RotateCcw size={18} /> Limpar Banco
                 </button>
             </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <button onClick={() => cameraInputRef.current?.click()} className="w-full bg-slate-900 border-2 border-dashed border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800/50 transition-all rounded-2xl p-8 flex flex-col items-center justify-center gap-4 group min-h-[220px] shadow-lg">
-                <div className="p-5 bg-slate-800 rounded-full group-hover:bg-emerald-500/20 transition-all group-hover:scale-110 shadow-inner"><Video className="w-10 h-10 text-slate-400 group-hover:text-emerald-500" /></div>
-                <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight">Câmeras / Alarmes</h3><p className="text-slate-500 text-xs mt-2 font-medium">{cameraData.length > 0 ? `${cameraData.length} linhas em espera` : 'Selecionar .xlsx oficial'}</p></div>
-                <input type="file" accept=".xlsx, .xls" ref={cameraInputRef} className="hidden" onChange={(e) => handleFileUpload(e, 'camera')} />
-                {cameraData.length > 0 && <div className="mt-2 px-3 py-1 bg-emerald-500/10 text-emerald-500 text-[10px] font-black rounded-full border border-emerald-500/20 animate-pulse uppercase">Arquivo Pronto</div>}
-            </button>
+            {/* CARD CÂMERAS */}
+            <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
+                <div onClick={() => cameraInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
+                    <div className="p-5 bg-slate-800 rounded-full group-hover:bg-emerald-500/20 transition-all group-hover:scale-110 shadow-inner"><Video className="w-10 h-10 text-slate-400 group-hover:text-emerald-500" /></div>
+                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight">Câmeras / Alarmes</h3><p className="text-slate-500 text-xs mt-2 font-medium">{cameraData.length > 0 ? `${cameraData.length} linhas em espera` : 'Selecionar .xlsx oficial'}</p></div>
+                    <input type="file" accept=".xlsx, .xls" ref={cameraInputRef} className="hidden" onChange={(e) => handleFileUpload(e, 'camera')} />
+                    {cameraData.length > 0 && <div className="mt-2 px-3 py-1 bg-emerald-500/10 text-emerald-500 text-[10px] font-black rounded-full border border-emerald-500/20 animate-pulse uppercase">Arquivo Pronto</div>}
+                </div>
+                <button onClick={() => setResetTarget('cameras')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <RotateCcw size={12} /> Limpar
+                </button>
+            </div>
 
-            <button onClick={() => accessInputRef.current?.click()} className="w-full bg-slate-900 border-2 border-dashed border-slate-700 hover:border-blue-500/50 hover:bg-slate-800/50 transition-all rounded-2xl p-8 flex flex-col items-center justify-center gap-4 group min-h-[220px] shadow-lg">
-                <div className="p-5 bg-slate-800 rounded-full group-hover:bg-blue-500/20 transition-all group-hover:scale-110 shadow-inner"><DoorClosed className="w-10 h-10 text-slate-400 group-hover:text-blue-500" /></div>
-                <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors uppercase tracking-tight">Controle de Acesso</h3><p className="text-slate-500 text-xs mt-2 font-medium">{accessData.length > 0 ? `${accessData.length} linhas em espera` : 'Selecionar .xlsx oficial'}</p></div>
-                <input type="file" accept=".xlsx, .xls" ref={accessInputRef} className="hidden" onChange={(e) => handleFileUpload(e, 'access')} />
-                {accessData.length > 0 && <div className="mt-2 px-3 py-1 bg-blue-500/10 text-blue-500 text-[10px] font-black rounded-full border border-blue-500/20 animate-pulse uppercase">Arquivo Pronto</div>}
-            </button>
+            {/* CARD ACESSO */}
+            <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-blue-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
+                <div onClick={() => accessInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
+                    <div className="p-5 bg-slate-800 rounded-full group-hover:bg-blue-500/20 transition-all group-hover:scale-110 shadow-inner"><DoorClosed className="w-10 h-10 text-slate-400 group-hover:text-blue-500" /></div>
+                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors uppercase tracking-tight">Controle de Acesso</h3><p className="text-slate-500 text-xs mt-2 font-medium">{accessData.length > 0 ? `${accessData.length} linhas em espera` : 'Selecionar .xlsx oficial'}</p></div>
+                    <input type="file" accept=".xlsx, .xls" ref={accessInputRef} className="hidden" onChange={(e) => handleFileUpload(e, 'access')} />
+                    {accessData.length > 0 && <div className="mt-2 px-3 py-1 bg-blue-500/10 text-blue-500 text-[10px] font-black rounded-full border border-blue-500/20 animate-pulse uppercase">Arquivo Pronto</div>}
+                </div>
+                <button onClick={() => setResetTarget('access')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <RotateCcw size={12} /> Limpar
+                </button>
+            </div>
 
-            <button onClick={() => thirdPartyInputRef.current?.click()} className="w-full bg-slate-900 border-2 border-dashed border-slate-700 hover:border-amber-500/50 hover:bg-slate-800/50 transition-all rounded-2xl p-8 flex flex-col items-center justify-center gap-4 group min-h-[220px] shadow-lg">
-                <div className="p-5 bg-slate-800 rounded-full group-hover:bg-amber-500/20 transition-all group-hover:scale-110 shadow-inner"><Briefcase className="w-10 h-10 text-slate-400 group-hover:text-amber-500" /></div>
-                <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors uppercase tracking-tight">Terceirizados</h3><p className="text-slate-500 text-xs mt-2 font-medium">Acumular ao histórico de fluxo</p></div>
-                <input type="file" accept=".xlsx, .xls" ref={thirdPartyInputRef} className="hidden" onChange={handleThirdPartyUpload} />
-                <div className="mt-2 px-3 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black rounded-full border border-amber-500/20 uppercase tracking-widest">Acumulativo</div>
-            </button>
+            {/* CARD TERCEIRIZADOS */}
+            <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-amber-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
+                <div onClick={() => thirdPartyInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
+                    <div className="p-5 bg-slate-800 rounded-full group-hover:bg-amber-500/20 transition-all group-hover:scale-110 shadow-inner"><Briefcase className="w-10 h-10 text-slate-400 group-hover:text-amber-500" /></div>
+                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors uppercase tracking-tight">Terceirizados</h3><p className="text-slate-500 text-xs mt-2 font-medium">Acumular ao histórico de fluxo</p></div>
+                    <input type="file" accept=".xlsx, .xls" ref={thirdPartyInputRef} className="hidden" onChange={handleThirdPartyUpload} />
+                    <div className="mt-2 px-3 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black rounded-full border border-amber-500/20 uppercase tracking-widest">Acumulativo</div>
+                </div>
+                <button onClick={() => setResetTarget('thirdparty')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <RotateCcw size={12} /> Limpar
+                </button>
+            </div>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
@@ -495,28 +465,8 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
             </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl p-1 animate-fade-in">
-             <div className="bg-[#0a0c10] rounded-[22px] overflow-hidden">
-                <div className="p-8 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div>
-                        <h3 className="text-2xl font-black text-white flex items-center gap-3 italic uppercase tracking-tighter">
-                            <FileText className="text-blue-500" size={28} />
-                            MANUAL MESTRE OPERACIONAL (POP)
-                        </h3>
-                        <p className="text-slate-500 text-sm mt-1">Gere o documento oficial completo da plataforma ControlVision.</p>
-                    </div>
-                    <button 
-                        onClick={generatePDFReport}
-                        className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white shadow-2xl shadow-blue-900/40 transition-all font-black text-sm uppercase tracking-widest active:scale-95 group"
-                    >
-                        <Download size={22} className="group-hover:translate-y-0.5 transition-transform" /> 
-                        BAIXAR POP COMPLETO (PDF)
-                    </button>
-                </div>
-             </div>
-        </div>
-
-        {showResetConfirm && (
+        {/* MODAL DE CONFIRMAÇÃO DINÂMICO */}
+        {resetTarget && (
             <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
                 <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center space-y-6 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-rose-500"></div>
@@ -524,12 +474,14 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
                         <RotateCcw className="text-rose-500 w-10 h-10 animate-pulse" />
                     </div>
                     <div>
-                        <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Apagar Banco de Dados?</h3>
-                        <p className="text-slate-400 text-sm mt-3 leading-relaxed">Esta ação irá remover permanentemente todas as memórias do ControlVision. <strong>Não pode ser desfeito.</strong></p>
+                        <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Apagar Dados?</h3>
+                        <p className="text-slate-400 text-sm mt-3 leading-relaxed">
+                            Esta ação irá remover permanentemente a base de <strong>{resetTarget === 'cameras' ? 'Câmeras e Alarmes' : resetTarget === 'access' ? 'Controle de Acesso' : 'Histórico de Terceirizados'}</strong>.
+                        </p>
                     </div>
                     <div className="flex gap-4 pt-2">
-                        <button onClick={() => setShowResetConfirm(false)} className="flex-1 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-black uppercase text-xs tracking-widest transition-all">Cancelar</button>
-                        <button onClick={() => { onReset(); setShowResetConfirm(false); }} className="flex-1 px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-rose-900/40 transition-all active:scale-95">Sim, Limpar</button>
+                        <button onClick={() => setResetTarget(null)} className="flex-1 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-black uppercase text-xs tracking-widest transition-all">Cancelar</button>
+                        <button onClick={executeReset} className="flex-1 px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-rose-900/40 transition-all active:scale-95">Sim, Limpar</button>
                     </div>
                 </div>
             </div>

@@ -44,7 +44,6 @@ class MonitoringService {
     return { name: target.name, newStatus };
   }
 
-  // Atualiza o ticket de uma câmera específica
   async updateCameraTicket(uuid: string, ticket: string, currentCameras: Camera[]) {
     const newCameras = currentCameras.map(c => 
         c.uuid === uuid ? { ...c, ticket } : c
@@ -52,7 +51,6 @@ class MonitoringService {
     await set(ref(db, 'monitoramento/cameras'), newCameras);
   }
 
-  // Atualiza a observação de uma câmera específica
   async updateCameraObservation(uuid: string, observation: string, currentCameras: Camera[]) {
     const newCameras = currentCameras.map(c => 
         c.uuid === uuid ? { ...c, observation } : c
@@ -60,7 +58,6 @@ class MonitoringService {
     await set(ref(db, 'monitoramento/cameras'), newCameras);
   }
 
-  // Resolve o problema: define como ONLINE e limpa o ticket/observação
   async resolveCameraIssue(uuid: string, currentCameras: Camera[]) {
     const target = currentCameras.find(c => c.uuid === uuid);
     if (!target) return;
@@ -72,7 +69,6 @@ class MonitoringService {
     await set(ref(db, 'monitoramento/cameras'), newCameras);
   }
 
-  // Bulk update for Warehouse
   async setWarehouseStatus(warehouse: string, status: Status, currentCameras: Camera[]) {
     const lastLog = getNowFormatted();
     const newCameras = currentCameras.map(c => 
@@ -121,6 +117,19 @@ class MonitoringService {
     await set(ref(db, 'monitoramento/documents'), newDocs);
   }
 
+  // --- Reset Operations ---
+  async resetCameras() {
+    await set(ref(db, 'monitoramento/cameras'), []);
+  }
+
+  async resetAccessPoints() {
+    await set(ref(db, 'monitoramento/access_points'), []);
+  }
+
+  async resetThirdParty() {
+    await set(ref(db, 'monitoramento/third_party_imports'), {});
+  }
+
   // --- Bulk Operations (Import) ---
   async importData(cameras: Camera[], accessPoints: AccessPoint[]) {
     const now = new Date();
@@ -131,7 +140,6 @@ class MonitoringService {
     await update(ref(db, 'monitoramento/metadata'), { lastSync: formattedTime });
   }
 
-  // NOVO: Salva como um lote para manter histórico
   async addThirdPartyImport(workers: ProcessedWorker[], fileName: string) {
       const importRef = push(ref(db, 'monitoramento/third_party_imports'));
       const newImport: ThirdPartyImport = {
@@ -144,7 +152,6 @@ class MonitoringService {
       await set(importRef, newImport);
   }
 
-  // NOVO: Exclui um lote específico
   async deleteThirdPartyImport(importId: string) {
       await remove(ref(db, `monitoramento/third_party_imports/${importId}`));
   }
@@ -152,9 +159,9 @@ class MonitoringService {
   async fullReset() {
     await set(ref(db, 'monitoramento'), {
         cameras: [],
-        accessPoints: [],
+        access_points: [],
         documents: [],
-        third_party_imports: {}, // Limpa o histórico
+        third_party_imports: {},
         metadata: { lastSync: '-' },
         organizer: { notes: [], meetings: [], events: [] }
     });
