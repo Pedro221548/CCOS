@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Camera, AccessPoint, PublicDocument, UserRole } from '../types';
-import { Video, DoorClosed, CheckCircle2, Info, Camera as CameraIcon, Upload, Image as ImageIcon, X, ScanLine, List, FileText, Search, Copy, CheckSquare, Square, Trash2, ClipboardList, Loader2, ArrowDown, AlertTriangle, Table, Settings, Plus, FileBadge, Calendar, Edit3, Save, Scan } from 'lucide-react';
+import { Video, DoorClosed, CheckCircle2, Info, Camera as CameraIcon, Upload, Image as ImageIcon, X, ScanLine, List, FileText, Search, Copy, CheckSquare, Square, Trash2, ClipboardList, Loader2, ArrowDown, AlertTriangle, Table, Settings, Plus, FileBadge, Calendar, Edit3, Save, Scan, Key, Wand2 } from 'lucide-react';
 import { ref, onValue, set, update } from 'firebase/database';
 import { db } from '../services/firebase';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -27,26 +27,24 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
   const [activeType, setActiveType] = useState<RegistrationType>('LIST'); 
   const [successMsg, setSuccessMsg] = useState('');
   const [isProcessingOCR, setIsProcessingOCR] = useState(false);
+  const [isOrganizing, setIsOrganizing] = useState(false);
   
-  // --- DYNAMIC LISTS STATE ---
   const [customOptions, setCustomOptions] = useState(DEFAULT_OPTIONS);
   const [editingCategory, setEditingCategory] = useState<'responsibles' | 'contractors' | 'types' | null>(null);
   const [newItemName, setNewItemName] = useState('');
   const [renamingItem, setRenamingItem] = useState<{ index: number, value: string } | null>(null);
 
-  // --- CAMERA / ACCESS STATE ---
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showCamera, setShowCamera] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // --- DOCUMENT STATE ---
   const [newDoc, setNewDoc] = useState({ name: '', organ: '', expirationDate: '' });
-
-  // --- LIST PROCESSING STATE ---
+  
+  // OCR States
+  const [rawText, setRawText] = useState('');
   const [processedPeople, setProcessedPeople] = useState<any[]>([]);
-  const [cleanMode, setCleanMode] = useState(true);
   
   const [listMetadata, setListMetadata] = useState({
       responsible: '', 
@@ -162,34 +160,59 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
     setShowCamera(false);
   };
 
-  const handleSaveDocument = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!newDoc.name || !newDoc.expirationDate) return;
-      onAddDocument({ uuid: `doc-${Date.now()}`, name: newDoc.name, organ: newDoc.organ || 'N/I', expirationDate: newDoc.expirationDate });
-      setNewDoc({ name: '', organ: '', expirationDate: '' });
-  };
-
-  // --- MOTOR OCR GEMINI (VERSÃO DEFINITIVA COM SCHEMA) ---
-  const handleExtractText = async () => {
+  // --- ETAPA 1: EXTRAIR TEXTO BRUTO (OCR RESILIENTE) ---
+  const handleExtractRawText = async () => {
       if (!selectedImage) {
           alert("Selecione ou capture uma imagem primeiro.");
           return;
       }
+
       setIsProcessingOCR(true);
       try {
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
           
-          // Extrai o MIME Type real e os dados Base64 puros
           const mimeMatch = selectedImage.match(/^data:(image\/[a-zA-Z+]+);base64,/);
-          const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
-          const base64Data = selectedImage.replace(/^data:image\/[a-zA-Z+]+;base64,/, "");
+          const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+          const base64Data = selectedImage.split(',')[1];
           
           const response = await ai.models.generateContent({
-              model: 'gemini-3-flash-preview',
+              model: 'gemini-3-flash-preview', 
               contents: {
                   parts: [
                       { inlineData: { data: base64Data, mimeType } },
-                      { text: "Identifique todos os nomes de pessoas e CPFs nesta ficha de cadastro. O texto pode estar manuscrito. Retorne apenas o objeto JSON conforme o schema." }
+                      { text: "Extraia TODO o texto que você conseguir ler nesta ficha de cadastro, incluindo nomes de pessoas e números de CPF. Se o texto for manuscrito, decifre-o. Retorne apenas o texto bruto sem formatação especial." }
+                  ]
+              }
+          });
+
+          const text = response.text;
+          if (text) {
+              setRawText(text);
+              setSuccessMsg("Texto extraído com sucesso!");
+          } else {
+              throw new Error("Não foi possível ler texto na imagem.");
+          }
+      } catch (e: any) {
+          alert(`Falha no Escaneamento: ${e.message || 'Verifique a iluminação da foto.'}`);
+      } finally {
+          setIsProcessingOCR(false);
+          setTimeout(() => setSuccessMsg(''), 3000);
+      }
+  };
+
+  // --- ETAPA 2: ORGANIZAR TEXTO EM JSON ---
+  const handleOrganizeText = async () => {
+      if (!rawText.trim()) return;
+
+      setIsOrganizing(true);
+      try {
+          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+          
+          const response = await ai.models.generateContent({
+              model: 'gemini-3-flash-preview', 
+              contents: {
+                  parts: [
+                      { text: `Com base no seguinte texto extraído de uma ficha de cadastro, identifique os nomes das pessoas e seus respectivos CPFs. Retorne APENAS um JSON no formato especificado.\n\nTexto:\n${rawText}` }
                   ]
               },
               config: {
@@ -199,8 +222,8 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
                       items: {
                           type: Type.OBJECT,
                           properties: {
-                              nome: { type: Type.STRING, description: "Nome completo da pessoa" },
-                              cpf: { type: Type.STRING, description: "CPF da pessoa com ou sem máscara" }
+                              nome: { type: Type.STRING },
+                              cpf: { type: Type.STRING }
                           },
                           required: ["nome"]
                       }
@@ -212,12 +235,12 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
           if (rawJson) {
               const data = JSON.parse(rawJson);
               const newPeople = data.map((item: any, i: number) => {
-                  let name = (item.nome || '').toLowerCase().replace(/(?:^|\s)\S/g, (a: string) => a.toUpperCase()).trim();
+                  let name = (item.nome || '').toUpperCase().trim();
                   let cpf = (item.cpf || '').replace(/\D/g, '');
                   if (cpf.length === 11) {
                       cpf = `${cpf.slice(0,3)}.${cpf.slice(3,6)}.${cpf.slice(6,9)}-${cpf.slice(9,11)}`;
                   } else {
-                      cpf = '-';
+                      cpf = item.cpf || '-';
                   }
 
                   return {
@@ -230,20 +253,16 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
 
               if (newPeople.length > 0) {
                 setProcessedPeople(newPeople);
-                setSuccessMsg(`${newPeople.length} registros extraídos com sucesso!`);
+                setSuccessMsg("Registros organizados!");
               } else {
-                throw new Error("Nenhum nome ou CPF identificado na imagem.");
+                alert("Nenhum registro válido encontrado no texto.");
               }
-          } else {
-              throw new Error("A IA não retornou dados válidos.");
           }
       } catch (e: any) {
-          console.error("Erro OCR:", e);
-          const technicalError = e.message || "Erro desconhecido";
-          alert(`Erro ao processar imagem: ${technicalError}\n\nSugestão: Verifique se a chave de API está configurada corretamente.`);
+          alert("Erro ao organizar: " + e.message);
       } finally {
-          setIsProcessingOCR(false);
-          setTimeout(() => setSuccessMsg(''), 4000);
+          setIsOrganizing(false);
+          setTimeout(() => setSuccessMsg(''), 3000);
       }
   };
 
@@ -280,36 +299,9 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
           </div>
       )}
 
-      {activeType === 'DOCUMENT' && (
-          <div className="space-y-4 sm:space-y-6 animate-fade-in">
-              {isAdmin && (
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 sm:p-6 shadow-lg">
-                      <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2 uppercase tracking-widest"><FileBadge className="text-blue-500" size={20} /> Novo Documento</h3>
-                      <form onSubmit={handleSaveDocument} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome Doc</label><input type="text" placeholder="Ex: AVCB" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:border-blue-500 outline-none" value={newDoc.name} onChange={e => setNewDoc({...newDoc, name: e.target.value})} /></div>
-                          <div><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Órgão Emissor</label><input type="text" placeholder="Ex: Bombeiros" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:border-blue-500 outline-none" value={newDoc.organ} onChange={e => setNewDoc({...newDoc, organ: e.target.value})} /></div>
-                          <div><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Validade</label><input type="date" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white text-sm [color-scheme:dark] outline-none" value={newDoc.expirationDate} onChange={e => setNewDoc({...newDoc, expirationDate: e.target.value})} /></div>
-                          <div className="md:col-span-3 flex justify-end pt-2"><button type="submit" className="w-full md:w-auto px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 uppercase text-xs tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-900/20"><Plus size={18} /> Adicionar</button></div>
-                      </form>
-                  </div>
-              )}
-              <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-                   <div className="p-4 bg-slate-950/50 border-b border-slate-800"><h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Documentos Monitorados</h3></div>
-                   <div className="overflow-x-auto">
-                        {documents.length === 0 ? <div className="p-10 text-center text-slate-600 text-xs italic">Nenhum documento cadastrado.</div> : (
-                            <table className="w-full text-left text-sm min-w-[500px]">
-                                <thead className="bg-slate-950 text-slate-500 text-[10px] uppercase font-bold"><tr><th className="p-4">Nome</th><th className="p-4">Órgão</th><th className="p-4">Validade</th><th className="p-4 text-right">Ação</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800/50 text-slate-300">{documents.map(doc => (<tr key={doc.uuid} className="hover:bg-slate-800/30 transition-colors"><td className="p-4 font-bold text-white">{doc.name}</td><td className="p-4 text-slate-500">{doc.organ}</td><td className="p-4 font-mono text-xs">{new Date(doc.expirationDate).toLocaleDateString('pt-BR')}</td><td className="p-4 text-right">{isAdmin && <button onClick={() => onDeleteDocument(doc.uuid)} className="text-slate-500 hover:text-rose-500 p-2 transition-colors"><Trash2 size={16}/></button>}</td></tr>))}</tbody>
-                            </table>
-                        )}
-                   </div>
-              </div>
-          </div>
-      )}
-
       {activeType === 'LIST' && (
           <div className="space-y-6 animate-fade-in">
-                {/* --- SEÇÃO CAPTURA OCR --- */}
+                {/* --- 1. CAPTURA OCR --- */}
                 <div className="bg-[#05070a] border border-slate-800/50 rounded-2xl overflow-hidden shadow-2xl">
                     <div className="bg-slate-900/40 px-6 py-4 border-b border-slate-800/50 flex items-center justify-between">
                         <h3 className="text-sm font-bold text-amber-500 flex items-center gap-3 uppercase tracking-[0.1em]">
@@ -350,36 +342,52 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
                         <div className="w-full lg:w-1/2">
                             <div className="bg-[#0a0c10] border border-slate-800/80 rounded-3xl p-6 sm:p-8 space-y-6 shadow-inner">
                                 <div className="grid grid-cols-2 gap-4">
-                                    <button 
-                                        onClick={startCamera} 
-                                        className="flex flex-col items-center justify-center gap-3 p-8 bg-[#161b22] hover:bg-[#1c2128] border border-slate-800 rounded-2xl text-slate-300 transition-all group active:scale-95"
-                                    >
+                                    <button onClick={startCamera} className="flex flex-col items-center justify-center gap-3 p-8 bg-[#161b22] hover:bg-[#1c2128] border border-slate-800 rounded-2xl text-slate-300 transition-all group active:scale-95">
                                         <CameraIcon size={32} className="text-amber-500 group-hover:scale-110 transition-transform" />
                                         <span className="text-[11px] font-black uppercase tracking-[0.1em]">CÂMERA</span>
                                     </button>
-                                    <button 
-                                        onClick={() => fileInputRef.current?.click()} 
-                                        className="flex flex-col items-center justify-center gap-3 p-8 bg-[#161b22] hover:bg-[#1c2128] border border-slate-800 rounded-2xl text-slate-300 transition-all group active:scale-95"
-                                    >
+                                    <button onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center gap-3 p-8 bg-[#161b22] hover:bg-[#1c2128] border border-slate-800 rounded-2xl text-slate-300 transition-all group active:scale-95">
                                         <Upload size={32} className="text-blue-500 group-hover:scale-110 transition-transform" />
                                         <span className="text-[11px] font-black uppercase tracking-[0.1em]">ARQUIVO</span>
                                     </button>
                                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileSelect} />
                                 </div>
                                 
-                                <button 
-                                    onClick={handleExtractText} 
-                                    disabled={isProcessingOCR || !selectedImage} 
-                                    className="w-full py-5 bg-[#0d1117] border border-slate-700/50 hover:border-amber-500/50 text-amber-500 font-black rounded-2xl uppercase text-[13px] tracking-[0.15em] flex items-center justify-center gap-4 disabled:opacity-30 transition-all active:scale-[0.98] shadow-2xl group"
-                                >
+                                <button onClick={handleExtractRawText} disabled={isProcessingOCR || !selectedImage} className="w-full py-5 bg-[#0d1117] border border-slate-700/50 hover:border-amber-500/50 text-amber-500 font-black rounded-2xl uppercase text-[13px] tracking-[0.15em] flex items-center justify-center gap-4 disabled:opacity-30 transition-all active:scale-[0.98] shadow-2xl group">
                                     {isProcessingOCR ? <Loader2 className="animate-spin" size={24} /> : <Scan size={24} className="group-hover:rotate-90 transition-transform duration-500" />} 
-                                    INICIAR ESCANEAMENTO
+                                    EXTRAIR TEXTO DA IMAGEM
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                {/* --- 2. TEXTO BRUTO --- */}
+                <div className="bg-[#05070a] border border-slate-800/50 rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
+                    <div className="bg-slate-900/40 px-6 py-4 border-b border-slate-800/50 flex items-center justify-between">
+                        <h3 className="text-sm font-bold text-amber-500 flex items-center gap-3 uppercase tracking-[0.1em]">
+                            <FileText size={18} className="text-amber-500" /> 2. TEXTO BRUTO
+                        </h3>
+                    </div>
+                    <div className="p-6 space-y-4">
+                        <textarea 
+                            value={rawText}
+                            onChange={(e) => setRawText(e.target.value)}
+                            placeholder="O texto extraído aparecerá aqui..."
+                            className="w-full bg-[#020406] border border-slate-800 rounded-xl p-6 text-slate-300 text-sm font-mono focus:border-amber-500 outline-none h-48 resize-none leading-relaxed"
+                        />
+                        <button 
+                            onClick={handleOrganizeText}
+                            disabled={isOrganizing || !rawText.trim()}
+                            className="w-full py-4 bg-[#111827] border border-slate-700 hover:border-amber-500/50 text-amber-500 font-black rounded-xl uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 disabled:opacity-30 transition-all active:scale-95 shadow-lg group"
+                        >
+                            {isOrganizing ? <Loader2 className="animate-spin" size={18} /> : <Wand2 size={18} className="group-hover:scale-110 transition-transform" />}
+                            ORGANIZAR REGISTROS
+                        </button>
+                    </div>
+                </div>
+
+                {/* --- SELETORES DE METADADOS --- */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex flex-col gap-3">
                         <div className="flex items-center justify-between"><label className="text-amber-500 font-black text-[9px] uppercase tracking-[0.2em]">Responsável</label>{isAdmin && <button onClick={() => setEditingCategory('responsibles')} className="text-slate-600 hover:text-amber-500"><Settings size={14}/></button>}</div>
@@ -402,7 +410,7 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
                 {processedPeople.length > 0 && (
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
                         <div className="p-5 border-b border-slate-800 bg-slate-950/30 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2"><List size={18} className="text-amber-500" /> Registros Processados</h3>
+                            <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2"><List size={18} className="text-amber-500" /> 3. REGISTROS PROCESSADOS</h3>
                             <div className="relative w-full sm:w-auto"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} /><input type="text" value={listSearch} onChange={e => setListSearch(e.target.value)} placeholder="Filtrar por nome..." className="w-full sm:w-64 pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500 shadow-inner" /></div>
                         </div>
                         <div className="overflow-x-auto">
@@ -427,23 +435,13 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
                                                 </button>
                                             </td>
                                             <td className="p-5">
-                                                <div className="flex items-center gap-2">
-                                                    <div 
-                                                        onClick={() => copyToClipboard(p.name)}
-                                                        className="flex-1 bg-[#1a1c1e] border border-slate-800 rounded-lg px-6 py-3 text-center cursor-pointer hover:border-amber-500/50 transition-all active:scale-95 shadow-md"
-                                                    >
-                                                        <span className="text-sm font-bold text-amber-500 tracking-tight">{p.name}</span>
-                                                    </div>
+                                                <div onClick={() => copyToClipboard(p.name)} className="bg-[#1a1c1e] border border-slate-800 rounded-lg px-6 py-3 text-center cursor-pointer hover:border-amber-500/50 transition-all active:scale-95 shadow-md">
+                                                    <span className="text-sm font-bold text-amber-500 tracking-tight">{p.name}</span>
                                                 </div>
                                             </td>
                                             <td className="p-5">
-                                                <div 
-                                                    onClick={() => copyToClipboard(cleanMode ? p.cpf.replace(/\D/g, '') : p.cpf)}
-                                                    className="w-full bg-[#1a1c1e] border border-slate-800 rounded-lg px-6 py-3 text-center cursor-pointer hover:border-amber-500/50 transition-all active:scale-95 shadow-md flex items-center justify-center gap-3"
-                                                >
-                                                    <span className="text-sm font-bold text-amber-500 font-mono tracking-wider">
-                                                        {cleanMode ? p.cpf.replace(/\D/g, '') : p.cpf}
-                                                    </span>
+                                                <div onClick={() => copyToClipboard(p.cpf.replace(/\D/g, ''))} className="w-full bg-[#1a1c1e] border border-slate-800 rounded-lg px-6 py-3 text-center cursor-pointer hover:border-amber-500/50 transition-all active:scale-95 shadow-md flex items-center justify-center gap-3">
+                                                    <span className="text-sm font-bold text-amber-500 font-mono tracking-wider">{p.cpf}</span>
                                                     {!isValidCPF(p.cpf) && p.cpf !== '-' && !p.done && <AlertTriangle size={14} className="text-amber-500 animate-pulse shrink-0"/>}
                                                 </div>
                                             </td>
@@ -457,30 +455,30 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
                         </div>
                     </div>
                 )}
+          </div>
+      )}
 
-                {/* Modal Edição Listas */}
-                {editingCategory && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
-                        <div className="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
-                            <div className="flex justify-between items-center px-6 py-5 border-b border-slate-800 bg-slate-950/50"><h3 className="text-sm font-black text-white flex items-center gap-3 uppercase tracking-widest"><Settings size={18} className="text-amber-500" /> Editar Opções</h3><button onClick={() => {setEditingCategory(null); setRenamingItem(null);}} className="text-slate-500 hover:text-white"><X size={24} /></button></div>
-                            <div className="p-6">
-                                <form onSubmit={handleAddItem} className="flex gap-2 mb-6"><input type="text" autoFocus value={newItemName} onChange={e => setNewItemName(e.target.value)} className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:border-amber-500 outline-none shadow-inner" placeholder="Novo item..." /><button type="submit" className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-blue-900/20"><Plus size={20} /></button></form>
-                                <div className="max-h-[350px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                                    {(customOptions[editingCategory] || []).map((item, idx) => (
-                                        <div key={idx} className="flex justify-between items-center bg-slate-800/40 p-3 rounded-2xl border border-slate-700/50 group hover:border-slate-600 transition-colors">
-                                            {renamingItem?.index === idx ? (
-                                                <div className="flex flex-1 gap-2"><input type="text" autoFocus className="flex-1 bg-slate-950 border border-blue-500 rounded-xl px-3 py-2 text-white text-[12px] outline-none" value={renamingItem.value} onChange={e => setRenamingItem({...renamingItem, value: e.target.value})} onKeyDown={e => e.key === 'Enter' && handleSaveRename()} /><button onClick={handleSaveRename} className="text-emerald-500 p-2 hover:bg-emerald-500/10 rounded-lg"><Save size={18}/></button><button onClick={() => setRenamingItem(null)} className="text-rose-500 p-2 hover:bg-rose-500/10 rounded-lg"><X size={18}/></button></div>
-                                            ) : (
-                                                <><span className="text-xs text-slate-300 font-bold uppercase pl-2 truncate pr-2">{item}</span><div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all"><button onClick={() => handleStartRename(idx, item)} className="p-2 text-slate-500 hover:text-blue-400 hover:bg-blue-400/5 rounded-lg transition-colors"><Edit3 size={16}/></button><button onClick={() => handleDeleteItem(editingCategory, item)} className="p-2 text-slate-500 hover:text-rose-500 hover:bg-rose-500/5 rounded-lg transition-colors"><Trash2 size={16}/></button></div></>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="px-6 py-5 bg-slate-950/50 border-t border-slate-800 flex justify-end"><button onClick={() => {setEditingCategory(null); setRenamingItem(null);}} className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-black uppercase tracking-[0.2em] active:scale-95 transition-all shadow-lg">Fechar</button></div>
-                        </div>
-                    </div>
-                )}
+      {/* Modal Edição Listas */}
+      {editingCategory && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
+              <div className="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+                  <div className="flex justify-between items-center px-6 py-5 border-b border-slate-800 bg-slate-950/50"><h3 className="text-sm font-black text-white flex items-center gap-3 uppercase tracking-widest"><Settings size={18} className="text-amber-500" /> Editar Opções</h3><button onClick={() => {setEditingCategory(null); setRenamingItem(null);}} className="text-slate-500 hover:text-white"><X size={24} /></button></div>
+                  <div className="p-6">
+                      <form onSubmit={handleAddItem} className="flex gap-2 mb-6"><input type="text" autoFocus value={newItemName} onChange={e => setNewItemName(e.target.value)} className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:border-amber-500 outline-none shadow-inner" placeholder="Novo item..." /><button type="submit" className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-blue-900/20"><Plus size={20} /></button></form>
+                      <div className="max-h-[350px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                          {(customOptions[editingCategory] || []).map((item, idx) => (
+                              <div key={idx} className="flex justify-between items-center bg-slate-800/40 p-3 rounded-2xl border border-slate-700/50 group hover:border-slate-600 transition-colors">
+                                  {renamingItem?.index === idx ? (
+                                      <div className="flex flex-1 gap-2"><input type="text" autoFocus className="flex-1 bg-slate-950 border border-blue-500 rounded-xl px-3 py-2 text-white text-[12px] outline-none" value={renamingItem.value} onChange={e => setRenamingItem({...renamingItem, value: e.target.value})} onKeyDown={e => e.key === 'Enter' && handleSaveRename()} /><button onClick={handleSaveRename} className="text-emerald-500 p-2 hover:bg-emerald-500/10 rounded-lg"><Save size={18}/></button><button onClick={() => setRenamingItem(null)} className="text-rose-500 p-2 hover:bg-rose-500/10 rounded-lg"><X size={18}/></button></div>
+                                  ) : (
+                                      <><span className="text-xs text-slate-300 font-bold uppercase pl-2 truncate pr-2">{item}</span><div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all"><button onClick={() => handleStartRename(idx, item)} className="p-2 text-slate-500 hover:text-blue-400 hover:bg-blue-400/5 rounded-lg transition-colors"><Edit3 size={16}/></button><button onClick={() => handleDeleteItem(editingCategory, item)} className="p-2 text-slate-500 hover:text-rose-500 hover:bg-rose-500/5 rounded-lg transition-colors"><Trash2 size={16}/></button></div></>
+                                  )}
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+                  <div className="px-6 py-5 bg-slate-950/50 border-t border-slate-800 flex justify-end"><button onClick={() => {setEditingCategory(null); setRenamingItem(null);}} className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-black uppercase tracking-[0.2em] active:scale-95 transition-all shadow-lg">Fechar</button></div>
+              </div>
           </div>
       )}
     </div>
