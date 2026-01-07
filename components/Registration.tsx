@@ -4,7 +4,7 @@ import { Camera, AccessPoint, PublicDocument, UserRole } from '../types';
 import { Video, DoorClosed, CheckCircle2, Info, Camera as CameraIcon, Upload, Image as ImageIcon, X, ScanLine, List, FileText, Search, Copy, CheckSquare, Square, Trash2, ClipboardList, Loader2, ArrowDown, AlertTriangle, Table, Settings, Plus, FileBadge, Calendar, Edit3, Save, Scan } from 'lucide-react';
 import { ref, onValue, set, update } from 'firebase/database';
 import { db } from '../services/firebase';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 interface RegistrationProps {
   onAddCamera: (cam: Camera) => void;
@@ -45,7 +45,6 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
   const [newDoc, setNewDoc] = useState({ name: '', organ: '', expirationDate: '' });
 
   // --- LIST PROCESSING STATE ---
-  const [rawListText, setRawListText] = useState('');
   const [processedPeople, setProcessedPeople] = useState<any[]>([]);
   const [cleanMode, setCleanMode] = useState(true);
   
@@ -170,7 +169,7 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
       setNewDoc({ name: '', organ: '', expirationDate: '' });
   };
 
-  // --- MOTOR OCR GEMINI ---
+  // --- MOTOR OCR GEMINI (VERSÃO DEFINITIVA COM SCHEMA) ---
   const handleExtractText = async () => {
       if (!selectedImage) {
           alert("Selecione ou capture uma imagem primeiro.");
@@ -180,7 +179,7 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
       try {
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
           
-          // Detect actual MIME Type from DataURL (e.g. "data:image/jpeg;base64,...")
+          // Extrai o MIME Type real e os dados Base64 puros
           const mimeMatch = selectedImage.match(/^data:(image\/[a-zA-Z+]+);base64,/);
           const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
           const base64Data = selectedImage.replace(/^data:image\/[a-zA-Z+]+;base64,/, "");
@@ -190,114 +189,68 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
               contents: {
                   parts: [
                       { inlineData: { data: base64Data, mimeType } },
-                      { text: "Analise esta imagem de cadastro e extraia todos os nomes completos e CPFs. Frequentemente os nomes e CPFs estão manuscritos ou impressos em fichas. Retorne estritamente uma lista formatada como: NOME | CPF. Se o CPF não estiver presente, use N/A. Um registro por linha." }
+                      { text: "Identifique todos os nomes de pessoas e CPFs nesta ficha de cadastro. O texto pode estar manuscrito. Retorne apenas o objeto JSON conforme o schema." }
                   ]
+              },
+              config: {
+                  responseMimeType: "application/json",
+                  responseSchema: {
+                      type: Type.ARRAY,
+                      items: {
+                          type: Type.OBJECT,
+                          properties: {
+                              nome: { type: Type.STRING, description: "Nome completo da pessoa" },
+                              cpf: { type: Type.STRING, description: "CPF da pessoa com ou sem máscara" }
+                          },
+                          required: ["nome"]
+                      }
+                  }
               }
           });
 
-          const text = response.text;
-          if (text && text.trim()) {
-              setRawListText(text.trim());
-              setSuccessMsg("Texto extraído com sucesso!");
+          const rawJson = response.text;
+          if (rawJson) {
+              const data = JSON.parse(rawJson);
+              const newPeople = data.map((item: any, i: number) => {
+                  let name = (item.nome || '').toLowerCase().replace(/(?:^|\s)\S/g, (a: string) => a.toUpperCase()).trim();
+                  let cpf = (item.cpf || '').replace(/\D/g, '');
+                  if (cpf.length === 11) {
+                      cpf = `${cpf.slice(0,3)}.${cpf.slice(3,6)}.${cpf.slice(6,9)}-${cpf.slice(9,11)}`;
+                  } else {
+                      cpf = '-';
+                  }
+
+                  return {
+                      id: `p-${Date.now()}-${i}`,
+                      name,
+                      cpf,
+                      done: false
+                  };
+              }).filter((p: any) => p.name.length > 2);
+
+              if (newPeople.length > 0) {
+                setProcessedPeople(newPeople);
+                setSuccessMsg(`${newPeople.length} registros extraídos com sucesso!`);
+              } else {
+                throw new Error("Nenhum nome ou CPF identificado na imagem.");
+              }
           } else {
-              throw new Error("A IA não conseguiu identificar texto legível na imagem.");
+              throw new Error("A IA não retornou dados válidos.");
           }
       } catch (e: any) {
-          console.error("Erro no OCR Gemini:", e);
-          const errorMsg = e.message?.includes("API key") 
-              ? "Chave de API inválida ou expirada." 
-              : "Não foi possível processar a imagem. Verifique a iluminação e tente novamente.";
-          alert(errorMsg);
+          console.error("Erro OCR:", e);
+          const technicalError = e.message || "Erro desconhecido";
+          alert(`Erro ao processar imagem: ${technicalError}\n\nSugestão: Verifique se a chave de API está configurada corretamente.`);
       } finally {
           setIsProcessingOCR(false);
-          setTimeout(() => setSuccessMsg(''), 3000);
+          setTimeout(() => setSuccessMsg(''), 4000);
       }
-  };
-
-  const handleOrganizeList = () => {
-      if (!rawListText.trim()) return;
-      
-      const lines = rawListText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-      const newPeople: any[] = [];
-      const cpfRegex = /(\d{3}[\.]?\d{3}[\.]?\d{3}[-]?\d{2})|(\d{11})/;
-      const blocklist = /\b(RG|SSP|DATA|NASCIMENTO|MAE|PAI|FILIACAO|CARGO|EMPRESA|ADMISSAO|CPF|NOME|EMAIL|TEL|CEL|CNPJ|PAGINA|PAGE|TOTAL|ASSINATURA|LISTA|PRESENCA|DOCUMENTO)\b/gi;
-
-      for (let i = 0; i < lines.length; i++) {
-          let currentLine = lines[i];
-          let name = '';
-          let cpf = '';
-
-          // Se a linha já tem o separador da IA
-          if (currentLine.includes('|')) {
-              const parts = currentLine.split('|');
-              name = parts[0].trim();
-              cpf = parts[1]?.trim() || '';
-          } else {
-              // Se não tem separador, verifica se a linha atual é um CPF
-              const matchCpf = currentLine.match(cpfRegex);
-              if (matchCpf) {
-                  // Se for CPF e o último registro não tinha CPF, anexa a ele
-                  if (newPeople.length > 0 && (newPeople[newPeople.length - 1].cpf === '-' || !newPeople[newPeople.length - 1].cpf)) {
-                      const digits = matchCpf[0].replace(/\D/g, '');
-                      if (digits.length === 11) {
-                        newPeople[newPeople.length - 1].cpf = `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9,11)}`;
-                      }
-                      continue;
-                  }
-                  cpf = matchCpf[0];
-                  name = currentLine.replace(cpf, '').trim();
-              } else {
-                  // Se parece um nome, anota e checa se a próxima linha é um CPF
-                  name = currentLine;
-                  if (i + 1 < lines.length) {
-                      const nextLineMatch = lines[i+1].match(cpfRegex);
-                      if (nextLineMatch) {
-                          cpf = nextLineMatch[0];
-                          i++; // Pula a próxima linha pois já processamos como CPF
-                      }
-                  }
-              }
-          }
-
-          // Limpeza do Nome
-          name = name.replace(/[\w.-]+@[\w.-]+\.\w+/g, '')
-                     .replace(blocklist, '')
-                     .replace(/[^a-zA-Z\u00C0-\u00FF\s]/g, ' ')
-                     .replace(/\s+/g, ' ')
-                     .trim()
-                     .toLowerCase()
-                     .replace(/(?:^|\s)\S/g, a => a.toUpperCase());
-
-          // Formatação do CPF
-          if (cpf && cpf.toUpperCase() !== 'N/A') {
-              const digits = cpf.replace(/\D/g, '');
-              if (digits.length === 11) {
-                  cpf = `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9,11)}`;
-              }
-          } else {
-              cpf = '-';
-          }
-
-          if (name.length > 3) {
-              newPeople.push({ 
-                  id: `p-${Date.now()}-${i}`, 
-                  name, 
-                  cpf: cpf, 
-                  done: false 
-              });
-          }
-      }
-
-      setProcessedPeople(newPeople); 
-      setSuccessMsg(`${newPeople.length} registros organizados.`); 
-      setTimeout(() => setSuccessMsg(''), 3000);
   };
 
   const copyToClipboard = (text: string) => {
       navigator.clipboard.writeText(text); setSuccessMsg('Copiado!'); setTimeout(() => setSuccessMsg(''), 1500);
   };
 
-  // Ordenação: Pendentes Primeiro, Concluídos no final
   const sortedAndFilteredPeople = useMemo(() => {
     return processedPeople
         .filter(p => p.name.toLowerCase().includes(listSearch.toLowerCase()))
@@ -425,17 +378,6 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-lg">
-                    <h3 className="text-amber-500 font-bold text-xs sm:text-sm flex items-center gap-2 uppercase tracking-widest mb-4"><FileText size={18} /> 2. Texto Bruto Detectado</h3>
-                    <textarea 
-                        value={rawListText} 
-                        onChange={e => setRawListText(e.target.value)} 
-                        placeholder="O texto detectado pela IA aparecerá aqui para revisão..." 
-                        className="w-full h-40 sm:h-56 bg-slate-950 border border-slate-800 rounded-2xl p-5 text-slate-300 font-mono text-sm leading-relaxed resize-none focus:border-amber-500 outline-none transition-colors shadow-inner"
-                    ></textarea>
-                    <button onClick={handleOrganizeList} className="w-full mt-4 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-500 font-black rounded-2xl uppercase tracking-[0.2em] text-xs active:scale-[0.99] transition-all shadow-lg">ORGANIZAR REGISTROS</button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
