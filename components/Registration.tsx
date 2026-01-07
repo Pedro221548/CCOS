@@ -179,28 +179,35 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
       setIsProcessingOCR(true);
       try {
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-          const base64Data = selectedImage.split(',')[1];
+          
+          // Detect actual MIME Type from DataURL (e.g. "data:image/jpeg;base64,...")
+          const mimeMatch = selectedImage.match(/^data:(image\/[a-zA-Z+]+);base64,/);
+          const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+          const base64Data = selectedImage.replace(/^data:image\/[a-zA-Z+]+;base64,/, "");
           
           const response = await ai.models.generateContent({
               model: 'gemini-3-flash-preview',
-              contents: [{
+              contents: {
                   parts: [
-                      { inlineData: { data: base64Data, mimeType: 'image/png' } },
-                      { text: "Extraia todos os nomes completos e CPFs da imagem. Se o CPF estiver em uma linha separada logo abaixo do nome, identifique-os como pertencentes à mesma pessoa. Retorne no formato: NOME | CPF. Um por linha." }
+                      { inlineData: { data: base64Data, mimeType } },
+                      { text: "Analise esta imagem de cadastro e extraia todos os nomes completos e CPFs. Frequentemente os nomes e CPFs estão manuscritos ou impressos em fichas. Retorne estritamente uma lista formatada como: NOME | CPF. Se o CPF não estiver presente, use N/A. Um registro por linha." }
                   ]
-              }]
+              }
           });
 
           const text = response.text;
-          if (text) {
-              setRawListText(text);
-              setSuccessMsg("Texto extraído!");
+          if (text && text.trim()) {
+              setRawListText(text.trim());
+              setSuccessMsg("Texto extraído com sucesso!");
           } else {
-              throw new Error("Nenhum texto detectado.");
+              throw new Error("A IA não conseguiu identificar texto legível na imagem.");
           }
       } catch (e: any) {
-          console.error("Erro no OCR:", e);
-          alert("Erro ao processar imagem.");
+          console.error("Erro no OCR Gemini:", e);
+          const errorMsg = e.message?.includes("API key") 
+              ? "Chave de API inválida ou expirada." 
+              : "Não foi possível processar a imagem. Verifique a iluminação e tente novamente.";
+          alert(errorMsg);
       } finally {
           setIsProcessingOCR(false);
           setTimeout(() => setSuccessMsg(''), 3000);
@@ -291,7 +298,6 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
   };
 
   // Ordenação: Pendentes Primeiro, Concluídos no final
-  // Fix: Added useMemo to React imports to resolve "Cannot find name 'useMemo'" error.
   const sortedAndFilteredPeople = useMemo(() => {
     return processedPeople
         .filter(p => p.name.toLowerCase().includes(listSearch.toLowerCase()))
