@@ -160,7 +160,7 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
     setShowCamera(false);
   };
 
-  // --- ETAPA 1: EXTRAIR TEXTO BRUTO (OCR RESILIENTE) ---
+  // --- ETAPA 1: EXTRAIR TEXTO BRUTO (OCR DE ALTA PERFORMANCE COM GEMINI PRO) ---
   const handleExtractRawText = async () => {
       if (!selectedImage) {
           alert("Selecione ou capture uma imagem primeiro.");
@@ -169,6 +169,14 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
 
       setIsProcessingOCR(true);
       try {
+          // VERIFICAÇÃO DE CHAVE DE API (AI STUDIO)
+          const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+          if (!hasKey) {
+              await (window as any).aistudio.openSelectKey();
+              // Após o prompt de chave, continuamos
+          }
+
+          // Instanciação recomendada logo antes do uso
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
           
           const mimeMatch = selectedImage.match(/^data:(image\/[a-zA-Z+]+);base64,/);
@@ -176,11 +184,11 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
           const base64Data = selectedImage.split(',')[1];
           
           const response = await ai.models.generateContent({
-              model: 'gemini-3-flash-preview', 
+              model: 'gemini-3-pro-preview', // Upgrade para o modelo Pro (Visão Superior)
               contents: {
                   parts: [
                       { inlineData: { data: base64Data, mimeType } },
-                      { text: "Extraia TODO o texto que você conseguir ler nesta ficha de cadastro, incluindo nomes de pessoas e números de CPF. Se o texto for manuscrito, decifre-o. Retorne apenas o texto bruto sem formatação especial." }
+                      { text: "Você é um especialista em OCR de alta precisão. Analise esta ficha de cadastro e extraia TODO o texto visível. Transcreva nomes de pessoas e números de CPF exatamente como aparecem, especialmente se estiverem escritos à mão (manuscrito). Seja meticuloso com cada letra. Retorne apenas o texto bruto decifrado." }
                   ]
               }
           });
@@ -188,12 +196,19 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
           const text = response.text;
           if (text) {
               setRawText(text);
-              setSuccessMsg("Texto extraído com sucesso!");
+              setSuccessMsg("Texto decifrado com sucesso!");
           } else {
-              throw new Error("Não foi possível ler texto na imagem.");
+              throw new Error("A IA não conseguiu identificar texto legível nesta imagem.");
           }
       } catch (e: any) {
-          alert(`Falha no Escaneamento: ${e.message || 'Verifique a iluminação da foto.'}`);
+          console.error("Erro OCR:", e);
+          const errMsg = e.message || "";
+          if (errMsg.includes("Requested entity was not found")) {
+              alert("Erro: Chave de API não selecionada ou expirada. Clique em 'Configurar Chave' no rodapé.");
+              await (window as any).aistudio.openSelectKey();
+          } else {
+              alert(`Falha no Escaneamento: ${errMsg || 'Verifique a iluminação e a nitidez da foto.'}`);
+          }
       } finally {
           setIsProcessingOCR(false);
           setTimeout(() => setSuccessMsg(''), 3000);
@@ -209,10 +224,10 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
           
           const response = await ai.models.generateContent({
-              model: 'gemini-3-flash-preview', 
+              model: 'gemini-3-pro-preview', 
               contents: {
                   parts: [
-                      { text: `Com base no seguinte texto extraído de uma ficha de cadastro, identifique os nomes das pessoas e seus respectivos CPFs. Retorne APENAS um JSON no formato especificado.\n\nTexto:\n${rawText}` }
+                      { text: `Identifique nomes de pessoas e seus CPFs no seguinte bloco de texto extraído de uma ficha. Retorne um JSON ARRAY puro com objetos {nome, cpf}.\n\nTexto:\n${rawText}` }
                   ]
               },
               config: {
@@ -255,7 +270,7 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
                 setProcessedPeople(newPeople);
                 setSuccessMsg("Registros organizados!");
               } else {
-                alert("Nenhum registro válido encontrado no texto.");
+                alert("Não conseguimos estruturar nenhum nome válido a partir deste texto.");
               }
           }
       } catch (e: any) {
@@ -305,7 +320,7 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
                 <div className="bg-[#05070a] border border-slate-800/50 rounded-2xl overflow-hidden shadow-2xl">
                     <div className="bg-slate-900/40 px-6 py-4 border-b border-slate-800/50 flex items-center justify-between">
                         <h3 className="text-sm font-bold text-amber-500 flex items-center gap-3 uppercase tracking-[0.1em]">
-                            <Scan size={18} className="text-amber-500" /> 1. CAPTURA OCR
+                            <Scan size={18} className="text-amber-500" /> 1. CAPTURA DE ALTA DEFINIÇÃO
                         </h3>
                     </div>
                     
@@ -355,7 +370,7 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
                                 
                                 <button onClick={handleExtractRawText} disabled={isProcessingOCR || !selectedImage} className="w-full py-5 bg-[#0d1117] border border-slate-700/50 hover:border-amber-500/50 text-amber-500 font-black rounded-2xl uppercase text-[13px] tracking-[0.15em] flex items-center justify-center gap-4 disabled:opacity-30 transition-all active:scale-[0.98] shadow-2xl group">
                                     {isProcessingOCR ? <Loader2 className="animate-spin" size={24} /> : <Scan size={24} className="group-hover:rotate-90 transition-transform duration-500" />} 
-                                    EXTRAIR TEXTO DA IMAGEM
+                                    ESCANEAMENTO INTELIGENTE (PRO)
                                 </button>
                             </div>
                         </div>
@@ -366,24 +381,32 @@ const Registration: React.FC<RegistrationProps> = ({ onAddCamera, onAddAccess, o
                 <div className="bg-[#05070a] border border-slate-800/50 rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
                     <div className="bg-slate-900/40 px-6 py-4 border-b border-slate-800/50 flex items-center justify-between">
                         <h3 className="text-sm font-bold text-amber-500 flex items-center gap-3 uppercase tracking-[0.1em]">
-                            <FileText size={18} className="text-amber-500" /> 2. TEXTO BRUTO
+                            <FileText size={18} className="text-amber-500" /> 2. TEXTO BRUTO DECIFRADO
                         </h3>
                     </div>
                     <div className="p-6 space-y-4">
                         <textarea 
                             value={rawText}
                             onChange={(e) => setRawText(e.target.value)}
-                            placeholder="O texto extraído aparecerá aqui..."
+                            placeholder="A IA transcreverá o texto aqui. Você pode editar manualmente se necessário antes de organizar."
                             className="w-full bg-[#020406] border border-slate-800 rounded-xl p-6 text-slate-300 text-sm font-mono focus:border-amber-500 outline-none h-48 resize-none leading-relaxed"
                         />
-                        <button 
-                            onClick={handleOrganizeText}
-                            disabled={isOrganizing || !rawText.trim()}
-                            className="w-full py-4 bg-[#111827] border border-slate-700 hover:border-amber-500/50 text-amber-500 font-black rounded-xl uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 disabled:opacity-30 transition-all active:scale-95 shadow-lg group"
-                        >
-                            {isOrganizing ? <Loader2 className="animate-spin" size={18} /> : <Wand2 size={18} className="group-hover:scale-110 transition-transform" />}
-                            ORGANIZAR REGISTROS
-                        </button>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <button 
+                                onClick={handleOrganizeText}
+                                disabled={isOrganizing || !rawText.trim()}
+                                className="flex-1 py-4 bg-[#111827] border border-slate-700 hover:border-amber-500/50 text-amber-500 font-black rounded-xl uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 disabled:opacity-30 transition-all active:scale-95 shadow-lg group"
+                            >
+                                {isOrganizing ? <Loader2 className="animate-spin" size={18} /> : <Wand2 size={18} className="group-hover:scale-110 transition-transform" />}
+                                ORGANIZAR NA TABELA
+                            </button>
+                            <button 
+                                onClick={() => (window as any).aistudio.openSelectKey()}
+                                className="px-6 py-4 bg-slate-900 border border-slate-800 text-slate-500 hover:text-blue-400 rounded-xl uppercase text-[10px] font-black tracking-widest flex items-center gap-2 transition-all"
+                            >
+                                <Key size={14} /> Configurar Chave API
+                            </button>
+                        </div>
                     </div>
                 </div>
 
