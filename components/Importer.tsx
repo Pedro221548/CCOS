@@ -223,13 +223,24 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
             jsonData.forEach((row, index) => {
                 const rawName = row['Pessoa'] || row['Nome'];
                 if (!rawName || typeof rawName !== 'string' || !rawName.trim()) return; 
-                const eventType = (row['Tipo de evento'] || row['Eventos'] || '').toUpperCase();
-                const status = (row['Status de Entrada/Saída'] || '').toUpperCase();
-                const isEntry = eventType.includes('ENTRADA') || eventType.includes('DESBLOQUEIO') || eventType.includes('ACESSO LIBERADO') || status.includes('ENTRADA');
-                if (!isEntry) return;
+
+                const rawEventType = (row['Tipo de evento'] || row['Eventos'] || '').toUpperCase();
+                const rawStatus = (row['Status de Entrada/Saída'] || '').toUpperCase();
+                
+                // Mapeamento Inteligente de Fluxo (Entrada/Saída)
+                let finalEvent = 'NORMAL';
+                if (rawStatus.includes('ENTRADA') || rawEventType.includes('ENTRADA') || rawEventType.includes('DESBLOQUEIO') || rawEventType.includes('ACESSO LIBERADO')) {
+                    finalEvent = 'ENTRADA';
+                } else if (rawStatus.includes('SAÍDA') || rawStatus.includes('SAIDA') || rawEventType.includes('SAÍDA') || rawEventType.includes('SAIDA')) {
+                    finalEvent = 'SAÍDA';
+                } else {
+                    finalEvent = rawEventType || 'OUTRO';
+                }
+
                 const locationString = [row['Ambiente'], row['Ponto de Acesso'], row['Tipo de ponto de acesso'], row['Local'], row['Nome do dispositivo'], row['Device']].join(' ').toUpperCase();
                 const unit = normalizeWarehouse(null, locationString, null, null, locationString, null);
                 if (!unit || unit === 'Geral') return; 
+
                 const fullSearchString = [locationString, row['Grupo de pessoas'], row['Pessoa'], row['Nome']].join(' ').toUpperCase();
                 let company = row['Grupo de pessoas'] ? row['Grupo de pessoas'].trim().toUpperCase() : null;
                 if (!company) {
@@ -246,10 +257,11 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
                 const dateNormalized = parseRowDate(row);
                 let timeStr = row['Hora'] || '-';
                 if (typeof timeStr === 'string' && timeStr.includes(' ')) timeStr = timeStr.split(' ')[1]; 
+                
                 newWorkers.push({
                     id: `w-${index}-${Date.now()}`,
                     name: rawName.trim(),
-                    company, unit, date: dateNormalized, time: timeStr, accessPoint: row['Ponto de Acesso'] || row['Ambiente'] || '-', eventType: eventType
+                    company, unit, date: dateNormalized, time: timeStr, accessPoint: row['Ponto de Acesso'] || row['Ambiente'] || '-', eventType: finalEvent
                 });
             });
             if (newWorkers.length > 0) onImportThirdParty(newWorkers, fileName);
@@ -467,7 +479,7 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
 
         {/* MODAL DE CONFIRMAÇÃO DINÂMICO */}
         {resetTarget && (
-            <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
+            <div className="fixed inset-0 z-150 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
                 <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center space-y-6 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-rose-500"></div>
                     <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-500/20">

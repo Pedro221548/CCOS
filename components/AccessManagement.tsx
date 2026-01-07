@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { User, ProcessedWorker, AccessPoint } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
-import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, CheckSquare, Square, MessageCircle, Mail, Copy, X } from 'lucide-react';
+import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, CheckSquare, Square, MessageCircle, Mail, Copy, X, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 
 interface AccessManagementProps {
     accessPoints: AccessPoint[];
@@ -132,7 +132,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         let msg = "";
         selectedRecords.forEach(r => {
             const dateStr = r.date.split('-').reverse().join('/');
-            msg += `Segue o acesso de ${r.name} na data ${dateStr} entrada ${r.time}\n`;
+            msg += `Segue o acesso (${r.eventType}) de ${r.name} na data ${dateStr} às ${r.time}\n`;
         });
 
         setGeneratedMessage(msg.trim());
@@ -147,6 +147,25 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         const subject = encodeURIComponent("Relatório de Acessos");
         const body = encodeURIComponent(generatedMessage);
         window.open(`mailto:?subject=${subject}&body=${body}`);
+    };
+
+    const getFlowBadge = (type: string) => {
+        const t = type.toUpperCase();
+        if (t === 'ENTRADA') return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-black text-[9px] uppercase tracking-widest">
+                <ArrowDownLeft size={10} /> Entrada
+            </span>
+        );
+        if (t === 'SAÍDA' || t === 'SAIDA') return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-500/10 text-rose-500 border border-rose-500/20 font-black text-[9px] uppercase tracking-widest">
+                <ArrowUpRight size={10} /> Saída
+            </span>
+        );
+        return (
+            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-black text-[9px] uppercase tracking-widest">
+                {type}
+            </span>
+        );
     };
 
     return (
@@ -294,7 +313,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                                                     <th className="pb-2">Horário</th>
                                                                     <th className="pb-2">Local / Galpão</th>
                                                                     <th className="pb-2">Ponto de Acesso</th>
-                                                                    <th className="pb-2">Evento</th>
+                                                                    <th className="pb-2">Direção</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
@@ -326,7 +345,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                                                                 {record.accessPoint}
                                                                             </td>
                                                                             <td className="py-2.5">
-                                                                                <span className="text-[10px] text-slate-500">{record.eventType}</span>
+                                                                                {getFlowBadge(record.eventType)}
                                                                             </td>
                                                                         </tr>
                                                                     );
