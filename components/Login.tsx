@@ -29,77 +29,71 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-[#020408] flex flex-col items-center justify-center p-4 relative overflow-hidden">
       
       {/* Background Ambience */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[60%] sm:w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[80px] sm:blur-[100px]"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[60%] sm:w-[40%] h-[40%] bg-amber-500/5 rounded-full blur-[80px] sm:blur-[100px]"></div>
+          <div className="absolute top-[-10%] left-[-10%] w-[60%] sm:w-[40%] h-[40%] bg-amber-600/5 rounded-full blur-[100px]"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[60%] sm:w-[40%] h-[40%] bg-amber-500/5 rounded-full blur-[100px]"></div>
       </div>
 
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-fade-in relative z-10">
+      <div className="w-full max-w-md bg-slate-900/40 border border-slate-800 rounded-[32px] shadow-2xl overflow-hidden animate-fade-in relative z-10 backdrop-blur-xl">
         
-        {/* Glow Line */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500/50 to-transparent"></div>
-        
-        {/* Header */}
-        <div className="p-8 sm:p-10 pb-6 sm:pb-8 flex flex-col items-center justify-center border-b border-slate-800 bg-slate-950/30">
-            <div className="relative mb-4 sm:mb-5 group transform transition-transform hover:scale-105 duration-300">
-                <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full"></div>
-                <Shield className="w-16 h-16 sm:w-24 sm:h-24 text-amber-400 relative z-10 fill-amber-400/20 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)] transition-colors duration-300" />
+        {/* Header - CCOS Styled Logo */}
+        <div className="p-10 pb-8 flex flex-col items-center justify-center">
+            <div className="relative mb-6 group transform transition-transform duration-500">
+                <div className="absolute inset-0 bg-amber-500/20 blur-3xl rounded-full animate-pulse"></div>
+                <Shield className="w-20 h-20 text-amber-500 relative z-10 fill-amber-500/10 drop-shadow-[0_0_20px_rgba(245,158,11,0.6)]" strokeWidth={1.5} />
             </div>
-            {/* LETRAS RETAS AQUI - Removido tracking-tighter */}
-            <h1 className="text-5xl sm:text-7xl font-black text-amber-400 tracking-normal leading-none drop-shadow-2xl mb-4 font-sans text-center uppercase not-italic">
+            
+            <h1 className="text-6xl font-black text-amber-500 tracking-tighter leading-none text-center drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]">
                 CCOS
             </h1>
-            <div className="flex items-center justify-center gap-2 sm:gap-3">
-                 <div className="bg-white px-2 sm:px-3 py-1 rounded-[4px] h-8 sm:h-9 flex items-center justify-center shadow-lg">
-                    <span className="text-[7px] sm:text-[10px] font-extrabold text-red-700 leading-none text-center tracking-normal uppercase not-italic">UNILOG<br/>EXPRESS</span>
-                 </div>
-                 <div className="bg-white px-2 sm:px-3 py-1 rounded-[4px] h-8 sm:h-9 flex items-center justify-center shadow-lg">
-                    <span className="text-[7px] sm:text-[10px] font-extrabold text-cyan-600 leading-none text-center tracking-normal uppercase not-italic">4ELOS<br/>DISTRIB.</span>
-                 </div>
+            
+            <div className="mt-6 px-10 py-2.5 bg-amber-500/5 border border-amber-500/20 rounded-full">
+                <span className="text-xs font-black text-amber-600 uppercase tracking-[0.4em]">
+                    DEMONSTRAÇÃO
+                </span>
             </div>
         </div>
 
-        <div className="p-6 sm:p-8">
-            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+        <div className="p-8 pt-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
             
             <div>
-                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Email Corporativo</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 ml-2">Acesso Restrito</label>
                 <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Mail className="h-5 w-5 text-slate-600 group-focus-within:text-blue-500 transition-colors" />
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <Mail className="h-5 w-5 text-slate-600 group-focus-within:text-amber-500 transition-colors" />
                     </div>
                     <input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-slate-600 text-sm"
-                        placeholder="usuario@ccos.com"
+                        className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl pl-12 pr-4 py-4 text-slate-200 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all placeholder-slate-700 text-sm"
+                        placeholder="E-mail Corporativo"
                         required
                     />
                 </div>
             </div>
 
             <div>
-                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Senha de Acesso</label>
                 <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Lock className="h-5 w-5 text-slate-600 group-focus-within:text-blue-500 transition-colors" />
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <Lock className="h-5 w-5 text-slate-600 group-focus-within:text-amber-500 transition-colors" />
                     </div>
                     <input
                         type={showPassword ? "text" : "password"}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-12 py-3 text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-slate-600 text-sm"
-                        placeholder="••••••••"
+                        className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl pl-12 pr-12 py-4 text-slate-200 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all placeholder-slate-700 text-sm"
+                        placeholder="Senha de Segurança"
                         required
                     />
                     <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 focus:outline-none transition-colors"
+                        className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-600 hover:text-slate-300 focus:outline-none transition-colors"
                         tabIndex={-1}
                     >
                         {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -108,7 +102,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </div>
 
             {error && (
-                <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs text-center font-bold flex items-center justify-center gap-2 animate-pulse">
+                <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs text-center font-bold flex items-center justify-center gap-2 animate-pulse">
                     <AlertCircle size={14} className="shrink-0" />
                     {error}
                 </div>
@@ -117,20 +111,20 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2 group uppercase text-sm tracking-widest active:scale-95"
+                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-4 rounded-2xl transition-all shadow-xl shadow-amber-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4 group uppercase text-sm tracking-widest active:scale-[0.98]"
             >
                 {loading ? <Loader2 className="animate-spin" size={20} /> : (
                     <>
-                        Entrar no Sistema <LogIn size={18} className="group-hover:translate-x-1 transition-transform" />
+                        Entrar na Operação <LogIn size={18} className="group-hover:translate-x-1 transition-transform" />
                     </>
                 )}
             </button>
             </form>
         </div>
         
-        <div className="bg-slate-950/50 p-4 text-center border-t border-slate-800">
-             <p className="text-[10px] text-slate-600 uppercase tracking-widest font-bold">
-                 Acesso Restrito / Pessoal Autorizado
+        <div className="bg-slate-950/30 p-5 text-center border-t border-slate-800/50">
+             <p className="text-[9px] text-slate-600 uppercase tracking-[0.5em] font-black">
+                 SISTEMA DE MONITORAMENTO AVANÇADO
              </p>
         </div>
       </div>

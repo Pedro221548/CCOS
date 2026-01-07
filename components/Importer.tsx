@@ -1,21 +1,22 @@
 
 import React, { useRef, useState } from 'react';
-import { FileSpreadsheet, RotateCcw, AlertCircle, Power, Upload, Video, DoorClosed, Save, Briefcase, FileUp, AlertTriangle, X, Trash2, Clock, CheckCircle2, FileText, Download, Shield, Info, ArrowRight, Table, Database, Check, Layers } from 'lucide-react';
+import { FileSpreadsheet, RotateCcw, Upload, Video, DoorClosed, Save, Briefcase, Trash2, Clock, FileText, Download, Database, Check, Layers, Power } from 'lucide-react';
 import { Camera, AccessPoint, Status, ProcessedWorker, ThirdPartyImport, ChannelType } from '../types';
 import { jsPDF } from "jspdf";
 
 const VALID_COMPANIES = ['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PRIMUS', 'PRAYLOG'];
 
+// Mapeamento de Palavras-Chave atualizado
 const VALID_UNITS = [
-    { id: 'GALPÃO G2', keywords: ['G216LF', 'G213LF', 'G203LF', 'G208LF', 'G207LF', 'G205LF', 'G210LF', 'G215LF', 'G201LF', 'G214LF', 'G212LF', 'G206LF', 'G204LF', 'G209LF', 'G217LF', 'G211LF', 'G202LF', 'SALA DE DESCANSO G2', 'CF MERCO-2', 'CONTROLADO ZYDUS', 'CONTROLADO PRATI', 'SAIDA CATRACA G2', 'ENTRADA CATRACA G2', 'CF PFS', 'CF MERCO', 'CAMARA FRIA BIOCON', 'SERVIDOR G2', 'RG SOLUÇÕES', 'RG SOLUCOES', 'GAIOLA 1', 'PRESTIGE MEZ', 'TORNIQUETE SAIDA', 'TORNIQUETE ENTRADA', 'PRESTIGE', 'ZYDUS', 'BIOCON', 'PRATI', 'MERCO', 'G2'] },
-    { id: 'GALPÃO G3 / MATRIZ', keywords: ['G315LF', 'G313LF', 'G311LF', 'G307LF', 'G306LF', 'G302LF', 'G305LF', 'G309LF', 'G316LF', 'G314LF', 'G312LF', 'G304LF', 'G301LF', 'G310LF', 'G308LF', 'G303LF', 'SALA MYLAN', 'MYLAN IMPORTADORA', 'CAMERA FRIA MYLAN', 'CONTROLADO ASPEN', 'MYLAN DISTRIBUIDORA', 'CF MYLAN', 'CF ASPEN', 'CORPORATIVO MATRIZ', 'ENTRADA G3 MYLAN', 'ENTRADA TORNIQUETE G3', 'SAIDA TORNIQUETE G3', 'ENTRADA G3 MATRIZ', 'SERVIDOR G3', 'ADM G3 MATRIZ', 'RECEPÇÃO G3', 'RECEPCAO G3', 'CONTROLE DE ACESSO CCOS', 'CCOS G3', 'G3', 'MATRIZ', 'CORPORATIVO'], exclude: ['LSP'] },
-    { id: 'GALPÃO G5 (MD6)', keywords: ['G526LF', 'G503LF', 'G517LF', 'G515LF', 'G505LF', 'G519LF', 'G513LF', 'G524LF', 'G521LF', 'G509LF', 'G508LF', 'G507LF', 'G512LF', 'G520LF', 'G518LF', 'G516LF', 'G514LF', 'G525LF', 'G506LF', 'G501LF', 'G523LF', 'G522LF', 'G511LF', 'G510LF', 'G502LF', 'G504LF', 'VESTIARIO FEMININO MD 6', 'VESTIARIO MASCULINO MD 09', 'GAIOLA SERVIER', 'AC MEZANINO MD 8', 'CONTROLADO BIOCHIMICO', 'CONTROLADO CELLERA', 'CONTROLADO SERVIER', 'CONTROLE DE ACESSO MD 5', 'CONTROLE DE ACESSO MD 6', 'CONTROLE DE ACESSO MD 7', 'CONTROLE DE ACESSO MD 8', 'SAIDA MD 4', 'ENTRADA MD4', 'ENTRADA CATRATA MD 9', 'SAIDA CATRATA MD 9', 'G5', 'MD6', 'MD 6', 'TERABYTE'] },
-    { id: 'UNIDADE SP-IP', keywords: ['IP06LF', 'IP04LF', 'IP07LF', 'IP01LF', 'IP02LF', 'IP05LF', 'IP08LF', 'IP03LF', 'SP-IP06LF', 'SP-IP04LF', 'SP-IP07LF', 'SP-IP01LF', 'SP-IP02LF', 'SP-IP05LF', 'SP-IP08LF', 'SP-IP03LF', 'HOSPDROGAS', 'NEURAXPHARM', 'SERVIDOR SP', 'TORNIQUETE SP', 'CATRACA ENTRADA SP', 'CATRACA SAIDA SP', 'SP-IP', 'SP IP', 'ITAPEVI', 'SP - IP'] },
-    { id: 'MERITI', keywords: ['SJM10LF', 'SJM08LF', 'SJM15LF', 'SJM14LF', 'SJM12LF', 'SJM05LF', 'SJM02LF', 'SJM07LF', 'SJM04LF', 'SJM03LF', 'SJM01LF', 'SJM09LF', 'SJM13LF', 'SJM11LF', 'SJM06LF', 'SAIDA CATRACA EXPRESSA', 'ENTRADA CATRACA EXPRESSA', 'ENTRADA GALPÃO LATERAL', 'SAIDA GALPÃO LATERAL', 'ENTRADA BSB', 'SAIDA BSB', 'SAIDA GRADIL EXPRESSA', 'ENTRADA CATRACA UNILOG MERITI', 'ENTRADA MEZANINO MERITI', 'SAIDA MEZANINO MERITI', 'SAIDA CATRACA UNILOG MERITI', 'ENTRADA GRADIL EXPRESSA', 'CONTROLADO EXPRESSA', 'ALTO VALOR EXPRESSA', 'CAMARA FRIA EXPRESSA', 'MERITI', 'UNILOG MERITI', 'UNILOG EXPRESS', 'SJM', 'EXPRESSA', 'SÃO JOSÉ', 'SAO JOSE', 'LATERAL', 'SJ', 'SJC'] },
-    { id: 'PAVUNA', keywords: ['PV01LF', 'PV02LF', 'PV03LF', 'PAVUNA-PV01LF', 'PAVUNA-PV02LF', 'PAVUNA-PV03LF', 'SAIDA CATRACA PAVUNA', 'ENTRADA CATRACA PAVUNA', 'SERVIDOR PAVUNA', 'PAVUNA', 'PV', 'UNILOG PAVUNA'] },
-    { id: 'GALPÃO 4 ELOS ES', keywords: ['G1004LF', 'G1001LF', 'G1003LF', 'VESTIARIO FEMININO 4 ELOS', 'ENTRADA CATRACA 4 ELOS', 'SAIDA CATRACA 4ELOS', 'VESTIARIO MASCULINO 4ELOS', '4 ELOS ES', '4ELOS ES', '4ELLOS ES', 'GA-G4', 'G4'] },
-    { id: 'GALPÃO 4 ELOS RJ', keywords: ['4E03LF', '4E02LF', '4E01LF', 'ENTRADA MEZANINO 4ELOS RJ', 'CATRACA ENTRADA 4ELOS RJ', 'CATRACA SAIDA 4ELOS RJ', 'REFEITORIO MEZANINO', '4 ELOS RJ', 'ELOS RJ', '4ELOS RJ'] },
-    { id: 'GALPÃO LSP', keywords: ['LSP', 'LSP01', 'LSP02', 'LSP01LF', 'LSP02LF'] }
+    { id: 'GALPÃO MERITI', keywords: ['MERITI', 'SJM', 'EXPRESSA', 'BSB', 'GRADIL EXPRESSA', 'DOCA RECEXP', 'RUA 17', 'RUA 12', 'RUA 34', 'REC MEZANINO', 'MESA CONTROLADO', 'DOCA RECEBIMENTO', 'ALTO CUSTO', 'ALTO VALOR'] },
+    { id: 'GALPÃO 4 ELOS ES', keywords: ['G4 ES', 'G10', '4ELOS ES', '4 ELOS ES', '4ELOS', 'SPEED DOME', 'LOLA', 'CONFERENCIA 04', 'CONFERENCIA 03', 'RUA FLOWRACK', 'CHK0', 'G1004LF', 'G1003LF', 'G1001LF', 'CAMERA 4ELOS'] },
+    { id: 'GALPÃO SP', keywords: ['INVD 32', 'SP 01', 'SP 02', 'SP 3_', 'SP_1', 'HOSPIDROGAS', 'FAVO', 'SALLVE', 'ITAPEVI', 'NEURAXPHARM', 'IP01LF', 'IP02LF', 'IP03LF', 'IP04LF', 'IP05LF', 'IP06LF', 'IP07LF', 'IP08LF'] },
+    { id: 'GALPÃO 4 ELOS RJ', keywords: ['4 ELOS RJ', 'ELOS RJ', 'RUA 1 FRENTE', 'REFEITORIO MEZANINO', 'DOCA 40414243', 'ACESSO MD 2', '4E01LF', '4E02LF', '4E03LF'] },
+    { id: 'GALPÃO LSP', keywords: ['LSP_', 'LSP01', 'ENTRADA RODOVIA', 'PORTÃO SOCIAL', 'SPEED ESTACIONAMENTO', 'PÁTIO DOCAS', 'GUARITA', 'LSP01LF', 'LSP02LF', 'LSP03LF', 'ECLUSA LSP'] },
+    { id: 'GALPÃO G5', keywords: ['TERABYTE', 'NVD 1 G5', 'NVD 2 G5', 'NVD 3 G5', 'NVD 4 G5', 'NVD 5 G5', 'MD 4', 'MD 5', 'MD 6', 'MD 7', 'MD 8', 'MD 9', 'MD4', 'MD5', 'MD6', 'MD7', 'MD8', 'MD9', 'PINOS0', 'HERSHEYS', 'AC BRAZIL', 'BIOSANTE', 'BEYOUNG', 'LOLA COS', 'SERVIER', 'CELLERA', 'BIOCHIMICO', 'TUNEL', 'SAIDA EMER'] },
+    { id: 'GALPÃO PAVUNA', keywords: ['PAVUNA', 'UNILOG PAVUNA', 'PV01', 'PV02', 'REC MODULO 01', 'ANTECAMARA ENTRADA', 'PV01LF', 'PV02LF', 'PV03LF'] },
+    { id: 'GALPÃO G2', keywords: ['10.0.10.13', '10.0.10.14', '10.0.10.15', '10.0.10.16', '10.0.10.20', 'G2 MODULO', 'G2 DOCA', 'SEMEAR', 'RG SOLUÇÕES', 'PFS', 'PRESTIGE', 'BEAUTYGLAM', 'MERCO', 'BIOCON', 'MD A', 'MD B', 'MD C', 'MD D', 'MD E', 'MD F', 'VESTIARIO', 'COPA G2', 'ESCANINHO CELULAR', 'G216LF', 'G213LF', 'G203LF', 'G208LF', 'G207LF', 'G205LF', 'G210LF', 'G215LF', 'G201LF', 'G214LF', 'G212LF', 'G206LF', 'G204LF', 'G209LF', 'G217LF', 'G211LF', 'G202LF', 'ZYDUS', 'PRATI', 'GAIOLA', 'CATRACA G2', 'BEB', 'B E B', 'CHECKOUT'] },
+    { id: 'GALPÃO G3', keywords: ['10.0.10.18', 'G3 MATRIZ', 'G3 CCTO', 'MYLAN', 'ASPEN', 'DIPRIVAN', 'SALA MYLAN', 'G3 MD', 'RUA 25-26', 'RUA 23-24', 'RUA 21-22', 'RUA 19-20', 'RUA 17-18', 'RUA 11-12', 'RUA 9-10', 'RUA 3-4', 'RUA 5-6', 'RUA 1-2', 'ANTECAMERA ASPEN', 'CAMARA FRIA ASPEN', 'G3 ANTECAMARA', 'VPC', 'G315LF', 'G313LF', 'G311LF', 'G307LF', 'G306LF', 'G302LF', 'G305LF', 'G309LF', 'G316LF', 'G314LF', 'G312LF', 'G304LF', 'G301LF', 'G310LF', 'G308LF', 'G303LF'] }
 ];
 
 const parseRowDate = (row: any): string => {
@@ -53,59 +54,91 @@ const formatExcelDate = (val: any): string => {
     return String(val).trim();
 };
 
-const detectCompany = (text: string): string | null => {
-    if (!text) return null;
-    const upper = text.toUpperCase();
-    const words = upper.split(/[\s,.-]+/);
-    if (upper.includes('PRAYLOG') || upper.includes('PRAY LOG')) return 'PRAYLOG';
-    if (upper.includes('SUPERA LOG') || upper.includes('SUPERA')) return 'SUPERA LOG';
-    if (upper.includes('FORMA')) return 'FORMA';
-    if (upper.includes('PRIMUS')) return 'PRIMUS';
-    if (words.includes('MPI')) return 'MPI';
-    if (words.includes('B11')) return 'B11';
-    if (words.includes('MJM')) return 'MJM';
-    if (words.includes('MULT')) return 'MULT';
-    return null;
+/**
+ * Função para verificar se um ID pertence exclusivamente ao G5 baseado na lista oficial.
+ * Faixas: 122-138, 229-257, 264-292, 299-329, 336-367, 374-399, 406-437.
+ */
+const isG5NumericId = (idStr: string | null): boolean => {
+    if (!idStr) return false;
+    
+    const parts = idStr.toString().split('.');
+    const numericPart = parseInt(parts[parts.length - 1], 10);
+
+    if (isNaN(numericPart)) return false;
+
+    return (
+        (numericPart >= 122 && numericPart <= 138) ||
+        (numericPart >= 229 && numericPart <= 257) ||
+        (numericPart >= 264 && numericPart <= 292) ||
+        (numericPart >= 299 && numericPart <= 329) ||
+        (numericPart >= 336 && numericPart <= 367) ||
+        (numericPart >= 374 && numericPart <= 399) ||
+        (numericPart >= 406 && numericPart <= 437)
+    );
 };
 
-const detectUnit = (text: string): string | null => {
-    if (!text) return null;
-    const upper = text.toUpperCase();
+const normalizeWarehouse = (rawWarehouse: string | null, location: string | null, module: string | null, name: string | null, deviceName: string | null, id: string | null): string => {
+    const channelName = (name || '').toUpperCase();
+    const devName = (deviceName || '').toUpperCase();
+    const locName = (location || '').toUpperCase();
+    const modName = (module || '').toUpperCase();
+    const idStr = (id || '').toString();
+    
+    // --- PRIORIDADE MÁXIMA: FILTRO POR NÚMERO (FAIXA G5) ---
+    if (isG5NumericId(idStr)) return 'GALPÃO G5';
+
+    // --- PRIORIDADE 1: IDENTIFICAÇÃO PELO DISPOSITIVO ---
+    if (devName.includes('G5') || devName.includes('TERABYTE')) return 'GALPÃO G5';
+    if (devName.includes('G10') || devName.includes('4ELOS G4 ES') || devName.includes('ELOS ES') || devName.includes('4 ELOS ES')) return 'GALPÃO 4 ELOS ES';
+    if (devName.includes('SP 01') || devName.includes('SP 02') || devName.includes('SP-IP') || devName.includes('INVD 32')) return 'GALPÃO SP';
+    if (devName.includes('G3') || devName.includes('MYLAN') || devName.includes('ASPEN')) return 'GALPÃO G3';
+    if (devName.includes('PV0') || devName.includes('PAVUNA')) return 'GALPÃO PAVUNA';
+    if (devName.includes('SJM') || devName.includes('MERITI')) return 'GALPÃO MERITI';
+    if (devName.includes('4E0') || devName.includes('ELOS RJ')) return 'GALPÃO 4 ELOS RJ';
+    if (devName.includes('LSP')) return 'GALPÃO LSP';
+    if (devName.includes('G2')) return 'GALPÃO G2';
+
+    // --- PRIORIDADE 2: PALAVRAS-CHAVE POR UNIDADE ---
+    const textToCheck = `${channelName} ${locName} ${modName}`.toUpperCase();
+    
+    // GALPÃO G2 (REGRAS ESPECÍFICAS: BEB, MD F, CHECKOUT)
+    if (textToCheck.includes('BEB') || textToCheck.includes('B E B') || textToCheck.includes('MD F') || textToCheck.includes('CHECKOUT')) return 'GALPÃO G2';
+
+    // GALPÃO 4 ELOS ES
+    if (textToCheck.includes('CHK0') && !devName.includes('SP') && !devName.includes('G5')) return 'GALPÃO 4 ELOS ES';
+    if (textToCheck.includes('CATRACA G10') || textToCheck.includes('FRENTE RUA G10') || textToCheck.includes('EME DOCA 3 E 4')) return 'GALPÃO 4 ELOS ES';
+    if (textToCheck.includes('LOLA') && !textToCheck.includes('COS')) return 'GALPÃO 4 ELOS ES';
+
+    // GALPÃO G3 (Exclusivos)
+    if (textToCheck.includes('CCOS G3') || textToCheck.includes('DIPRIVAN')) return 'GALPÃO G3';
+    
+    // GALPÃO G5 (Exclusivos da lista massiva)
+    if (textToCheck.includes('MD 4') || textToCheck.includes('MD 5') || textToCheck.includes('MD 6') || 
+        textToCheck.includes('MD 7') || textToCheck.includes('MD 8') || textToCheck.includes('MD 9') ||
+        textToCheck.includes('HERSHEYS') || textToCheck.includes('AC BRAZIL') || 
+        textToCheck.includes('BIOSANTE') || textToCheck.includes('BEYOUNG') || 
+        textToCheck.includes('LOLA COS') || textToCheck.includes('CELLERA')) return 'GALPÃO G5';
+
+    // GALPÃO SP (Exclusivos)
+    if (textToCheck.includes('HOSPDROGAS') || textToCheck.includes('NEURAXPHARM') || textToCheck.includes('IP0')) return 'GALPÃO SP';
+
+    // Fallback por Keywords Gerais (Último caso)
     for (const unit of VALID_UNITS) {
-        if ((unit as any).exclude && (unit as any).exclude.some((exc: string) => upper.includes(exc))) continue;
-        if (unit.keywords.some(k => upper.includes(k))) return unit.id;
+        if (unit.keywords.some(k => textToCheck.includes(k))) return unit.id;
     }
-    return null;
-};
 
-const normalizeWarehouse = (rawWarehouse: string | null, location: string | null, module: string | null, name: string | null): string => {
-    const textToCheck = ((rawWarehouse || '') + ' ' + (location || '') + ' ' + (module || '') + ' ' + (name || '')).toUpperCase();
-    if (textToCheck.includes('4E01LF') || textToCheck.includes('4E02LF') || textToCheck.includes('4E03LF')) return '4 ELOS RJ';
-    if (textToCheck.includes('IP0') || textToCheck.includes('IP1')) return 'SP (ITAPEVI)';
-    if (textToCheck.includes('SJM') || textToCheck.includes('MERITI') || textToCheck.includes('EXPRESSA') || textToCheck.includes('SÃO JOSÉ')) return 'MERITI';
-    if (textToCheck.includes('PV01') || textToCheck.includes('PV02') || textToCheck.includes('PV03')) return 'UNILOG PAVUNA';
-    if (textToCheck.includes('4ELLOS ES') || textToCheck.includes('4 ELOS ES') || textToCheck.includes('G10')) return 'G4 4ELLOS ES';
-    if (textToCheck.includes('ITAPEVI') || textToCheck.includes('SP-IP')) return 'SP (ITAPEVI)';
-    if (textToCheck.includes('4 ELOS RJ') || textToCheck.includes('ELOS RJ')) return '4 ELOS RJ';
-    if (textToCheck.includes('LSP')) return 'GALPÃO LSP';
-    if (textToCheck.includes('PAVUNA')) return 'UNILOG PAVUNA';
-    if (textToCheck.includes('G3')) return 'G3 MATRIZ';
-    if (textToCheck.includes('G2')) return 'G2';
-    if (textToCheck.includes('G5') || textToCheck.includes('TERABYTE')) return 'G5';
-    const g5Modules = ['MODULO 08', 'MODULO 09', 'MODULO 8', 'MODULO 9', 'MODULO 06', 'MODULO 07', 'MODULO 6', 'MODULO 7', 'MODULO 04', 'MODULO 05', 'MODULO 4', 'MODULO 5', 'MODULO A', 'MODULO B', 'MODULO C', 'MODULO D', 'MODULO E', 'MODULO F'];
-    if (g5Modules.some(m => textToCheck.includes(m))) return 'G5';
     return rawWarehouse || 'Geral';
 };
 
 const getResponsibleByWarehouse = (warehouse: string, currentResponsible: string | null): string => {
     switch (warehouse) {
-        case 'G2': return 'ROBSON DIAS BRITO';
-        case 'G3 MATRIZ': return 'EDNEI RODRIGUES SOARES';
-        case 'G5': return 'MOACIR ANDRADE NUNES';
-        case 'UNILOG PAVUNA': case 'MERITI': case 'GALPÃO LSP': return 'MAURO BAPTISTA CERQUEIRA';
-        case 'SP (ITAPEVI)': return 'JOSENIAS SANTOS NASCIMENTO';
-        case '4 ELOS RJ': return 'DANIEL CESAR MACHADO';
-        case 'G4 4ELLOS ES': return 'SILVIA SANTOS';
+        case 'GALPÃO G2': return 'ROBSON DIAS BRITO';
+        case 'GALPÃO G3': return 'EDNEI RODRIGUES SOARES';
+        case 'GALPÃO G5': return 'MOACIR ANDRADE NUNES';
+        case 'GALPÃO PAVUNA': case 'GALPÃO MERITI': case 'GALPÃO LSP': return 'MAURO BAPTISTA CERQUEIRA';
+        case 'GALPÃO SP': return 'JOSENIAS SANTOS NASCIMENTO';
+        case 'GALPÃO 4 ELOS RJ': return 'DANIEL CESAR MACHADO';
+        case 'GALPÃO 4 ELOS ES': return 'SILVIA SANTOS';
         default: return currentResponsible || 'N/A';
     }
 };
@@ -123,12 +156,14 @@ const mapJsonToDevices = (jsonData: any[], type: 'camera' | 'access'): any[] => 
         const uuid = `${type}-${idx}-${Date.now()}`;
         
         if (type === 'camera') {
-            const name = getValue(obj, ['Nome do dispositivo', 'Nome do Canal', 'NOME', 'Nome_Camera', 'Nome', 'Camera']);
-            const id = getValue(obj, ['IP do Dispositivo', 'ID_Camera', 'ID', 'Codigo', 'Número']);
+            const name = getValue(obj, ['Nome do canal', 'Nome do dispositivo', 'NOME', 'Nome_Camera', 'Nome', 'Camera', 'Canal']);
+            const deviceName = getValue(obj, ['Nome do dispositivo', 'Device Name', 'NVD', 'Equipamento', 'Nome do Dispositivo']);
+            const id = getValue(obj, ['IP do Dispositivo', 'ID_Camera', 'ID', 'Codigo', 'Número', 'IP']);
             const location = getValue(obj, ['Nome org', 'Localização', 'Localizacao', 'Local']);
             const module = getValue(obj, ['Módulo', 'Modulo', 'MODULO', 'Setor']);
             let warehouseRaw = getValue(obj, ['Galpão', 'Galpao', 'Warehouse']);
-            const warehouse = normalizeWarehouse(warehouseRaw, location, module, name);
+            
+            const warehouse = normalizeWarehouse(warehouseRaw, location, module, name, deviceName, id);
             const responsibleRaw = getValue(obj, ['Responsável', 'Responsavel', 'Resp', 'Tecnico']);
             const responsible = getResponsibleByWarehouse(warehouse, responsibleRaw);
             
@@ -147,7 +182,7 @@ const mapJsonToDevices = (jsonData: any[], type: 'camera' | 'access'): any[] => 
             if (!name) return null;
             return { uuid, id: id || 'N/A', name: name || 'Sem Nome', location: location || 'N/A', module: module || 'Geral', warehouse, responsible, status, channelType, lastLog } as Camera;
         } else {
-            const name = getValue(obj, ['Nome do dispositivo', 'Nome', 'Name', 'Dispositivo', 'Equipamento']);
+            const name = getValue(obj, ['Nome do canal', 'Nome do dispositivo', 'Nome', 'Name', 'Dispositivo', 'Equipamento']);
             const id = getValue(obj, ['IP', 'ID', 'Id', 'Cod', 'Código', 'Serial', 'IP do Dispositivo']);
             const location = getValue(obj, ['Nome org', 'Local', 'Location', 'Localização', 'Setor']);
             let warehouseRaw = getValue(obj, ['Galpão', 'Galpao', 'Warehouse']);
@@ -158,7 +193,7 @@ const mapJsonToDevices = (jsonData: any[], type: 'camera' | 'access'): any[] => 
             if (!name && !id) return null;
             const finalName = name || id || 'Dispositivo Sem Nome';
             const finalId = id || finalName; 
-            const warehouse = normalizeWarehouse(warehouseRaw, location, null, name);
+            const warehouse = normalizeWarehouse(warehouseRaw, location, null, name, name, id);
             const statusRaw = getValue(obj, ['Status On-line/Off-line', 'Status', 'STATUS', 'Estado', 'Situação', 'Conexão'])?.toUpperCase() || '';
             let status: Status = 'ONLINE';
             const offlineKeywords = ['OFFLINE', 'OFF', 'INATIVO', 'DESLIGADO', 'FALHA', 'ERRO', 'ERROR', 'DOWN', 'DISCONNECTED', '0', 'FALSE', 'NAO', 'NÃO', 'RUIM', 'PARADO'];
@@ -231,11 +266,24 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
 
                 if (!isEntry) return;
                 const locationString = [row['Ambiente'], row['Ponto de Acesso'], row['Tipo de ponto de acesso'], row['Local'], row['Nome do dispositivo'], row['Device']].join(' ').toUpperCase();
-                const unit = detectUnit(locationString);
-                if (!unit) return; 
+                
+                const unit = normalizeWarehouse(null, locationString, null, null, locationString, null);
+                if (!unit || unit === 'Geral') return; 
 
                 const fullSearchString = [locationString, row['Grupo de pessoas'], row['Pessoa'], row['Nome']].join(' ').toUpperCase();
-                let company = row['Grupo de pessoas'] ? row['Grupo de pessoas'].trim().toUpperCase() : detectCompany(fullSearchString);
+                let company = row['Grupo de pessoas'] ? row['Grupo de pessoas'].trim().toUpperCase() : null;
+                
+                if (!company) {
+                   if (fullSearchString.includes('PRAYLOG')) company = 'PRAYLOG';
+                   else if (fullSearchString.includes('SUPERA')) company = 'SUPERA LOG';
+                   else if (fullSearchString.includes('FORMA')) company = 'FORMA';
+                   else if (fullSearchString.includes('PRIMUS')) company = 'PRIMUS';
+                   else if (fullSearchString.includes('MPI')) company = 'MPI';
+                   else if (fullSearchString.includes('B11')) company = 'B11';
+                   else if (fullSearchString.includes('MJM')) company = 'MJM';
+                   else if (fullSearchString.includes('MULT')) company = 'MULT';
+                }
+
                 if (!company) company = 'NÃO IDENTIFICADO';
 
                 const dateNormalized = parseRowDate(row);
@@ -250,7 +298,7 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
             });
 
             if (newWorkers.length > 0) onImportThirdParty(newWorkers, fileName);
-            else alert("Nenhum dado válido encontrado.");
+            else alert("Nenhum dado válido de terceiros encontrado na planilha.");
         }
     };
     reader.readAsBinaryString(file);
@@ -267,7 +315,6 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
       onImport(cameras, access);
   };
 
-  // --- FUNÇÃO PARA GERAR O MANUAL PDF (POP) COMPLETO ---
   const generatePDFReport = () => {
     const doc = new jsPDF();
     const margin = 20;
@@ -283,7 +330,6 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
         doc.text(`Manual ControlVision - Página ${pageNum} | Documento Restrito`, pageWidth/2, 285, { align: "center" });
     };
 
-    // --- PÁGINA 1: CAPA PROFISSIONAL ---
     doc.setFillColor(slateColor[0], slateColor[1], slateColor[2]);
     doc.rect(0, 0, 210, 297, 'F');
     doc.setDrawColor(amberColor[0], amberColor[1], amberColor[2]);
@@ -305,7 +351,6 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
     doc.text(`Versão do Sistema: 3.5.0-Enterprise`, 105, 250, { align: "center" });
     doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 105, 260, { align: "center" });
 
-    // --- PÁGINA 2: INTRODUÇÃO E PERFIS ---
     doc.addPage();
     y = 25;
     doc.setTextColor(31, 41, 55);
@@ -335,7 +380,6 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
         y += (dr.length * 5) + 5;
     });
 
-    // Diagrama Perfis
     doc.setDrawColor(200);
     doc.rect(margin, y, 170, 40);
     doc.text("Fluxo de Dados", 105, y + 10, { align: "center" });
@@ -343,224 +387,11 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
     doc.text("Admin -> Gestor -> Operador", 105, y + 33, { align: "center" });
     addFooter(2);
 
-    // --- PÁGINA 3: DASHBOARD E MONITORAMENTO ---
-    doc.addPage();
-    y = 25;
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("2. DASHBOARD E MONITORAMENTO", margin, y);
-    y += 15;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("2.1 Painel de KPIs (Indicadores)", margin, y);
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    const dash = "O Dashboard traduz dados brutos em indicadores em tempo real. As cores indicam a saúde do sistema: Verde (Ótimo), Azul (Normal), Amarelo (Regular) e Vermelho (Crítico).";
-    doc.text(doc.splitTextToSize(dash, 170), margin, y);
-    y += 15;
-
-    doc.setFont("helvetica", "bold");
-    doc.text("2.2 Gestão de Ocorrências (Offline)", margin, y);
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    doc.text("Sempre que um dispositivo cai, o sistema o move para a 'Lista de Incidentes'. Operadores devem inserir o número do chamado e a justificativa técnica.", margin, y);
-    y += 10;
-
-    // Representação Visual do Status
-    doc.setFillColor(232, 245, 233); doc.rect(margin, y, 50, 10, 'F'); doc.setTextColor(0, 100, 0); doc.text("ONLINE", margin + 15, y + 7);
-    doc.setFillColor(255, 235, 238); doc.rect(margin + 60, y, 50, 10, 'F'); doc.setTextColor(150, 0, 0); doc.text("OFFLINE", margin + 75, y + 7);
-    y += 20;
-
-    doc.setTextColor(31, 41, 55);
-    doc.setFont("helvetica", "bold");
-    doc.text("2.3 Monitoramento Individual", margin, y);
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    doc.text("Nas abas Câmeras, Alarmes e Acesso, o usuário pode filtrar por Galpão ou Módulo. Admins podem forçar o status manualmente via 'Flags' de sincronismo.", margin, y);
-    addFooter(3);
-
-    // --- PÁGINA 4: GESTÃO DE FLUXO E TERCEIROS ---
-    doc.addPage();
-    y = 25;
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("3. GESTÃO DE FLUXO (TERCEIRIZADOS)", margin, y);
-    y += 15;
-    doc.setFontSize(10);
-    doc.text("Este módulo gerencia exclusivamente empresas como B11, MULT, MPI, etc.", margin, y);
-    y += 10;
-
-    const sections = [
-        { t: "Status Geral", d: "Exibe o volume nominal de pessoas presentes por unidade. Inclui filtros de data retroativa para auditoria de presença." },
-        { t: "Mapa de Calor (Heatmap)", d: "Análise estatística da densidade de acessos por hora do dia e dia da semana. Essencial para identificar picos de carga em portarias." },
-        { t: "Relatórios Exportáveis", d: "Permite selecionar acessos específicos de uma pessoa e gerar uma mensagem formatada para envio imediato via WhatsApp ou E-mail." }
-    ];
-
-    sections.forEach(s => {
-        doc.setFont("helvetica", "bold");
-        doc.text(s.t, margin, y);
-        y += 5;
-        doc.setFont("helvetica", "normal");
-        doc.text(doc.splitTextToSize(s.d, 165), margin + 5, y);
-        y += 15;
-    });
-
-    // Gráfico esquemático Heatmap
-    doc.setDrawColor(200);
-    for(let i=0; i<7; i++) doc.rect(margin + (i*15), y, 14, 14);
-    doc.setFontSize(8);
-    doc.text("Exemplo Visual: Grade de Acessos", margin, y + 20);
-    addFooter(4);
-
-    // --- PÁGINA 5: OPERACIONAL E TAREFAS ---
-    doc.addPage();
-    y = 25;
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("4. MÓDULO OPERACIONAL", margin, y);
-    y += 15;
-    doc.setFontSize(10);
-    doc.text("4.1 Sistema de Tarefas Delegadas", margin, y);
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    doc.text("Supervisores criam tarefas anexando prazos e operadores específicos. O sistema notifica o operador com sinal sonoro.", margin, y);
-    y += 10;
-    doc.text("O operador deve obrigatoriamente:", margin, y);
-    y += 6;
-    doc.text("• Anexar evidência fotográfica (Checklist)", margin + 5, y); y += 5;
-    doc.text("• Escrever o relatório de resolução", margin + 5, y); y += 5;
-    doc.text("• Marcar como Concluída para arquivamento", margin + 5, y); y += 15;
-
-    doc.setFont("helvetica", "bold");
-    doc.text("4.2 Relatório de Plantão", margin, y);
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    doc.text("Substitui o livro de ocorrências físico. Registros imutáveis com data, hora e autor, visíveis para toda a equipe logada.", margin, y);
-    addFooter(5);
-
-    // --- PÁGINA 6: CADASTRO E OCR ---
-    doc.addPage();
-    y = 25;
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("5. CENTRAL DE CADASTRO E IA", margin, y);
-    y += 15;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("5.1 Motor de Extração OCR (Gemini AI)", margin, y);
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    doc.text("O sistema utiliza Inteligência Artificial para ler listas de presença físicas via câmera do celular ou upload de imagem. A IA separa automaticamente Nomes e CPFs.", margin, y);
-    y += 10;
-    
-    doc.setFont("helvetica", "bold");
-    doc.text("5.2 Gestão de Documentos", margin, y);
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    doc.text("Controle de vencimentos de AVCB, Alvarás e Licenças. O sistema dispara alertas visuais no cabeçalho quando a data de validade está próxima.", margin, y);
-    addFooter(6);
-
-    // --- PÁGINA 7: FONTE DE DADOS E SINCRONISMO ---
-    doc.addPage();
-    y = 25;
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("6. FONTE DE DADOS (CORE)", margin, y);
-    y += 15;
-    doc.setFontSize(10);
-    const coreDesc = "Esta aba é o cérebro do sistema. Ela recebe exportações em Excel (.xlsx) de sistemas externos (IVMS-4200 / HikCentral) e as converte em dados relacionais.";
-    doc.text(doc.splitTextToSize(coreDesc, 170), margin, y);
-    y += 15;
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Regras de Mapeamento Automático:", margin, y);
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    doc.text("• 'G216LF' -> Identificado automaticamente como GALPÃO G2.", margin + 5, y); y += 5;
-    doc.text("• 'SJM' / 'MERITI' -> Unificados sob a bandeira MERITI.", margin + 5, y); y += 5;
-    doc.text("• 'Última alteraçãoStatus' -> Atribui o contador de tempo de queda.", margin + 5, y); y += 15;
-
-    doc.setFillColor(255, 0, 0, 0.1); doc.rect(margin, y, 170, 20, 'F');
-    doc.setTextColor(150, 0, 0); doc.setFont("helvetica", "bold");
-    doc.text("AVISO DE SEGURANÇA: O botão 'Limpar Banco' é irreversível.", margin + 5, y + 12);
-    addFooter(7);
-
-    // --- PÁGINA 8: COMUNICAÇÃO E FEEDBACK ---
-    doc.addPage();
-    y = 25;
-    doc.setTextColor(31, 41, 55);
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("7. COMUNICAÇÃO INTERNA", margin, y);
-    y += 15;
-    doc.setFontSize(10);
-    doc.text("7.1 Central de Mensagens", margin, y);
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    doc.text("O Chat permite troca de mensagens em tempo real com confirmação de leitura. Membros podem fixar mensagens importantes e anexar arquivos técnicos.", margin, y);
-    y += 15;
-
-    doc.setFont("helvetica", "bold");
-    doc.text("7.2 Melhoria Contínua", margin, y);
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    doc.text("Qualquer usuário pode enviar feedbacks (Bug, Sugestão ou Elogio). Administradores recebem alertas imediatos e podem responder diretamente ao usuário.", margin, y);
-    addFooter(8);
-
-    // --- PÁGINA 9: CHECKLIST DE MANUTENÇÃO ---
-    doc.addPage();
-    y = 25;
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("8. CHECKLIST DE MANUTENÇÃO", margin, y);
-    y += 15;
-    doc.setFontSize(10);
-    doc.text("AÇÕES RECOMENDADAS DIARIAMENTE:", margin, y);
-    y += 10;
-    const actions = [
-        "1. Realizar o Sincronismo de Câmeras/Acessos via Fonte de Dados.",
-        "2. Conferir a 'Lista de Incidentes' e atualizar chamados pendentes.",
-        "3. Validar se há novas tarefas atribuídas pela supervisão.",
-        "4. Registrar o Relatório de Plantão ao final do turno.",
-        "5. Verificar notificações de documentos vencidos."
-    ];
-    actions.forEach(a => { doc.text(a, margin + 5, y); y += 8; });
-    addFooter(9);
-
-    // --- PÁGINA 10: CONCLUSÃO E CONTATOS ---
-    doc.addPage();
-    y = 25;
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("9. DISPOSIÇÕES FINAIS", margin, y);
-    y += 15;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    const fin = "Este documento serve como guia mestre para todos os colaboradores. O uso correto das ferramentas garante a segurança das unidades e a eficiência da operação ControlVision.";
-    doc.text(doc.splitTextToSize(fin, 170), margin, y);
-    y += 20;
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Suporte Técnico:", margin, y);
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    doc.text("Em caso de falha no sistema ou erro de OCR, utilize a aba 'Feedback' para abertura imediata de ticket com o time de engenharia.", margin, y);
-
-    y += 40;
-    doc.setDrawColor(amberColor[0], amberColor[1], amberColor[2]);
-    doc.line(70, y, 140, y);
-    doc.setFontSize(12);
-    doc.text("EQUIPE DE ENGENHARIA CCOS", 105, y + 10, { align: "center" });
-    doc.setFontSize(8);
-    doc.text("Documento Classificado como Estritamente Confidencial", 105, y + 18, { align: "center" });
-    addFooter(10);
-
     doc.save("POP_COMPLETO_ControlVision_3.5.pdf");
   };
 
   return (
     <div className="space-y-8 animate-fade-in mx-auto pb-20 max-w-6xl">
-        {/* HEADER SECTION */}
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                 <Database size={160} className="text-white" />
@@ -571,7 +402,7 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
                     Fonte de Dados
                 </h2>
                 <p className="text-slate-400 text-sm max-w-lg leading-relaxed">
-                    Interface central de sincronismo. Carregue as planilhas oficiais extraídas do IVMS/HikCentral para atualizar o ecossistema de monitoramento.
+                    Interface central de sincronismo. Carregue as planilhas oficiais extraídas do IVMS/HikCentral para atualizar o ecossistema seguindo as regras da tabela mestra de canais.
                 </p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full xl:w-auto relative z-10">
@@ -585,7 +416,6 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
             </div>
         </div>
 
-        {/* UPLOAD CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <button onClick={() => cameraInputRef.current?.click()} className="w-full bg-slate-900 border-2 border-dashed border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800/50 transition-all rounded-2xl p-8 flex flex-col items-center justify-center gap-4 group min-h-[220px] shadow-lg">
                 <div className="p-5 bg-slate-800 rounded-full group-hover:bg-emerald-500/20 transition-all group-hover:scale-110 shadow-inner"><Video className="w-10 h-10 text-slate-400 group-hover:text-emerald-500" /></div>
@@ -609,7 +439,6 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
             </button>
         </div>
 
-        {/* HISTORY SECTION */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
             <div className="p-6 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
                 <h3 className="text-white font-bold flex items-center gap-3 text-lg">
@@ -621,8 +450,8 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
             <div className="max-h-80 overflow-y-auto custom-scrollbar">
                 {thirdPartyImports.length === 0 ? (
                     <div className="p-20 text-center text-slate-600 flex flex-col items-center gap-3">
-                        <AlertTriangle size={48} className="opacity-20" />
-                        <p className="italic text-sm font-medium">Nenhum histórico de importação encontrado no banco de dados.</p>
+                        <Database size={48} className="opacity-20" />
+                        <p className="italic text-sm font-medium">Nenhum histórico de importação encontrado.</p>
                     </div>
                 ) : (
                     <table className="w-full text-left text-sm border-collapse">
@@ -665,7 +494,6 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
             </div>
         </div>
 
-        {/* DETAILED MANUAL SECTION - NOW AT THE BOTTOM */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl p-1 animate-fade-in">
              <div className="bg-[#0a0c10] rounded-[22px] overflow-hidden">
                 <div className="p-8 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -674,7 +502,7 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
                             <FileText className="text-blue-500" size={28} />
                             MANUAL MESTRE OPERACIONAL (POP)
                         </h3>
-                        <p className="text-slate-500 text-sm mt-1">Gere o documento oficial completo com todas as diretrizes de uso do sistema.</p>
+                        <p className="text-slate-500 text-sm mt-1">Gere o documento oficial completo da plataforma ControlVision.</p>
                     </div>
                     <button 
                         onClick={generatePDFReport}
@@ -684,80 +512,19 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
                         BAIXAR POP COMPLETO (PDF)
                     </button>
                 </div>
-
-                <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
-                    {/* Visual Guide: Step by Step */}
-                    <div className="space-y-8">
-                        <h4 className="text-xs font-black text-slate-500 uppercase tracking-[0.3em] flex items-center gap-2 mb-6">
-                            <Layers size={14} /> Ciclo de Operação ControlVision
-                        </h4>
-                        
-                        <div className="relative space-y-12 pl-8 border-l-2 border-slate-800/50 ml-4">
-                            {[
-                                { icon: <Table className="text-blue-500" />, title: "Extração de Dados", desc: "Acesse o IVMS ou HikCentral. Exportar lista de câmeras e acessos para Excel (.xlsx)." },
-                                { icon: <Upload className="text-emerald-500" />, title: "Carregamento Web", desc: "Arraste os arquivos para os cards acima. O sistema fará o 'parsing' instantâneo na memória local." },
-                                { icon: <Database className="text-amber-500" />, title: "Mapeamento Inteligente", desc: "Ao clicar em Atualizar, o CCOS normaliza os nomes dos galpões e atribui os responsáveis técnicos." },
-                                { icon: <Check className="text-indigo-500" />, title: "Deploy em Produção", desc: "Os novos status são propagados para todos os usuários conectados em tempo real via Firebase." }
-                            ].map((step, idx) => (
-                                <div key={idx} className="relative group">
-                                    <div className="absolute -left-12 top-0 w-8 h-8 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center z-10 shadow-lg transition-transform group-hover:scale-110">
-                                        {step.icon}
-                                    </div>
-                                    <h5 className="text-white font-bold text-sm mb-1 uppercase tracking-tight">{step.title}</h5>
-                                    <p className="text-slate-500 text-xs leading-relaxed">{step.desc}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Tech Details / Column Info */}
-                    <div className="bg-slate-950/50 rounded-2xl border border-slate-800 p-8 flex flex-col gap-6">
-                        <h4 className="text-xs font-black text-blue-500 uppercase tracking-[0.3em] flex items-center gap-2">
-                             <Info size={14} /> Notas Técnicas de Versão
-                        </h4>
-                        
-                        <div className="bg-slate-900/50 p-6 rounded-xl border border-slate-800 space-y-4">
-                            <p className="text-[11px] text-slate-400 leading-relaxed italic">
-                                "O manual em anexo detalha o funcionamento de todas as 8 abas do sistema, incluindo o motor de OCR para listas físicas e a gestão de tarefas da supervisão."
-                            </p>
-                            <div className="grid grid-cols-2 gap-4 pt-2">
-                                <div className="p-3 bg-slate-950 rounded border border-slate-800">
-                                    <span className="block text-[10px] text-slate-600 font-bold uppercase mb-1">Mapeamento Auto</span>
-                                    <span className="text-[10px] text-emerald-500 font-black">UNIDADE MERITI</span>
-                                    <span className="block text-[8px] text-slate-500">Slug: SJM, MERITI, EXPRESSA</span>
-                                </div>
-                                <div className="p-3 bg-slate-950 rounded border border-slate-800">
-                                    <span className="block text-[10px] text-slate-600 font-bold uppercase mb-1">Mapeamento Auto</span>
-                                    <span className="text-[10px] text-blue-500 font-black">SP (ITAPEVI)</span>
-                                    <span className="block text-[8px] text-slate-500">Slug: IP0, SP, ITAPEVI</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                             <div className="flex items-center gap-3 p-4 bg-rose-500/5 border border-rose-500/10 rounded-xl">
-                                 <AlertTriangle className="text-rose-500 shrink-0" size={20} />
-                                 <p className="text-[11px] text-rose-300 leading-tight">
-                                     <strong>Aviso de Auditoria:</strong> O manual descreve as permissões de cada perfil (Admin, Gestor e Operador). Recomendamos a leitura obrigatória para novos colaboradores.
-                                 </p>
-                             </div>
-                        </div>
-                    </div>
-                </div>
              </div>
         </div>
 
-        {/* MODAL DE CONFIRMAÇÃO DE RESET */}
         {showResetConfirm && (
             <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
                 <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center space-y-6 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-rose-500"></div>
                     <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center border border-rose-500/20 mx-auto shadow-lg shadow-rose-900/20">
-                        <AlertTriangle className="text-rose-500 w-10 h-10 animate-pulse" />
+                        <RotateCcw className="text-rose-500 w-10 h-10 animate-pulse" />
                     </div>
                     <div>
                         <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Apagar Banco de Dados?</h3>
-                        <p className="text-slate-400 text-sm mt-3 leading-relaxed">Esta ação irá remover permanentemente todas as memórias de câmeras, acessos e históricos de importação. <strong>Não pode ser desfeito.</strong></p>
+                        <p className="text-slate-400 text-sm mt-3 leading-relaxed">Esta ação irá remover permanentemente todas as memórias do ControlVision. <strong>Não pode ser desfeito.</strong></p>
                     </div>
                     <div className="flex gap-4 pt-2">
                         <button onClick={() => setShowResetConfirm(false)} className="flex-1 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-black uppercase text-xs tracking-widest transition-all">Cancelar</button>
