@@ -6,10 +6,7 @@
 
     "users": {
       ".read": "auth != null",
-      // Removemos a restrição de escrita na raiz de 'users' para tratar por nó filho ($uid)
-      
       "$uid": {
-         // O usuário pode escrever se for Admin OU se for o dono da conta
          ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === $uid",
          ".validate": "newData.hasChildren(['email', 'role'])"
       }
@@ -37,7 +34,7 @@
 
     "monitoramento": {
       ".read": "auth != null",
-      ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      ".write": "auth != null"
     }
   }
 }
