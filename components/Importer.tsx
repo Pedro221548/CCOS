@@ -2,6 +2,7 @@
 import React, { useRef, useState } from 'react';
 import { FileSpreadsheet, RotateCcw, Upload, Video, DoorClosed, Save, Briefcase, Trash2, Clock, FileText, Download, Database, Check, Layers, Power } from 'lucide-react';
 import { Camera, AccessPoint, Status, ProcessedWorker, ThirdPartyImport, ChannelType } from '../types';
+// @ts-ignore - jspdf might be loaded via CDN or missing type declarations
 import { jsPDF } from "jspdf";
 
 const VALID_COMPANIES = ['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PRIMUS', 'PRAYLOG'];
@@ -519,7 +520,7 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
             <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
                 <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center space-y-6 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-rose-500"></div>
-                    <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center border border-rose-500/20 mx-auto shadow-lg shadow-rose-900/20">
+                    <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-500/20">
                         <RotateCcw className="text-rose-500 w-10 h-10 animate-pulse" />
                     </div>
                     <div>
