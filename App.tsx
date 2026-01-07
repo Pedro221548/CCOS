@@ -217,7 +217,6 @@ const App: React.FC = () => {
                     <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full"></div>
                     <Shield className="w-16 h-16 text-amber-400 relative z-10 fill-amber-400/20 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)]" strokeWidth={2} />
                 </div>
-                {/* LETRAS RETAS AQUI */}
                 <h1 className="text-6xl font-black text-amber-400 uppercase mb-2 leading-none drop-shadow-2xl font-sans not-italic tracking-normal">CCOS</h1>
                 <div className="mb-6 px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full inline-block mx-auto">
                     <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.1em] not-italic">DEMONSTRAÇÃO</span>
@@ -318,7 +317,28 @@ const App: React.FC = () => {
                     {thirdPartySubTab === 'heatmap' && <Heatmap thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
                   </div>
                 )}
-                {activeTab === 'work-mgmt' && <div className="animate-fade-in">{workSubTab === 'tasks' ? (user.role === 'admin' ? <TaskManagement currentUser={user} /> : <MyTasks currentUser={user} />) : workSubTab === 'pendencies' ? <EmailPendencies currentUser={user} /> : <Organizer currentUser={user} notes={data.notes} shiftNotes={data.shiftNotes || []} onAddNote={() => {}} onToggleNote={() => {}} onDeleteNote={() => {}} onEditNote={() => {}} onAddShiftNote={() => {}} onDeleteShiftNote={() => {}} />}</div>}
+                {activeTab === 'work-mgmt' && (
+                  <div className="space-y-6 animate-fade-in">
+                    <div className="bg-slate-900/50 p-1 rounded-2xl border border-slate-800/50 shadow-sm">
+                        <div className="flex bg-[#0a0c10] border border-slate-800 p-1.5 rounded-xl shadow-inner w-full overflow-x-auto no-scrollbar scroll-smooth gap-2">
+                            <button onClick={() => setWorkSubTab('tasks')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest ${workSubTab === 'tasks' ? 'bg-[#2563eb] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                                <ClipboardList size={16} /> TAREFAS
+                            </button>
+                            <button onClick={() => setWorkSubTab('pendencies')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest ${workSubTab === 'pendencies' ? 'bg-[#2563eb] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                                <Mail size={16} /> E-MAILS
+                            </button>
+                            <button onClick={() => setWorkSubTab('notes')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest ${workSubTab === 'notes' ? 'bg-[#2563eb] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                                <Calendar size={16} /> AGENDA
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        {workSubTab === 'tasks' ? (user.role === 'admin' ? <TaskManagement currentUser={user} /> : <MyTasks currentUser={user} />) : 
+                         workSubTab === 'pendencies' ? <EmailPendencies currentUser={user} /> : 
+                         <Organizer currentUser={user} notes={data.notes} shiftNotes={data.shiftNotes || []} onAddNote={() => {}} onToggleNote={() => {}} onDeleteNote={() => {}} onEditNote={() => {}} onAddShiftNote={() => {}} onDeleteShiftNote={() => {}} />}
+                    </div>
+                  </div>
+                )}
                 {activeTab === 'registration' && <Registration onAddCamera={() => {}} onAddAccess={() => {}} onAddDocument={() => {}} onDeleteDocument={() => {}} documents={data.documents} userRole={user.role} />}
                 {activeTab === 'data' && (
                     <Importer 
