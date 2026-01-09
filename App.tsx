@@ -80,7 +80,7 @@ const App: React.FC = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [refreshCountdown, setRefreshCountdown] = useState(60);
+  const [refreshCountdown, setRefreshCountdown] = useState(600); // 10 Minutos = 600 segundos
   
   const mainContentRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -99,21 +99,27 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('cv_tp_tab', thirdPartySubTab); }, [thirdPartySubTab]);
   useEffect(() => { localStorage.setItem('cv_work_tab', workSubTab); }, [workSubTab]);
 
-  // Timer de Relógio e Atualização de Página (1 min)
+  // Timer de Relógio e Atualização de Página (10 min)
   useEffect(() => {
     const timer = setInterval(() => {
         setCurrentTime(new Date());
         setRefreshCountdown(prev => {
             if (prev <= 1) {
-                // Realiza o reload se não houver um relatório em edição (bloqueio opcional)
                 window.location.reload();
-                return 60;
+                return 600;
             }
             return prev - 1;
         });
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Helper para formatar segundos em MM:SS
+  const formatCountdown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const addToast = useCallback((message: string, type: Toast['type']) => {
     const id = Date.now().toString();
@@ -137,10 +143,6 @@ const App: React.FC = () => {
     const unsubscribe = authService.subscribeToAuthChanges((currentUser) => {
       setUser(currentUser);
       setAuthLoading(false);
-      if (currentUser) {
-          const tourKey = `controlvision_tour_seen_${currentUser.uid}`;
-          if (!localStorage.getItem(tourKey)) setShowTour(true);
-      }
     });
     return () => unsubscribe();
   }, []);
@@ -348,7 +350,7 @@ const App: React.FC = () => {
                  CCOS • Plataforma em Fase de Desenvolvimento
                  <span className="mx-2 opacity-30">|</span>
                  <RefreshCw size={12} className="animate-spin-slow" />
-                 Sincronização Automática em <span className="text-amber-400 font-mono w-6 inline-block text-left">{refreshCountdown}s</span>
+                 Sincronização Automática em <span className="text-amber-400 font-mono w-12 inline-block text-left">{formatCountdown(refreshCountdown)}</span>
              </span>
              <Shield size={14} className="text-amber-500" />
         </div>
