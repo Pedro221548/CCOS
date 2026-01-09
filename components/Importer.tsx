@@ -65,12 +65,32 @@ const normalizeWarehouse = (rawWarehouse: string | null, location: string | null
     // --- REGRAS DE IP (PRIORIDADE MÁXIMA) ---
     const G5_EXCLUSIVO_IP = '201.49.121.109';
     const MERITI_IPS = ['192.168.18.93', '192.168.18.92', '192.168.18.81', '192.168.18.80', '192.168.18.30', '192.168.18.27', '200.170.152.229'];
+    const G3_IPS = ['10.0.11.59', '10.0.11.16', '10.0.11.15', '10.0.11.14', '10.0.11.7', '10.0.11.9', '10.0.11.37', '10.0.11.4', '10.0.11.19', '10.0.11.21', '10.0.11.22', '10.0.11.23', '10.0.11.20', '10.0.11.26', '10.0.11.25', '10.0.11.24'];
+    const G2_IPS = ['10.0.11.227', '10.0.11.33', '10.0.11.34', '10.0.11.35', '10.0.11.32', '10.0.11.31', '10.0.11.30', '10.0.11.27', '10.0.11.28', '10.0.11.12', '10.0.11.11', '10.0.11.10', '10.0.11.29', '10.0.10.214', '10.0.10.213', '10.0.10.209', '10.0.10.208'];
+    const SP_IP = '177.69.119.221';
+    const RJ_IP = '179.127.193.194';
+    const ES_IPS = ['10.0.4.8', '149.40.19.46'];
 
     // 1. Checagem G5
     if (idStr.includes(G5_EXCLUSIVO_IP)) return 'GALPÃO G5';
 
     // 2. Checagem Meriti
     if (MERITI_IPS.some(ip => idStr.includes(ip))) return 'GALPÃO MERITI';
+
+    // 3. Checagem G3
+    if (G3_IPS.some(ip => idStr.includes(ip))) return 'GALPÃO G3';
+
+    // 4. Checagem G2
+    if (G2_IPS.some(ip => idStr.includes(ip))) return 'GALPÃO G2';
+    
+    // 5. Checagem SP (Galpão IP)
+    if (idStr.includes(SP_IP)) return 'GALPÃO SP';
+
+    // 6. Checagem 4ELOS RJ
+    if (idStr.includes(RJ_IP)) return 'GALPÃO 4 ELOS RJ';
+
+    // 7. Checagem 4ELOS ES
+    if (ES_IPS.some(ip => idStr.includes(ip))) return 'GALPÃO 4 ELOS ES';
 
     // --- REGRAS DE KEYWORDS / LEGACY ---
     if (devName.includes('G5') || devName.includes('TERABYTE')) return 'GALPÃO G5';
