@@ -31,13 +31,21 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [generatedMessage, setGeneratedMessage] = useState('');
 
-    // Estados para Arraste (Draggable)
+    // Estados para Arraste e Responsividade
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [isDragging, setIsDragging] = useState(false);
     const [pos, setPos] = useState({ x: 0, y: 0 });
-    const [rel, setRel] = useState({ x: 0, y: 0 }); // Posição relativa ao clique
+    const [rel, setRel] = useState({ x: 0, y: 0 }); 
     const dragBoxRef = useRef<HTMLDivElement>(null);
 
     const isAuthorizedForReport = currentUser.role === 'admin' || currentUser.role === 'manager';
+
+    // Monitorar tamanho da tela
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const allowedWarehouses = useMemo(() => {
         if (currentUser.role === 'admin') return WAREHOUSE_LIST;
@@ -45,15 +53,15 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         return WAREHOUSE_LIST;
     }, [currentUser]);
 
-    // Posicionamento inicial (Centro inferior)
+    // Posicionamento inicial Desktop
     useEffect(() => {
-        if (selectedIds.size > 0 && pos.x === 0 && pos.y === 0) {
+        if (!isMobile && selectedIds.size > 0 && pos.x === 0 && pos.y === 0) {
             setPos({ 
                 x: window.innerWidth / 2 - 350, 
-                y: window.innerHeight - 320 
+                y: window.innerHeight - 350 
             });
         }
-    }, [selectedIds.size, pos.x, pos.y]);
+    }, [selectedIds.size, pos.x, pos.y, isMobile]);
 
     useEffect(() => {
         if (selectedWarehouse !== 'ALL' && !hasWarehousePermission(allowedWarehouses, selectedWarehouse)) {
@@ -130,9 +138,9 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         setGeneratedMessage(msg.trim());
     }, [selectedIds, filteredWorkers]);
 
-    // Lógica Draggable Nativa
+    // Lógica Draggable Nativa (Desativada no Mobile)
     const onMouseDown = (e: React.MouseEvent) => {
-        if (e.button !== 0) return; // Só botão esquerdo
+        if (isMobile || e.button !== 0) return; 
         setIsDragging(true);
         const box = dragBoxRef.current?.getBoundingClientRect();
         if (box) {
@@ -146,7 +154,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
 
     useEffect(() => {
         const onMouseMove = (e: MouseEvent) => {
-            if (!isDragging) return;
+            if (!isDragging || isMobile) return;
             setPos({
                 x: e.pageX - rel.x,
                 y: e.pageY - rel.y
@@ -162,7 +170,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
         };
-    }, [isDragging, rel]);
+    }, [isDragging, rel, isMobile]);
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(generatedMessage);
@@ -384,28 +392,42 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                 )}
             </div>
 
-            {/* JANELA FLUTUANTE ARRRASTÁVEL DO RELATÓRIO */}
+            {/* JANELA FLUTUANTE (DESKTOP) OU BARRA FIXA (MOBILE) */}
             {activeTab === 'report' && selectedIds.size > 0 && (
                 <div 
                     ref={dragBoxRef}
-                    style={{ 
+                    style={!isMobile ? { 
                         position: 'fixed', 
                         left: `${pos.x}px`, 
                         top: `${pos.y}px`, 
-                        zIndex: 100,
+                        zIndex: 150,
+                        touchAction: 'none'
+                    } : {
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        zIndex: 200,
                         touchAction: 'none'
                     }}
-                    className={`w-[90vw] md:w-[700px] bg-slate-900 border-2 border-purple-500/50 shadow-2xl rounded-2xl overflow-hidden backdrop-blur-md ${isDragging ? 'scale-[1.02] shadow-purple-500/20' : 'scale-100'} transition-transform duration-200 select-none`}
+                    className={`bg-slate-900 border-2 border-purple-500/50 shadow-2xl overflow-hidden backdrop-blur-md transition-transform duration-200 select-none
+                        ${!isMobile ? 'w-[90vw] md:w-[700px] rounded-2xl' : 'w-full rounded-none border-t-0 border-x-0'}
+                        ${!isMobile && isDragging ? 'scale-[1.02] shadow-purple-500/20' : 'scale-100'}
+                    `}
                 >
-                    {/* Alça de Arraste (Cabeçalho) */}
+                    {/* Cabeçalho - Alça de Arraste apenas no Desktop */}
                     <div 
                         onMouseDown={onMouseDown}
-                        className="bg-slate-950/80 p-3 border-b border-slate-800 flex justify-between items-center cursor-grab active:cursor-grabbing"
+                        className={`bg-slate-950/80 p-3 border-b border-slate-800 flex justify-between items-center 
+                            ${!isMobile ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}
+                        `}
                     >
                         <div className="flex items-center gap-3">
-                            <div className="p-1.5 bg-purple-500/20 rounded-lg">
-                                <GripHorizontal size={18} className="text-purple-400" />
-                            </div>
+                            {!isMobile && (
+                                <div className="p-1.5 bg-purple-500/20 rounded-lg">
+                                    <GripHorizontal size={18} className="text-purple-400" />
+                                </div>
+                            )}
                             <h3 className="text-white font-black text-xs uppercase tracking-widest flex items-center gap-2">
                                 <FileText size={14} className="text-purple-500" /> 
                                 Visualização do Texto
@@ -413,7 +435,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                         </div>
                         <div className="flex items-center gap-4">
                             <span className="text-[10px] font-black bg-purple-500/10 text-purple-400 px-2 py-1 rounded-full border border-purple-500/20 uppercase tracking-tighter">
-                                {selectedIds.size} Selecionados
+                                {selectedIds.size} Registros
                             </span>
                             <button 
                                 onClick={() => setSelectedIds(new Set())} 
@@ -428,27 +450,28 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                         <textarea 
                             value={generatedMessage}
                             onChange={(e) => setGeneratedMessage(e.target.value)}
-                            className="w-full h-[120px] bg-slate-950/50 border border-slate-800 rounded-xl p-4 text-sm text-slate-200 focus:border-purple-500 focus:outline-none resize-none font-mono leading-relaxed custom-scrollbar"
+                            className="w-full h-[100px] md:h-[120px] bg-slate-950/50 border border-slate-800 rounded-xl p-4 text-sm text-slate-200 focus:border-purple-500 focus:outline-none resize-none font-mono leading-relaxed custom-scrollbar"
                         />
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <button 
                                 onClick={copyToClipboard}
-                                className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
+                                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
                             >
-                                <MessageCircle size={18} /> Copiar p/ WhatsApp
+                                <MessageCircle size={18} /> Copiar WhatsApp
                             </button>
                             <button 
                                 onClick={sendEmail}
-                                className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all active:scale-95"
+                                className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all active:scale-95"
                             >
-                                <Mail size={18} /> Enviar p/ E-mail
+                                <Mail size={18} /> Enviar E-mail
                             </button>
                         </div>
                     </div>
                     
-                    {/* Indicador Visual de Arrastar */}
-                    <div className="h-1.5 w-full bg-gradient-to-r from-transparent via-purple-500/30 to-transparent opacity-50"></div>
+                    {!isMobile && (
+                        <div className="h-1.5 w-full bg-gradient-to-r from-transparent via-purple-500/30 to-transparent opacity-50"></div>
+                    )}
                 </div>
             )}
         </div>

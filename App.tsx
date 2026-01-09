@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef, useMemo } from 'react';
-import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar, Clock } from 'lucide-react';
+import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar, Clock, RefreshCw } from 'lucide-react';
 import { Camera, AccessPoint, User, ProcessedWorker, AppNotification, ThirdPartyImport, Note, ShiftNote } from './types';
 import { authService } from './services/auth';
 import { monitoringService } from './services/monitoring';
@@ -60,15 +60,27 @@ interface Toast {
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'third-party-mgmt' | 'work-mgmt' | 'organizer' | 'data' | 'users' | 'registration'>('dashboard');
-  const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'alarms' | 'access'>('cameras');
-  const [thirdPartySubTab, setThirdPartySubTab] = useState<'status' | 'access-mgmt' | 'heatmap'>('status');
-  const [workSubTab, setWorkSubTab] = useState<'tasks' | 'pendencies' | 'notes'>('tasks');
+  
+  // Tabs com persistência inicializada via localStorage
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'third-party-mgmt' | 'work-mgmt' | 'organizer' | 'data' | 'users' | 'registration'>(
+    (localStorage.getItem('cv_active_tab') as any) || 'dashboard'
+  );
+  const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'alarms' | 'access'>(
+    (localStorage.getItem('cv_mon_tab') as any) || 'cameras'
+  );
+  const [thirdPartySubTab, setThirdPartySubTab] = useState<'status' | 'access-mgmt' | 'heatmap'>(
+    (localStorage.getItem('cv_tp_tab') as any) || 'status'
+  );
+  const [workSubTab, setWorkSubTab] = useState<'tasks' | 'pendencies' | 'notes'>(
+    (localStorage.getItem('cv_work_tab') as any) || 'tasks'
+  );
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [refreshCountdown, setRefreshCountdown] = useState(60);
   
   const mainContentRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -81,9 +93,25 @@ const App: React.FC = () => {
 
   const isAdmin = user?.role === 'admin';
 
-  // Clock Timer
+  // Persistência de Abas no LocalStorage
+  useEffect(() => { localStorage.setItem('cv_active_tab', activeTab); }, [activeTab]);
+  useEffect(() => { localStorage.setItem('cv_mon_tab', monitoringSubTab); }, [monitoringSubTab]);
+  useEffect(() => { localStorage.setItem('cv_tp_tab', thirdPartySubTab); }, [thirdPartySubTab]);
+  useEffect(() => { localStorage.setItem('cv_work_tab', workSubTab); }, [workSubTab]);
+
+  // Timer de Relógio e Atualização de Página (1 min)
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const timer = setInterval(() => {
+        setCurrentTime(new Date());
+        setRefreshCountdown(prev => {
+            if (prev <= 1) {
+                // Realiza o reload se não houver um relatório em edição (bloqueio opcional)
+                window.location.reload();
+                return 60;
+            }
+            return prev - 1;
+        });
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -293,7 +321,6 @@ const App: React.FC = () => {
             <div className="px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>Operação Ativa</div>
           </div>
           <div className="flex items-center gap-3">
-             {/* Clock Relocated to Header and visible for everyone */}
              <div className="hidden sm:flex items-center bg-slate-950/80 px-4 py-1.5 rounded-xl border border-slate-800 shadow-inner mr-2">
                 <div className="text-sm font-mono font-black text-white tracking-widest flex items-center gap-2">
                     <Clock size={16} className="text-blue-500" />
@@ -317,8 +344,11 @@ const App: React.FC = () => {
 
         <div className="bg-amber-600/10 border-b border-amber-600/20 py-2 px-4 flex items-center justify-center gap-3 animate-fade-in relative z-10">
              <Shield size={14} className="text-amber-500" />
-             <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">
-                 Plataforma CCOS • DemonSTRAÇÃO EM TEMPO REAL
+             <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-2">
+                 CCOS • Plataforma em Fase de Desenvolvimento
+                 <span className="mx-2 opacity-30">|</span>
+                 <RefreshCw size={12} className="animate-spin-slow" />
+                 Sincronização Automática em <span className="text-amber-400 font-mono w-6 inline-block text-left">{refreshCountdown}s</span>
              </span>
              <Shield size={14} className="text-amber-500" />
         </div>
