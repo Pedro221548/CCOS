@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { AppData, Camera, ProcessedWorker, Status, User } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { Video, WifiOff, Users, Box, AlertTriangle, MessageSquare, Copy, ShieldAlert, DoorClosed, ShieldCheck, PieChart as PieChartIcon, Ticket, Shield, FileText, Calendar, Briefcase, Save, CheckCircle, Warehouse, Power, Clock, Activity, BellRing, Info, Loader2, Crown, TrendingUp, Building2, History } from 'lucide-react';
+import { Video, WifiOff, Users, Box, AlertTriangle, MessageSquare, Copy, ShieldAlert, DoorClosed, ShieldCheck, PieChart as PieChartIcon, Ticket, Shield, FileText, Calendar, Briefcase, Save, CheckCircle, Warehouse, Power, Clock, Activity, BellRing, Info, Loader2, Crown, TrendingUp, Building2, History, Edit2, X } from 'lucide-react';
 import { monitoringService } from '../services/monitoring';
 import { WAREHOUSE_LIST } from '../constants';
 
@@ -20,10 +20,6 @@ const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehou
         const normalizedAllowed = allowed.toUpperCase();
         if (normalizedAllowed === normalizedTarget) return true;
         if (normalizedAllowed.includes(normalizedTarget) || normalizedTarget.includes(normalizedAllowed)) return true;
-        if (normalizedAllowed.includes('SP-IP') && normalizedTarget.includes('ITAPEVI')) return true;
-        if (normalizedAllowed.includes('PAVUNA') && normalizedTarget.includes('PAVUNA')) return true;
-        if (normalizedAllowed.includes('MERITI') && normalizedTarget.includes('MERITI')) return true;
-        if (normalizedAllowed.includes('4 ELOS') && normalizedTarget.includes('ELOS')) return true;
         return false;
     });
 };
@@ -32,26 +28,21 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
   const { cameras, accessPoints, documents, shiftNotes = [] } = data;
   const [copied, setCopied] = useState(false);
   
-  // Local state for editing
-  const [localTickets, setLocalTickets] = useState<{ [key: string]: string }>({});
-  const [localObservations, setLocalObservations] = useState<{ [key: string]: string }>({});
+  // States para o novo Modal Unificado
+  const [selectedCamForInfo, setSelectedCamForInfo] = useState<Camera | null>(null);
+  const [isEditingModal, setIsEditingModal] = useState(false);
+  const [localTicket, setLocalTicket] = useState('');
+  const [localObs, setLocalObs] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const [selectedChartDate, setSelectedChartDate] = useState<string>('');
   const [selectedWarehouseChart, setSelectedWarehouseChart] = useState<string>('ALL');
-  const [currentTime, setCurrentTime] = useState(new Date());
 
   const isAdmin = currentUser?.role === 'admin';
   const isManager = currentUser?.role === 'manager';
   const isViewer = currentUser?.role === 'viewer';
   
-  // Apenas Admins e Visualizadores podem editar tickets/observações
   const canEditOfflineInfo = isAdmin || isViewer;
-
-  useEffect(() => {
-      const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-      return () => clearInterval(timer);
-  }, []);
 
   const visibleDevices = useMemo(() => {
       if (isManager && currentUser?.allowedWarehouses) {
@@ -71,7 +62,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
       const onlineVideo = videoDevices.filter(c => c.status === 'ONLINE').length;
       const offlineVideo = videoDevices.filter(c => c.status === 'OFFLINE').length;
       const availVideo = videoDevices.length > 0 ? ((onlineVideo / videoDevices.length) * 100).toFixed(1) : '0.0';
-
       const onlineAlarm = alarmDevices.filter(c => c.status === 'ONLINE').length;
       const offlineAlarm = alarmDevices.filter(c => c.status === 'OFFLINE').length;
 
@@ -101,39 +91,20 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
       }
       const availableDates = Array.from(new Set(filtered.map(w => w.date))).filter(d => d && d !== 'N/A').sort().reverse();
       const mostRecentDate = availableDates.length > 0 ? availableDates[0] : null;
-      
-      // Use selected date from chart if available, otherwise most recent
       const targetDate = selectedChartDate || mostRecentDate;
       const currentDayWorkers = targetDate ? filtered.filter(w => w.date === targetDate) : [];
-      
       const getUniquePresenceKey = (w: ProcessedWorker) => `${w.unit}-${w.name.toUpperCase()}-${w.company}`;
-      
-      // Calculation for summary KPIs
       const totalUniquePresences = new Set(currentDayWorkers.map(w => getUniquePresenceKey(w))).size;
       const thirdPartyOnly = currentDayWorkers.filter(w => (['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PRIMUS', 'PRAYLOG']).includes(w.company));
       const tpCount = new Set(thirdPartyOnly.map(w => getUniquePresenceKey(w))).size;
-
-      // Calculation for TOP UNIT of the selected date
       const unitCounts: { [key: string]: number } = {};
-      currentDayWorkers.forEach(w => {
-          unitCounts[w.unit] = (unitCounts[w.unit] || 0) + 1;
-      });
-
+      currentDayWorkers.forEach(w => { unitCounts[w.unit] = (unitCounts[w.unit] || 0) + 1; });
       let maxCount = 0;
       let leadUnit = '---';
       Object.entries(unitCounts).forEach(([u, count]) => {
-          if (count > maxCount) {
-              maxCount = count;
-              leadUnit = u;
-          }
+          if (count > maxCount) { maxCount = count; leadUnit = u; }
       });
-
-      return { 
-          totalPeopleCount: totalUniquePresences, 
-          uniqueThirdPartyCount: tpCount, 
-          filteredWorkers: filtered,
-          topUnitForDate: { name: leadUnit, count: maxCount }
-      };
+      return { totalPeopleCount: totalUniquePresences, uniqueThirdPartyCount: tpCount, filteredWorkers: filtered, topUnitForDate: { name: leadUnit, count: maxCount } };
   }, [thirdPartyWorkers, isManager, currentUser, selectedChartDate]);
 
   const availableChartDates = useMemo(() => {
@@ -142,18 +113,14 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
   }, [filteredWorkers]);
 
   useEffect(() => {
-      if (!selectedChartDate && availableChartDates.length > 0) {
-          setSelectedChartDate(availableChartDates[0]);
-      }
+      if (!selectedChartDate && availableChartDates.length > 0) setSelectedChartDate(availableChartDates[0]);
   }, [availableChartDates, selectedChartDate]);
 
   const hourlyData = useMemo(() => {
         const counts = new Array(24).fill(0);
         filteredWorkers.forEach(w => {
             if (w.date !== selectedChartDate) return;
-            // Warehouse filter logic
             if (selectedWarehouseChart !== 'ALL' && w.unit !== selectedWarehouseChart) return;
-            
             if (w.time && w.time.includes(':')) {
                 const hour = parseInt(w.time.split(':')[0], 10);
                 if (!isNaN(hour) && hour >= 0 && hour < 24) counts[hour]++;
@@ -190,26 +157,26 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
       return [...shiftNotes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [shiftNotes]);
 
-  // Handlers for Offline Info
-  const handleTicketChange = (uuid: string, value: string) => setLocalTickets(prev => ({ ...prev, [uuid]: value }));
-  const handleObservationChange = (uuid: string, value: string) => setLocalObservations(prev => ({ ...prev, [uuid]: value }));
+  // Handlers para o novo Modal
+  const openInfoModal = (cam: Camera, editMode: boolean = false) => {
+      setSelectedCamForInfo(cam);
+      setLocalTicket(cam.ticket || '');
+      setLocalObs(cam.observation || '');
+      setIsEditingModal(editMode);
+  };
 
-  const handleSaveInfo = async (uuid: string) => {
-      setSavingId(uuid);
+  const closeInfoModal = () => {
+      setSelectedCamForInfo(null);
+      setIsEditingModal(false);
+  };
+
+  const handleSaveInfo = async () => {
+      if (!selectedCamForInfo) return;
+      setSavingId(selectedCamForInfo.uuid);
       try {
-          const ticketValue = localTickets[uuid];
-          const obsValue = localObservations[uuid];
-          
-          if (ticketValue !== undefined) {
-              await monitoringService.updateCameraTicket(uuid, ticketValue, cameras);
-          }
-          if (obsValue !== undefined) {
-              await monitoringService.updateCameraObservation(uuid, obsValue, cameras);
-          }
-
-          setLocalTickets(prev => { const newState = { ...prev }; delete newState[uuid]; return newState; });
-          setLocalObservations(prev => { const newState = { ...prev }; delete newState[uuid]; return newState; });
-          alert("Informações atualizadas!");
+          await monitoringService.updateCameraTicket(selectedCamForInfo.uuid, localTicket, cameras);
+          await monitoringService.updateCameraObservation(selectedCamForInfo.uuid, localObs, cameras);
+          closeInfoModal();
       } catch (e) {
           alert("Erro ao salvar.");
       } finally {
@@ -220,8 +187,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
   const handleResolveIssue = async (uuid: string) => {
       if (window.confirm("Marcar dispositivo como ONLINE? Isso limpará chamado e observação.")) {
           await monitoringService.resolveCameraIssue(uuid, cameras);
-          setLocalTickets(prev => { const newState = { ...prev }; delete newState[uuid]; return newState; });
-          setLocalObservations(prev => { const newState = { ...prev }; delete newState[uuid]; return newState; });
+          if (selectedCamForInfo?.uuid === uuid) closeInfoModal();
       }
   };
 
@@ -230,7 +196,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
       const exp = new Date(expirationDate);
       const diffTime = exp.getTime() - today.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
       if (diffDays < 0) return { label: 'EXPIRADO', color: 'text-rose-500 bg-rose-500/10 border-rose-500/20' };
       if (diffDays <= 30) return { label: 'ALERTA', color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' };
       return { label: 'VÁLIDO', color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' };
@@ -246,16 +211,14 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
     if (offlineDevices.length > 0) {
       msg += `❗ *OCORRÊNCIAS OFFLINE (${stats.offlineVideo + stats.offlineAlarm}):*\n`;
       offlineDevices.forEach(c => {
-        const ticket = c.ticket || localTickets[c.uuid]; 
-        const obs = c.observation || localObservations[c.uuid];
-        const ticketStr = ticket ? ` [Chamado: ${ticket}]` : '';
-        const obsStr = obs ? `\n   📝 Obs: ${obs}` : '';
+        const ticketStr = c.ticket ? ` [Chamado: ${c.ticket}]` : '';
+        const obsStr = c.observation ? `\n   📝 Obs: ${c.observation}` : '';
         const typeStr = c.channelType === 'alarm' ? '[ALARME]' : '[CÂMERA]';
         msg += `❌ ${typeStr} *${c.name}*${ticketStr}\n   📍 ${c.location}${obsStr}\n`;
       });
     }
     return msg;
-  }, [systemState, stats, totalAccess, accessOnline, accessOffline, totalPeopleCount, uniqueThirdPartyCount, offlineDevices, localTickets, localObservations]);
+  }, [systemState, stats, totalAccess, accessOnline, accessOffline, totalPeopleCount, uniqueThirdPartyCount, offlineDevices]);
 
   const copyToClipboard = useCallback(() => {
     navigator.clipboard.writeText(whatsAppMessage);
@@ -266,6 +229,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
   return (
     <div className="space-y-4 sm:space-y-6 pb-8">
       
+      {/* Clock Display removed from Dashboard as it's now in the header */}
+
       {isManager && (
           <div className="bg-slate-900 p-4 sm:p-6 rounded-xl border border-purple-500/30 mb-2 flex flex-col md:flex-row justify-between items-center shadow-lg shadow-purple-900/10 relative overflow-hidden animate-fade-in gap-4">
               <div className="absolute top-0 left-0 w-1 sm:w-1.5 h-full bg-purple-500"></div>
@@ -281,17 +246,11 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                       </span>
                   </div>
               </div>
-              <div className="text-center md:text-right bg-slate-950/50 p-3 rounded-lg border border-slate-800 min-w-full sm:min-w-[200px]">
-                  <div className="text-2xl sm:text-3xl font-mono font-bold text-white tracking-widest flex items-center justify-center md:justify-end gap-2">
-                      <Clock size={24} className="text-purple-500 animate-pulse" />
-                      {currentTime.toLocaleTimeString('pt-BR')}
-                  </div>
-              </div>
           </div>
       )}
 
       {/* KPIs Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 animate-fade-in">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${isManager ? 'lg:grid-cols-4' : 'lg:grid-cols-6'} gap-3 sm:gap-4 animate-fade-in`}>
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-lg flex flex-col justify-between">
             <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold tracking-wider">Câmeras de Vídeo</p>
             <div className="flex justify-between items-end mt-2">
@@ -334,39 +293,43 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
             </div>
         </div>
 
-        {/* INDICADOR DE UNIDADE LÍDER */}
-        <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/30 p-4 rounded-xl shadow-lg flex flex-col justify-between group relative overflow-hidden">
-            <div className="absolute -right-2 -top-2 opacity-5 group-hover:scale-110 transition-transform">
-                <Crown size={60} className="text-amber-500" />
-            </div>
-            <p className="text-amber-600 dark:text-amber-500 text-[10px] uppercase font-black tracking-wider flex items-center gap-1.5">
-                <Crown size={12} /> Líder de Fluxo
-            </p>
-            <div className="mt-2">
-                <span className="text-lg font-black text-slate-800 dark:text-white leading-tight block truncate uppercase tracking-tighter" title={topUnitForDate.name}>
-                    {topUnitForDate.name}
-                </span>
-                <div className="flex items-center gap-1.5 mt-1 text-amber-600 dark:text-amber-400">
-                    <TrendingUp size={14} />
-                    <span className="text-sm font-mono font-bold">{topUnitForDate.count}</span>
-                    <span className="text-[9px] font-bold uppercase opacity-70">Acessos</span>
+        {/* Hidden for Managers based on specific request */}
+        {!isManager && (
+            <>
+                <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/30 p-4 rounded-xl shadow-lg flex flex-col justify-between group relative overflow-hidden">
+                    <div className="absolute -right-2 -top-2 opacity-5 group-hover:scale-110 transition-transform">
+                        <Crown size={60} className="text-amber-500" />
+                    </div>
+                    <p className="text-amber-600 dark:text-amber-500 text-[10px] uppercase font-black tracking-wider flex items-center gap-1.5">
+                        <Crown size={12} /> Líder de Fluxo
+                    </p>
+                    <div className="mt-2">
+                        <span className="text-lg font-black text-slate-800 dark:text-white leading-tight block truncate uppercase tracking-tighter" title={topUnitForDate.name}>
+                            {topUnitForDate.name}
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-1 text-amber-600 dark:text-amber-400">
+                            <TrendingUp size={14} />
+                            <span className="text-sm font-mono font-bold">{topUnitForDate.count}</span>
+                            <span className="text-[9px] font-bold uppercase opacity-70">Acessos</span>
+                        </div>
+                    </div>
+                    <div className="mt-2 text-[8px] text-slate-400 font-bold uppercase tracking-tighter">
+                        Ref: {selectedChartDate ? selectedChartDate.split('-').reverse().join('/') : '-'}
+                    </div>
                 </div>
-            </div>
-            <div className="mt-2 text-[8px] text-slate-400 font-bold uppercase tracking-tighter">
-                Ref: {selectedChartDate ? selectedChartDate.split('-').reverse().join('/') : '-'}
-            </div>
-        </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-lg flex flex-col justify-between">
-            <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold tracking-wider">Disponibilidade Vídeo</p>
-            <div className="flex justify-between items-end mt-2">
-                <span className={`text-xl font-bold ${systemColor} truncate mr-2`}>{systemState}</span>
-                <span className="text-2xl font-bold text-blue-500">{stats.availVideo}%</span>
-            </div>
-        </div>
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-lg flex flex-col justify-between">
+                    <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold tracking-wider">Disponibilidade Vídeo</p>
+                    <div className="flex justify-between items-end mt-2">
+                        <span className={`text-xl font-bold ${systemColor} truncate mr-2`}>{systemState}</span>
+                        <span className="text-2xl font-bold text-blue-500">{stats.availVideo}%</span>
+                    </div>
+                </div>
+            </>
+        )}
       </div>
 
-      {/* Access Flow Chart Section */}
+      {/* Fluxo de Acessos Section */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-lg animate-fade-in">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <h3 className="text-slate-800 dark:text-white font-bold text-lg flex items-center gap-2">
@@ -374,37 +337,39 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                   Fluxo de Acessos
               </h3>
               
-              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                  {/* WAREHOUSE FILTER (ADMIN/VIEWER ONLY) */}
-                  {(isAdmin || isViewer) && (
+              {/* Chart Controls - Hidden for Managers as per request */}
+              {!isManager && (
+                  <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                      {(isAdmin || isViewer) && (
+                          <div className="relative w-full sm:w-auto">
+                              <select 
+                                  value={selectedWarehouseChart} 
+                                  onChange={(e) => setSelectedWarehouseChart(e.target.value)}
+                                  className="w-full sm:w-48 pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
+                              >
+                                  <option value="ALL">Todos Galpões</option>
+                                  {WAREHOUSE_LIST.map(wh => (
+                                      <option key={wh} value={wh}>{wh}</option>
+                                  ))}
+                              </select>
+                              <Warehouse className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                          </div>
+                      )}
+
                       <div className="relative w-full sm:w-auto">
                           <select 
-                              value={selectedWarehouseChart} 
-                              onChange={(e) => setSelectedWarehouseChart(e.target.value)}
-                              className="w-full sm:w-48 pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
+                              value={selectedChartDate} 
+                              onChange={(e) => setSelectedChartDate(e.target.value)}
+                              className="w-full sm:w-48 pl-3 pr-10 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
                           >
-                              <option value="ALL">Todos Galpões</option>
-                              {WAREHOUSE_LIST.map(wh => (
-                                  <option key={wh} value={wh}>{wh}</option>
+                              {availableChartDates.map(date => (
+                                  <option key={date} value={date}>{date.split('-').reverse().join('/')}</option>
                               ))}
                           </select>
-                          <Warehouse className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                          <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                       </div>
-                  )}
-
-                  <div className="relative w-full sm:w-auto">
-                      <select 
-                          value={selectedChartDate} 
-                          onChange={(e) => setSelectedChartDate(e.target.value)}
-                          className="w-full sm:w-48 pl-3 pr-10 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
-                      >
-                          {availableChartDates.map(date => (
-                              <option key={date} value={date}>{date.split('-').reverse().join('/')}</option>
-                          ))}
-                      </select>
-                      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                   </div>
-              </div>
+              )}
           </div>
 
           <div className="h-[300px] w-full mt-4">
@@ -435,181 +400,157 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
           </div>
       </div>
 
-      {/* DOCUMENTOS MONITORADOS SECTION - MOVIDO PARA DEPOIS DO FLUXO DE ACESSOS */}
-      <div className="bg-[#0d1117] border border-slate-800 rounded-2xl overflow-hidden shadow-xl animate-fade-in">
-          <div className="p-4 border-b border-slate-800 bg-slate-900/40">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <ShieldAlert size={16} className="text-blue-500" />
-                  Documentos Monitorados
-              </h3>
-          </div>
-          
-          <div className="overflow-x-auto">
-              {documents.length === 0 ? (
-                  <div className="p-12 text-center text-slate-600 text-xs italic">Nenhum documento cadastrado.</div>
-              ) : (
-                  <table className="w-full text-left text-sm">
-                      <thead className="bg-slate-950 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-800">
-                          <tr>
-                              <th className="p-4">Documento</th>
-                              <th className="p-4">Órgão</th>
-                              <th className="p-4">Validade</th>
-                              <th className="p-4">Status</th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/50">
-                          {documents.map(doc => {
-                              const status = getDocStatus(doc.expirationDate);
-                              return (
-                                  <tr key={doc.uuid} className="hover:bg-slate-800/20 transition-colors group">
-                                      <td className="p-4">
-                                          <div className="flex items-center gap-3">
-                                              <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
-                                                  <FileText size={18} />
-                                              </div>
-                                              <span className="font-bold text-slate-200 uppercase">{doc.name}</span>
-                                          </div>
-                                      </td>
-                                      <td className="p-4">
-                                          <div className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[11px]">
-                                              <Building2 size={14} className="text-slate-600" />
-                                              {doc.organ}
-                                          </div>
-                                      </td>
-                                      <td className="p-4 font-mono text-[11px] text-slate-300 font-bold">
-                                          {new Date(doc.expirationDate).toLocaleDateString('pt-BR')}
-                                      </td>
-                                      <td className="p-4">
-                                          <span className={`px-2.5 py-1 rounded text-[10px] font-black border tracking-wider ${status.color}`}>
-                                              {status.label}
-                                          </span>
-                                      </td>
-                                  </tr>
-                              );
-                          })}
-                      </tbody>
-                  </table>
-              )}
-          </div>
-      </div>
-
-      {/* Reports and Incidents */}
+      {/* Câmeras Offline Table */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
-        <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-            {canEditOfflineInfo && (
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 rounded-xl shadow-lg flex flex-col max-h-[500px]">
-                    <h3 className="text-amber-600 dark:text-amber-400 font-bold text-sm mb-3 flex items-center gap-2"><Ticket size={18} /> Chamados Offline</h3>
-                    <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar space-y-3">
-                        {offlineDevices.length === 0 ? <div className="text-center py-6 text-slate-500 text-xs italic"><ShieldCheck size={24} className="mx-auto mb-2 opacity-50" />Tudo operando!</div> : 
-                            offlineDevices.map(cam => {
-                                const currentTicket = localTickets[cam.uuid] !== undefined ? localTickets[cam.uuid] : (cam.ticket || '');
-                                const currentObs = localObservations[cam.uuid] !== undefined ? localObservations[cam.uuid] : (cam.observation || '');
-                                
-                                const isDirty = (localTickets[cam.uuid] !== undefined && localTickets[cam.uuid] !== (cam.ticket || '')) || 
-                                                (localObservations[cam.uuid] !== undefined && localObservations[cam.uuid] !== (cam.observation || ''));
-
-                                return (
-                                    <div key={cam.uuid} className="bg-slate-50 dark:bg-slate-950/50 p-3 rounded-lg border border-slate-200 dark:border-slate-800 space-y-2">
-                                        <div className="flex justify-between items-start"><div className="overflow-hidden"><p className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">{cam.name}</p><p className="text-[9px] text-slate-500 truncate uppercase font-bold tracking-tighter">{cam.warehouse} • {cam.location}</p></div><button onClick={() => handleResolveIssue(cam.uuid)} className="text-emerald-500 p-1 hover:bg-emerald-500/10 rounded" title="Resolver"><CheckCircle size={16} /></button></div>
-                                        
-                                        <div className="space-y-1.5">
-                                            <div className="flex items-center gap-2">
-                                                <input type="text" placeholder="Nº Chamado..." className="flex-1 bg-white dark:bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-[10px] text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500" value={currentTicket} onChange={(e) => handleTicketChange(cam.uuid, e.target.value)} />
-                                            </div>
-                                            <textarea 
-                                                placeholder="Descreva o motivo do offline..." 
-                                                rows={2}
-                                                className="w-full bg-white dark:bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-[10px] text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" 
-                                                value={currentObs} 
-                                                onChange={(e) => handleObservationChange(cam.uuid, e.target.value)} 
-                                            />
-                                            {isDirty && (
-                                                <button 
-                                                    onClick={() => handleSaveInfo(cam.uuid)} 
-                                                    disabled={savingId === cam.uuid}
-                                                    className="w-full bg-blue-600 hover:bg-blue-500 text-white py-1 rounded text-[9px] font-bold uppercase tracking-widest flex items-center justify-center gap-1"
-                                                >
-                                                    {savingId === cam.uuid ? <Loader2 size={10} className="animate-spin" /> : <Save size={10} />}
-                                                    Salvar Dados
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })
-                        }
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg overflow-hidden">
+                <div className="bg-slate-50 dark:bg-slate-900/40 p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                    <h3 className="text-slate-800 dark:text-white font-bold text-sm flex items-center gap-2">
+                        <ShieldAlert size={18} className="text-rose-500" /> 
+                        Câmeras Offline
+                    </h3>
+                    <div className="flex gap-2">
+                        <button onClick={copyToClipboard} className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-white rounded-lg text-[10px] font-black uppercase border border-emerald-500/20 transition-all">
+                            {copied ? 'Copiado!' : 'Relatório WhatsApp'}
+                        </button>
                     </div>
                 </div>
-            )}
-
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 rounded-xl shadow-lg flex flex-col h-full max-h-[350px]">
-                <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-emerald-500 dark:text-emerald-400 font-bold text-sm flex items-center gap-2"><MessageSquare size={18} /> Relatório WhatsApp</h3>
-                    <button onClick={copyToClipboard} className="p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-[10px] font-bold uppercase">{copied ? 'OK' : 'Copiar'}</button>
-                </div>
-                <div className="flex-1 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-slate-200 dark:border-slate-800 overflow-y-auto text-[10px] font-mono text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{whatsAppMessage}</div>
-            </div>
-        </div>
-
-        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-            {/* Incident Table showing observations to everyone */}
-            {offlineDevices.length > 0 && (
-                <div className="bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/30 rounded-xl shadow-lg overflow-hidden">
-                    <div className="bg-rose-50 dark:bg-rose-950/20 p-4 border-b border-rose-100 dark:border-rose-900/20 flex justify-between items-center"><h3 className="text-rose-500 dark:text-rose-400 font-bold text-sm flex items-center gap-2"><ShieldAlert size={18} /> Incidentes em Aberto (Offline)</h3></div>
-                    <div className="overflow-x-auto max-h-[400px] custom-scrollbar">
+                <div className="overflow-x-auto max-h-[500px] custom-scrollbar">
+                    {offlineDevices.length === 0 ? (
+                        <div className="p-20 text-center flex flex-col items-center gap-3">
+                            <ShieldCheck size={48} className="text-emerald-500 opacity-20" />
+                            <p className="text-slate-500 italic text-sm">Nenhum incidente ativo. Todos os dispositivos estão online.</p>
+                        </div>
+                    ) : (
                         <table className="w-full text-left text-xs border-collapse">
                             <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-[10px] uppercase font-bold sticky top-0 z-10 border-b dark:border-slate-800">
                                 <tr>
-                                    <th className="p-3">Nome</th>
-                                    <th className="p-3">Ticket</th>
-                                    <th className="p-3">Motivo / Observação</th>
-                                    <th className="p-3">Última Alteração Status</th>
-                                    <th className="p-3">Prioridade</th>
+                                    <th className="p-3">Dispositivo / Nome</th>
+                                    <th className="p-3 text-center">Informações</th>
+                                    <th className="p-3">Tempo Offline</th>
+                                    <th className="p-3 text-center">Ações</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 text-slate-700 dark:text-slate-300">
-                                {offlineDevices.map((cam) => (
-                                    <tr key={cam.uuid} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                        <td className="p-3">
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-slate-900 dark:text-white">{cam.name}</span>
-                                                <span className="text-[9px] uppercase text-slate-500 font-black">{cam.warehouse} • {cam.location}</span>
-                                            </div>
-                                        </td>
-                                        <td className="p-3">
-                                            <span className="font-mono text-[10px] bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded border dark:border-slate-700">
-                                                {cam.ticket || 'N/A'}
-                                            </span>
-                                        </td>
-                                        <td className="p-3">
-                                            {cam.observation ? (
-                                                <div className="flex items-start gap-1.5 text-slate-600 dark:text-slate-400 leading-relaxed italic max-w-[250px]">
-                                                    <Info size={12} className="shrink-0 mt-0.5 text-blue-500" />
-                                                    <span className="text-[11px] line-clamp-2" title={cam.observation}>{cam.observation}</span>
+                                {offlineDevices.map((cam) => {
+                                    const hasInfo = !!(cam.ticket || cam.observation);
+                                    return (
+                                        <tr key={cam.uuid} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                                            <td className="p-3">
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-slate-900 dark:text-white">{cam.name}</span>
+                                                    <span className="text-[9px] uppercase text-slate-500 font-black tracking-tighter">{cam.warehouse} • {cam.location}</span>
                                                 </div>
-                                            ) : (
-                                                <span className="text-slate-400 italic text-[10px]">Aguardando justificativa</span>
-                                            )}
-                                        </td>
-                                        <td className="p-3 font-mono text-amber-500 font-bold whitespace-nowrap">
-                                            {cam.lastLog || 'Aguardando Sinc.'}
-                                        </td>
-                                        <td className="p-3"><span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${cam.priority === 'CRÍTICO' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>{cam.priority}</span></td>
-                                    </tr>
-                                ))}
+                                            </td>
+                                            <td className="p-3 text-center">
+                                                <button 
+                                                    onClick={() => openInfoModal(cam, false)}
+                                                    className={`p-2 rounded-lg transition-all ${hasInfo ? 'bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white border border-blue-500/20' : 'text-slate-600 cursor-not-allowed'}`}
+                                                    title={hasInfo ? "Ver detalhes do chamado" : "Sem informações registradas"}
+                                                    disabled={!hasInfo}
+                                                >
+                                                    <Info size={18} />
+                                                </button>
+                                            </td>
+                                            <td className="p-3 font-mono text-amber-500 font-bold whitespace-nowrap">
+                                                {cam.lastLog || '-'}
+                                            </td>
+                                            <td className="p-3">
+                                                <div className="flex justify-center gap-2">
+                                                    {canEditOfflineInfo && (
+                                                        <>
+                                                            <button 
+                                                                onClick={() => openInfoModal(cam, true)}
+                                                                className="p-2 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-slate-950 rounded-lg border border-amber-500/20 transition-all"
+                                                                title="Editar informações"
+                                                            >
+                                                                <Edit2 size={16} />
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleResolveIssue(cam.uuid)} 
+                                                                className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg border border-emerald-500/20 transition-all" 
+                                                                title="Marcar como Online"
+                                                            >
+                                                                <CheckCircle size={16} />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
-                    </div>
+                    )}
                 </div>
-            )}
+            </div>
+            
+            {/* DOCUMENTOS MONITORADOS */}
+            <div className="bg-[#0d1117] border border-slate-800 rounded-2xl overflow-hidden shadow-xl animate-fade-in">
+                <div className="p-4 border-b border-slate-800 bg-slate-900/40">
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <ShieldAlert size={16} className="text-blue-500" />
+                        Documentos Monitorados
+                    </h3>
+                </div>
+                <div className="overflow-x-auto">
+                    {documents.length === 0 ? (
+                        <div className="p-12 text-center text-slate-600 text-xs italic">Nenhum documento cadastrado.</div>
+                    ) : (
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-950 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-800">
+                                <tr>
+                                    <th className="p-4">Documento</th>
+                                    <th className="p-4">Órgão</th>
+                                    <th className="p-4">Validade</th>
+                                    <th className="p-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/50">
+                                {documents.map(doc => {
+                                    const status = getDocStatus(doc.expirationDate);
+                                    return (
+                                        <tr key={doc.uuid} className="hover:bg-slate-800/20 transition-colors group">
+                                            <td className="p-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
+                                                        <FileText size={18} />
+                                                    </div>
+                                                    <span className="font-bold text-slate-200 uppercase">{doc.name}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[11px]">
+                                                    <Building2 size={14} className="text-slate-600" />
+                                                    {doc.organ}
+                                                </div>
+                                            </td>
+                                            <td className="p-4 font-mono text-[11px] text-slate-300 font-bold">
+                                                {new Date(doc.expirationDate).toLocaleDateString('pt-BR')}
+                                            </td>
+                                            <td className="p-4">
+                                                <span className={`px-2.5 py-1 rounded text-[10px] font-black border tracking-wider ${status.color}`}>
+                                                    {status.label}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            </div>
+        </div>
 
-            {/* ROW WITH SHIFT NOTES AND VIDEO CHART */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Relatório de Plantão Preview */}
+        <div className="lg:col-span-1 space-y-4 sm:space-y-6">
+            {/* Relatório de Plantão Preview - Hidden for Managers as requested */}
+            {!isManager && (
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-lg flex flex-col h-[350px]">
                     <h3 className="text-slate-800 dark:text-slate-200 font-bold text-sm mb-3 flex items-center gap-2">
                         <History size={18} className="text-amber-500" /> 
-                        Relatório de Plantão
+                        Plantão Recente
                     </h3>
                     <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
                         {sortedShiftNotes.length === 0 ? (
@@ -630,18 +571,118 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                         )}
                     </div>
                 </div>
+            )}
 
-                {/* Rede Video Chart */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-lg relative h-[350px]">
-                     <h3 className="text-slate-800 dark:text-slate-200 font-bold text-sm mb-2 flex items-center gap-2"><PieChartIcon size={18} className="text-blue-500" /> Rede Vídeo</h3>
-                    <div className="h-[250px] w-full relative">
-                        <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={75} paddingAngle={5} dataKey="value" stroke="none">{pieData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}</Pie><Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9', borderRadius: '8px', fontSize: '10px' }} /><Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px' }} /></PieChart></ResponsiveContainer>
-                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center -mt-3 pointer-events-none"><span className="text-2xl font-bold text-slate-800 dark:text-white block">{stats.totalVideo}</span><span className="text-[8px] text-slate-500 uppercase tracking-widest">Câmeras</span></div>
-                    </div>
+            {/* Rede Video Chart */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-lg relative h-[350px]">
+                 <h3 className="text-slate-800 dark:text-slate-200 font-bold text-sm mb-2 flex items-center gap-2"><PieChartIcon size={18} className="text-blue-500" /> Rede Vídeo</h3>
+                <div className="h-[250px] w-full relative">
+                    <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={75} paddingAngle={5} dataKey="value" stroke="none">{pieData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}</Pie><Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9', borderRadius: '8px', fontSize: '10px' }} /><Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px' }} /></PieChart></ResponsiveContainer>
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center -mt-3 pointer-events-none"><span className="text-2xl font-bold text-slate-800 dark:text-white block">{stats.totalVideo}</span><span className="text-[8px] text-slate-500 uppercase tracking-widest">Câmeras</span></div>
                 </div>
             </div>
         </div>
       </div>
+
+      {/* MODAL UNIFICADO DE INFORMAÇÕES / CHAMADO */}
+      {selectedCamForInfo && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+              <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-in-right">
+                  <div className="p-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
+                      <div className="flex flex-col">
+                        <h3 className="text-white font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                            {isEditingModal ? <Edit2 size={14} className="text-amber-500" /> : <Info size={14} className="text-blue-500" />}
+                            {isEditingModal ? 'Registrar Chamado' : 'Detalhes do Incidente'}
+                        </h3>
+                        <span className="text-[9px] text-slate-500 font-bold uppercase">{selectedCamForInfo.name}</span>
+                      </div>
+                      <button onClick={closeInfoModal} className="text-slate-500 hover:text-white"><X size={20}/></button>
+                  </div>
+                  
+                  <div className="p-6 space-y-6">
+                      <div className="space-y-4">
+                          <div className="space-y-1">
+                              <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Nº do Chamado</label>
+                              {isEditingModal ? (
+                                  <input 
+                                      type="text" 
+                                      value={localTicket}
+                                      onChange={e => setLocalTicket(e.target.value)}
+                                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-amber-500 outline-none transition-all font-mono"
+                                      placeholder="Ex: TKT-12345"
+                                  />
+                              ) : (
+                                  <div className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-blue-400 font-mono font-bold">
+                                      {selectedCamForInfo.ticket || 'Não registrado'}
+                                  </div>
+                              )}
+                          </div>
+
+                          <div className="space-y-1">
+                              <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Observação / Justificativa</label>
+                              {isEditingModal ? (
+                                  <textarea 
+                                      rows={4}
+                                      value={localObs}
+                                      onChange={e => setLocalObs(e.target.value)}
+                                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-amber-500 outline-none transition-all resize-none italic"
+                                      placeholder="Descreva o motivo da queda ou status da manutenção..."
+                                  />
+                              ) : (
+                                  <div className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300 italic leading-relaxed min-h-[80px]">
+                                      {selectedCamForInfo.observation || 'Nenhuma observação registrada.'}
+                                  </div>
+                              )}
+                          </div>
+
+                          {!isEditingModal && (
+                              <div className="grid grid-cols-2 gap-4">
+                                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                      <span className="text-[9px] font-black text-slate-500 uppercase block mb-1">Localização</span>
+                                      <span className="text-xs text-slate-300 font-bold uppercase">{selectedCamForInfo.location}</span>
+                                  </div>
+                                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                      <span className="text-[9px] font-black text-slate-500 uppercase block mb-1">Status Desde</span>
+                                      <span className="text-xs text-amber-500 font-mono font-bold">{selectedCamForInfo.lastLog || '-'}</span>
+                                  </div>
+                              </div>
+                          )}
+                      </div>
+
+                      <div className="flex gap-3">
+                          {isEditingModal ? (
+                              <>
+                                <button onClick={closeInfoModal} className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">Cancelar</button>
+                                <button 
+                                    onClick={handleSaveInfo}
+                                    disabled={!!savingId}
+                                    className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
+                                >
+                                    {savingId ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                    Salvar Dados
+                                </button>
+                              </>
+                          ) : (
+                              <>
+                                <button 
+                                    onClick={() => handleResolveIssue(selectedCamForInfo.uuid)} 
+                                    className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center justify-center gap-2"
+                                >
+                                    <CheckCircle size={14} /> Resolvido
+                                </button>
+                                <button 
+                                    onClick={() => setIsEditingModal(true)}
+                                    className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center justify-center gap-2"
+                                >
+                                    <Edit2 size={14} /> Editar Info
+                                </button>
+                              </>
+                          )}
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 };

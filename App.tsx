@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef, useMemo } from 'react';
-import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar } from 'lucide-react';
+import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar, Clock } from 'lucide-react';
 import { Camera, AccessPoint, User, ProcessedWorker, AppNotification, ThirdPartyImport, Note, ShiftNote } from './types';
 import { authService } from './services/auth';
 import { monitoringService } from './services/monitoring';
@@ -68,6 +68,7 @@ const App: React.FC = () => {
   const [showTour, setShowTour] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
   
   const mainContentRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -79,6 +80,12 @@ const App: React.FC = () => {
   const { data, thirdPartyWorkers } = useAppData(user);
 
   const isAdmin = user?.role === 'admin';
+
+  // Clock Timer
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const addToast = useCallback((message: string, type: Toast['type']) => {
     const id = Date.now().toString();
@@ -286,6 +293,13 @@ const App: React.FC = () => {
             <div className="px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>Operação Ativa</div>
           </div>
           <div className="flex items-center gap-3">
+             {/* Clock Relocated to Header and visible for everyone */}
+             <div className="hidden sm:flex items-center bg-slate-950/80 px-4 py-1.5 rounded-xl border border-slate-800 shadow-inner mr-2">
+                <div className="text-sm font-mono font-black text-white tracking-widest flex items-center gap-2">
+                    <Clock size={16} className="text-blue-500" />
+                    {currentTime.toLocaleTimeString('pt-BR')}
+                </div>
+             </div>
              <button onClick={() => setShowFeedbackModal(true)} className="p-2 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all flex items-center gap-1 group" title="Sugerir Melhoria"><MessageSquareHeart size={20} strokeWidth={2.5} /><span className="hidden xl:inline text-[10px] font-black uppercase tracking-widest">Feedback</span></button>
              <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-white transition-colors">{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
              <div className="relative">
@@ -304,7 +318,7 @@ const App: React.FC = () => {
         <div className="bg-amber-600/10 border-b border-amber-600/20 py-2 px-4 flex items-center justify-center gap-3 animate-fade-in relative z-10">
              <Shield size={14} className="text-amber-500" />
              <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">
-                 Plataforma CCOS • Demonstração em Tempo Real
+                 Plataforma CCOS • DemonSTRAÇÃO EM TEMPO REAL
              </span>
              <Shield size={14} className="text-amber-500" />
         </div>
