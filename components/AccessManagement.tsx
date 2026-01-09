@@ -1,8 +1,8 @@
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { User, ProcessedWorker, AccessPoint } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
-import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, CheckSquare, Square, MessageCircle, Mail, Copy, X, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, CheckSquare, Square, MessageCircle, Mail, Copy, X, ArrowUpRight, ArrowDownLeft, GripHorizontal } from 'lucide-react';
 
 interface AccessManagementProps {
     accessPoints: AccessPoint[];
@@ -10,7 +10,6 @@ interface AccessManagementProps {
     currentUser: User;
 }
 
-// Utility for robust permission checking
 const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehouse: string) => {
     if (!allowedList || allowedList.length === 0) return false;
     const normalizedTarget = (targetWarehouse || '').toUpperCase();
@@ -32,13 +31,29 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [generatedMessage, setGeneratedMessage] = useState('');
 
+    // Estados para Arraste (Draggable)
+    const [isDragging, setIsDragging] = useState(false);
+    const [pos, setPos] = useState({ x: 0, y: 0 });
+    const [rel, setRel] = useState({ x: 0, y: 0 }); // Posição relativa ao clique
+    const dragBoxRef = useRef<HTMLDivElement>(null);
+
     const isAuthorizedForReport = currentUser.role === 'admin' || currentUser.role === 'manager';
 
     const allowedWarehouses = useMemo(() => {
         if (currentUser.role === 'admin') return WAREHOUSE_LIST;
         if (currentUser.role === 'manager') return currentUser.allowedWarehouses || [];
-        return WAREHOUSE_LIST; // Viewers can see all by default unless specified
+        return WAREHOUSE_LIST;
     }, [currentUser]);
+
+    // Posicionamento inicial (Centro inferior)
+    useEffect(() => {
+        if (selectedIds.size > 0 && pos.x === 0 && pos.y === 0) {
+            setPos({ 
+                x: window.innerWidth / 2 - 350, 
+                y: window.innerHeight - 320 
+            });
+        }
+    }, [selectedIds.size, pos.x, pos.y]);
 
     useEffect(() => {
         if (selectedWarehouse !== 'ALL' && !hasWarehousePermission(allowedWarehouses, selectedWarehouse)) {
@@ -48,41 +63,27 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
 
     const filteredWorkers = useMemo(() => {
         let subset = thirdPartyWorkers;
-        
-        // STRICTOR FILTERING: Filter by permission FIRST
         if (currentUser.role === 'manager') {
             subset = subset.filter(w => hasWarehousePermission(currentUser.allowedWarehouses, w.unit));
         }
-        
-        // Secondary Filter: Dropdown selection
         if (selectedWarehouse !== 'ALL') {
             subset = subset.filter(w => w.unit === selectedWarehouse);
         }
-
         if (dateSearch) {
             subset = subset.filter(w => w.date === dateSearch);
         }
-
         return subset;
-    }, [thirdPartyWorkers, selectedWarehouse, dateSearch, currentUser, allowedWarehouses]);
+    }, [thirdPartyWorkers, selectedWarehouse, dateSearch, currentUser]);
 
     const groupedPeople = useMemo(() => {
         const groups: { [key: string]: { id: string, name: string, company: string, history: ProcessedWorker[] } } = {};
-        
         filteredWorkers.forEach(w => {
             const key = `${w.name.trim().toUpperCase()}|${w.company.trim().toUpperCase()}`;
-            
             if (!groups[key]) {
-                groups[key] = {
-                    id: key,
-                    name: w.name,
-                    company: w.company,
-                    history: []
-                };
+                groups[key] = { id: key, name: w.name, company: w.company, history: [] };
             }
             groups[key].history.push(w);
         });
-
         return Object.values(groups)
             .map(person => {
                 person.history.sort((a, b) => {
@@ -101,24 +102,17 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
 
     const handleSelectRecord = (id: string) => {
         const newSet = new Set(selectedIds);
-        if (newSet.has(id)) {
-            newSet.delete(id);
-        } else {
-            newSet.add(id);
-        }
+        if (newSet.has(id)) newSet.delete(id);
+        else newSet.add(id);
         setSelectedIds(newSet);
     };
 
     const handleSelectPersonGroup = (personHistory: ProcessedWorker[]) => {
         const idsToToggle = personHistory.map(w => w.id);
         const allSelected = idsToToggle.every(id => selectedIds.has(id));
-        
         const newSet = new Set(selectedIds);
-        if (allSelected) {
-            idsToToggle.forEach(id => newSet.delete(id));
-        } else {
-            idsToToggle.forEach(id => newSet.add(id));
-        }
+        if (allSelected) idsToToggle.forEach(id => newSet.delete(id));
+        else idsToToggle.forEach(id => newSet.add(id));
         setSelectedIds(newSet);
     };
 
@@ -127,26 +121,56 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
             setGeneratedMessage('');
             return;
         }
-
         const selectedRecords = filteredWorkers.filter(w => selectedIds.has(w.id));
         let msg = "";
         selectedRecords.forEach(r => {
             const dateStr = r.date.split('-').reverse().join('/');
             msg += `Segue o acesso (${r.eventType}) de ${r.name} na data ${dateStr} às ${r.time}\n`;
         });
-
         setGeneratedMessage(msg.trim());
     }, [selectedIds, filteredWorkers]);
 
+    // Lógica Draggable Nativa
+    const onMouseDown = (e: React.MouseEvent) => {
+        if (e.button !== 0) return; // Só botão esquerdo
+        setIsDragging(true);
+        const box = dragBoxRef.current?.getBoundingClientRect();
+        if (box) {
+            setRel({
+                x: e.pageX - pos.x,
+                y: e.pageY - pos.y
+            });
+        }
+        e.stopPropagation();
+    };
+
+    useEffect(() => {
+        const onMouseMove = (e: MouseEvent) => {
+            if (!isDragging) return;
+            setPos({
+                x: e.pageX - rel.x,
+                y: e.pageY - rel.y
+            });
+        };
+        const onMouseUp = () => setIsDragging(false);
+
+        if (isDragging) {
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        }
+        return () => {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+    }, [isDragging, rel]);
+
     const copyToClipboard = () => {
         navigator.clipboard.writeText(generatedMessage);
-        alert("Mensagem copiada para a área de transferência!");
+        alert("Mensagem copiada!");
     };
 
     const sendEmail = () => {
-        const subject = encodeURIComponent("Relatório de Acessos");
-        const body = encodeURIComponent(generatedMessage);
-        window.open(`mailto:?subject=${subject}&body=${body}`);
+        window.open(`mailto:?subject=${encodeURIComponent("Relatório de Acessos")}&body=${encodeURIComponent(generatedMessage)}`);
     };
 
     const getFlowBadge = (type: string) => {
@@ -161,11 +185,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                 <ArrowUpRight size={10} /> Saída
             </span>
         );
-        return (
-            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-black text-[9px] uppercase tracking-widest">
-                {type}
-            </span>
-        );
+        return <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-black text-[9px] uppercase tracking-widest">{type}</span>;
     };
 
     return (
@@ -359,54 +379,76 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                     );
                                 })
                             }
-                            {groupedPeople.length === 0 && (
-                                <div className="text-center py-12 text-slate-500 italic border-2 border-dashed border-slate-800 rounded-xl">
-                                    Nenhum acesso encontrado sob sua jurisdição.
-                                </div>
-                            )}
                         </div>
                     </div>
                 )}
             </div>
 
+            {/* JANELA FLUTUANTE ARRRASTÁVEL DO RELATÓRIO */}
             {activeTab === 'report' && selectedIds.size > 0 && (
-                <div className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom-10 fade-in duration-300">
-                    <div className="max-w-4xl mx-auto bg-slate-900 border border-slate-700 shadow-2xl rounded-xl p-4 md:p-6 flex flex-col md:flex-row gap-6">
-                        <div className="flex-1 flex flex-col">
-                            <div className="flex justify-between items-center mb-2">
-                                <h3 className="text-white font-bold flex items-center gap-2">
-                                    <FileText size={18} className="text-purple-500" /> 
-                                    Visualização do Texto
-                                </h3>
-                                <button onClick={() => setSelectedIds(new Set())} className="text-xs text-slate-400 hover:text-white flex items-center gap-1">
-                                    <X size={14} /> Limpar Seleção
-                                </button>
+                <div 
+                    ref={dragBoxRef}
+                    style={{ 
+                        position: 'fixed', 
+                        left: `${pos.x}px`, 
+                        top: `${pos.y}px`, 
+                        zIndex: 100,
+                        touchAction: 'none'
+                    }}
+                    className={`w-[90vw] md:w-[700px] bg-slate-900 border-2 border-purple-500/50 shadow-2xl rounded-2xl overflow-hidden backdrop-blur-md ${isDragging ? 'scale-[1.02] shadow-purple-500/20' : 'scale-100'} transition-transform duration-200 select-none`}
+                >
+                    {/* Alça de Arraste (Cabeçalho) */}
+                    <div 
+                        onMouseDown={onMouseDown}
+                        className="bg-slate-950/80 p-3 border-b border-slate-800 flex justify-between items-center cursor-grab active:cursor-grabbing"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="p-1.5 bg-purple-500/20 rounded-lg">
+                                <GripHorizontal size={18} className="text-purple-400" />
                             </div>
-                            <textarea 
-                                value={generatedMessage}
-                                onChange={(e) => setGeneratedMessage(e.target.value)}
-                                className="flex-1 min-h-[120px] bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm text-slate-300 focus:border-purple-500 focus:outline-none resize-none font-mono"
-                            />
+                            <h3 className="text-white font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                                <FileText size={14} className="text-purple-500" /> 
+                                Visualização do Texto
+                            </h3>
                         </div>
-                        <div className="flex flex-col gap-3 justify-center min-w-[200px]">
-                            <div className="text-center mb-2">
-                                <span className="text-2xl font-bold text-white block">{selectedIds.size}</span>
-                                <span className="text-xs text-slate-500 uppercase">Registros</span>
-                            </div>
+                        <div className="flex items-center gap-4">
+                            <span className="text-[10px] font-black bg-purple-500/10 text-purple-400 px-2 py-1 rounded-full border border-purple-500/20 uppercase tracking-tighter">
+                                {selectedIds.size} Selecionados
+                            </span>
                             <button 
-                                onClick={copyToClipboard}
-                                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-105"
+                                onClick={() => setSelectedIds(new Set())} 
+                                className="p-1 text-slate-500 hover:text-white transition-colors"
                             >
-                                <MessageCircle size={18} /> Copiar para Zap
-                            </button>
-                            <button 
-                                onClick={sendEmail}
-                                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-105"
-                            >
-                                <Mail size={18} /> Enviar por E-mail
+                                <X size={20} />
                             </button>
                         </div>
                     </div>
+
+                    <div className="p-4 md:p-6 flex flex-col gap-4">
+                        <textarea 
+                            value={generatedMessage}
+                            onChange={(e) => setGeneratedMessage(e.target.value)}
+                            className="w-full h-[120px] bg-slate-950/50 border border-slate-800 rounded-xl p-4 text-sm text-slate-200 focus:border-purple-500 focus:outline-none resize-none font-mono leading-relaxed custom-scrollbar"
+                        />
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <button 
+                                onClick={copyToClipboard}
+                                className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
+                            >
+                                <MessageCircle size={18} /> Copiar p/ WhatsApp
+                            </button>
+                            <button 
+                                onClick={sendEmail}
+                                className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all active:scale-95"
+                            >
+                                <Mail size={18} /> Enviar p/ E-mail
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {/* Indicador Visual de Arrastar */}
+                    <div className="h-1.5 w-full bg-gradient-to-r from-transparent via-purple-500/30 to-transparent opacity-50"></div>
                 </div>
             )}
         </div>
