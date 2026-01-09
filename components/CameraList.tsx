@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { Camera, Status } from '../types';
-import { Video, MapPin, Box, User, AlertCircle, Search, X, Filter, Warehouse, Plus, Edit2, Trash2, Save, PowerOff, Power, Clock } from 'lucide-react';
+import { Video, MapPin, User, AlertCircle, Search, X, Filter, Warehouse, Plus, Edit2, Trash2, PowerOff, Power, Clock } from 'lucide-react';
 
 interface CameraListProps {
   cameras: Camera[];
@@ -211,7 +211,7 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                             <option key={m} value={m}>{m}</option>
                         ))}
                     </select>
-                    <Box className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
+                    <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
                  </div>
 
                  {/* Bulk Actions - Warehouse */}
@@ -315,15 +315,11 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                         <div className="space-y-2 mt-2 pt-2 border-t border-slate-800/50">
                             <div className="flex items-start gap-2 text-xs text-slate-400">
                                 <MapPin size={14} className="text-slate-600 mt-0.5 shrink-0" />
-                                <span className="line-clamp-2 leading-relaxed" title={cam.location}>{cam.location}</span>
+                                <span className="line-clamp-2 leading-relaxed font-bold text-slate-200" title={cam.location}>{cam.location}</span>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-slate-400">
                                 <Warehouse size={14} className="text-indigo-400/80 shrink-0" />
                                 <span className="text-slate-300">Galpão: {cam.warehouse}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-slate-400">
-                                <Box size={14} className="text-blue-500/70 shrink-0" />
-                                <span className="text-slate-300">Módulo: {cam.module}</span>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-slate-400">
                                 <User size={14} className="text-slate-600 shrink-0" />
