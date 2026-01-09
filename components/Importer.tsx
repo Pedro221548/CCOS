@@ -5,7 +5,7 @@ import { Camera, AccessPoint, Status, ProcessedWorker, ThirdPartyImport, Channel
 // @ts-ignore - jspdf might be loaded via CDN or missing type declarations
 import { jsPDF } from "jspdf";
 
-const VALID_COMPANIES = ['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PRIMUS', 'PRAYLOG'];
+const VALID_COMPANIES = ['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PRIMUS', 'PRAYLOG', 'GMILL', 'BSB'];
 
 // Mapeamento de Palavras-Chave atualizado
 const VALID_UNITS = [
@@ -270,6 +270,8 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
                    else if (fullSearchString.includes('B11')) company = 'B11';
                    else if (fullSearchString.includes('MJM')) company = 'MJM';
                    else if (fullSearchString.includes('MULT')) company = 'MULT';
+                   else if (fullSearchString.includes('GMILL')) company = 'GMILL';
+                   else if (fullSearchString.includes('BSB')) company = 'BSB';
                 }
                 if (!company) company = 'NÃO IDENTIFICADO';
                 const dateNormalized = parseRowDate(row);

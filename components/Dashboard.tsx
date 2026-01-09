@@ -100,7 +100,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
       const currentDayWorkers = targetDate ? filtered.filter(w => w.date === targetDate) : [];
       const getUniquePresenceKey = (w: ProcessedWorker) => `${w.unit}-${w.name.toUpperCase()}-${w.company}`;
       const totalUniquePresences = new Set(currentDayWorkers.map(w => getUniquePresenceKey(w))).size;
-      const thirdPartyOnly = currentDayWorkers.filter(w => (['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PRIMUS', 'PRAYLOG']).includes(w.company));
+      const thirdPartyOnly = currentDayWorkers.filter(w => (['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PRIMUS', 'PRAYLOG', 'GMILL', 'BSB']).includes(w.company));
       const tpCount = new Set(thirdPartyOnly.map(w => getUniquePresenceKey(w))).size;
       const unitCounts: { [key: string]: number } = {};
       currentDayWorkers.forEach(w => { unitCounts[w.unit] = (unitCounts[w.unit] || 0) + 1; });

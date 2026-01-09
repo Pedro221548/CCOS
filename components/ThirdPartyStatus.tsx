@@ -4,7 +4,7 @@ import { Filter, Search, X, Users, Briefcase, MapPin, Clock, ChevronDown, Chevro
 import { ProcessedWorker, User } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
 
-const VALID_COMPANIES = ['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PRIMUS', 'PRAYLOG'];
+const VALID_COMPANIES = ['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PRIMUS', 'PRAYLOG', 'GMILL', 'BSB'];
 
 const VALID_UNITS = WAREHOUSE_LIST.map(id => ({ id, keywords: [] }));
 
