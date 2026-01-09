@@ -31,8 +31,9 @@ const TaskManagement: React.FC<TaskManagementProps> = ({ currentUser }) => {
     useEffect(() => {
         // Load Operators
         authService.listUsers().then(users => {
-            // Filter only non-admins (Operators)
-            setOperators(users.filter(u => u.role !== 'admin'));
+            // Filtra para exibir apenas Operadores (Viewer). 
+            // Gestores (Manager) e Administradores (Admin) são excluídos da lista de delegáveis.
+            setOperators(users.filter(u => u.role === 'viewer'));
         });
 
         // Listen to Tasks
