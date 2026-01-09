@@ -55,29 +55,24 @@ const formatExcelDate = (val: any): string => {
     return String(val).trim();
 };
 
-const isG5NumericId = (idStr: string | null): boolean => {
-    if (!idStr) return false;
-    const parts = idStr.toString().split('.');
-    const numericPart = parseInt(parts[parts.length - 1], 10);
-    if (isNaN(numericPart)) return false;
-    return (
-        (numericPart >= 122 && numericPart <= 138) ||
-        (numericPart >= 229 && numericPart <= 257) ||
-        (numericPart >= 264 && numericPart <= 292) ||
-        (numericPart >= 299 && numericPart <= 329) ||
-        (numericPart >= 336 && numericPart <= 367) ||
-        (numericPart >= 374 && numericPart <= 399) ||
-        (numericPart >= 406 && numericPart <= 437)
-    );
-};
-
 const normalizeWarehouse = (rawWarehouse: string | null, location: string | null, module: string | null, name: string | null, deviceName: string | null, id: string | null): string => {
     const channelName = (name || '').toUpperCase();
     const devName = (deviceName || '').toUpperCase();
     const locName = (location || '').toUpperCase();
     const modName = (module || '').toUpperCase();
-    const idStr = (id || '').toString();
-    if (isG5NumericId(idStr)) return 'GALPÃO G5';
+    const idStr = (id || '').toString().trim();
+
+    // --- REGRAS DE IP (PRIORIDADE MÁXIMA) ---
+    const G5_EXCLUSIVO_IP = '201.49.121.109';
+    const MERITI_IPS = ['192.168.18.93', '192.168.18.92', '192.168.18.81', '192.168.18.80', '192.168.18.30', '192.168.18.27', '200.170.152.229'];
+
+    // 1. Checagem G5
+    if (idStr.includes(G5_EXCLUSIVO_IP)) return 'GALPÃO G5';
+
+    // 2. Checagem Meriti
+    if (MERITI_IPS.some(ip => idStr.includes(ip))) return 'GALPÃO MERITI';
+
+    // --- REGRAS DE KEYWORDS / LEGACY ---
     if (devName.includes('G5') || devName.includes('TERABYTE')) return 'GALPÃO G5';
     if (devName.includes('G10') || devName.includes('4ELOS G4 ES') || devName.includes('ELOS ES') || devName.includes('4 ELOS ES')) return 'GALPÃO 4 ELOS ES';
     if (devName.includes('SP 01') || devName.includes('SP 02') || devName.includes('SP-IP') || devName.includes('INVD 32')) return 'GALPÃO SP';
@@ -87,6 +82,7 @@ const normalizeWarehouse = (rawWarehouse: string | null, location: string | null
     if (devName.includes('4E0') || devName.includes('ELOS RJ')) return 'GALPÃO 4 ELOS RJ';
     if (devName.includes('LSP')) return 'GALPÃO LSP';
     if (devName.includes('G2')) return 'GALPÃO G2';
+
     const textToCheck = `${channelName} ${locName} ${modName}`.toUpperCase();
     if (textToCheck.includes('BEB') || textToCheck.includes('B E B') || textToCheck.includes('MD F') || textToCheck.includes('CHECKOUT')) return 'GALPÃO G2';
     if (textToCheck.includes('CHK0') && !devName.includes('SP') && !devName.includes('G5')) return 'GALPÃO 4 ELOS ES';
@@ -99,9 +95,11 @@ const normalizeWarehouse = (rawWarehouse: string | null, location: string | null
         textToCheck.includes('BIOSANTE') || textToCheck.includes('BEYOUNG') || 
         textToCheck.includes('LOLA COS') || textToCheck.includes('CELLERA')) return 'GALPÃO G5';
     if (textToCheck.includes('HOSPDROGAS') || textToCheck.includes('NEURAXPHARM') || textToCheck.includes('IP0')) return 'GALPÃO SP';
+
     for (const unit of VALID_UNITS) {
         if (unit.keywords.some(k => textToCheck.includes(k))) return unit.id;
     }
+
     return rawWarehouse || 'Geral';
 };
 
