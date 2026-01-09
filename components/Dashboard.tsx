@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { AppData, Camera, ProcessedWorker, Status, User } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { Video, WifiOff, Users, Box, AlertTriangle, MessageSquare, Copy, ShieldAlert, DoorClosed, ShieldCheck, PieChart as PieChartIcon, Ticket, Shield, FileText, Calendar, Briefcase, Save, CheckCircle, Warehouse, Power, Clock, Activity, BellRing, Info, Loader2, Crown, TrendingUp, Building2, History, Edit2, X } from 'lucide-react';
+import { Video, WifiOff, Users, Box, AlertTriangle, MessageSquare, Copy, ShieldAlert, DoorClosed, ShieldCheck, Ticket, Shield, FileText, Calendar, Briefcase, Save, CheckCircle, Warehouse, Power, Clock, Activity, BellRing, Info, Loader2, Crown, TrendingUp, Building2, History, Edit2, X, Search, User as UserIcon, ArrowDownLeft, ArrowUpRight, CalendarSearch } from 'lucide-react';
 import { monitoringService } from '../services/monitoring';
 import { WAREHOUSE_LIST } from '../constants';
 
@@ -37,6 +37,11 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
 
   const [selectedChartDate, setSelectedChartDate] = useState<string>('');
   const [selectedWarehouseChart, setSelectedWarehouseChart] = useState<string>('ALL');
+
+  // Estados para a Consulta de Acesso Pessoal
+  const [personalSearch, setPersonalSearch] = useState('');
+  const [selectedPersonKey, setSelectedPersonKey] = useState<string | null>(null);
+  const [personalDateFilter, setPersonalDateFilter] = useState('');
 
   const isAdmin = currentUser?.role === 'admin';
   const isManager = currentUser?.role === 'manager';
@@ -138,11 +143,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
       return { systemState: state, systemColor: color };
   }, [availabilityNum]);
 
-  const pieData = useMemo(() => [
-    { name: 'Online', value: stats.onlineVideo, color: '#10b981' }, 
-    { name: 'Offline', value: stats.offlineVideo, color: '#f43f5e' }, 
-  ], [stats.onlineVideo, stats.offlineVideo]);
-
   const offlineDevices = useMemo(() => {
       const getPriority = (location: string) => {
         const criticalKeywords = ['DOCA', 'PORTARIA', 'SERVIDOR', 'ACESSO', 'ENTRADA'];
@@ -156,6 +156,38 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
   const sortedShiftNotes = useMemo(() => {
       return [...shiftNotes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [shiftNotes]);
+
+  // Lógica de Consulta Pessoal
+  const uniquePeople = useMemo(() => {
+      const map: { [key: string]: { name: string, company: string } } = {};
+      thirdPartyWorkers.forEach(w => {
+          const key = `${w.name.toUpperCase()}|${w.company.toUpperCase()}`;
+          if (!map[key]) map[key] = { name: w.name, company: w.company };
+      });
+      return Object.entries(map).map(([key, val]) => ({ key, ...val }));
+  }, [thirdPartyWorkers]);
+
+  const personalSearchResults = useMemo(() => {
+      if (personalSearch.length < 2) return [];
+      return uniquePeople.filter(p => p.name.toLowerCase().includes(personalSearch.toLowerCase())).slice(0, 10);
+  }, [uniquePeople, personalSearch]);
+
+  const selectedPersonHistory = useMemo(() => {
+      if (!selectedPersonKey) return [];
+      const [name, company] = selectedPersonKey.split('|');
+      let filtered = thirdPartyWorkers
+        .filter(w => w.name.toUpperCase() === name && w.company.toUpperCase() === company);
+      
+      if (personalDateFilter) {
+          filtered = filtered.filter(w => w.date === personalDateFilter);
+      }
+
+      return filtered.sort((a, b) => {
+          const dateA = new Date(`${a.date}T${a.time}`).getTime();
+          const dateB = new Date(`${b.date}T${b.time}`).getTime();
+          return dateB - dateA;
+      });
+  }, [thirdPartyWorkers, selectedPersonKey, personalDateFilter]);
 
   // Handlers para o novo Modal
   const openInfoModal = (cam: Camera, editMode: boolean = false) => {
@@ -229,8 +261,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
   return (
     <div className="space-y-4 sm:space-y-6 pb-8">
       
-      {/* Clock Display removed from Dashboard as it's now in the header */}
-
       {isManager && (
           <div className="bg-slate-900 p-4 sm:p-6 rounded-xl border border-purple-500/30 mb-2 flex flex-col md:flex-row justify-between items-center shadow-lg shadow-purple-900/10 relative overflow-hidden animate-fade-in gap-4">
               <div className="absolute top-0 left-0 w-1 sm:w-1.5 h-full bg-purple-500"></div>
@@ -293,11 +323,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
             </div>
         </div>
 
-        {/* Hidden for Managers based on specific request */}
         {!isManager && (
             <>
                 <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/30 p-4 rounded-xl shadow-lg flex flex-col justify-between group relative overflow-hidden">
-                    <div className="absolute -right-2 -top-2 opacity-5 group-hover:scale-110 transition-transform">
+                    <div className="absolute -right-2 -top-2 opacity-5 group-hover:scale-110 transition-transform duration-500">
                         <Crown size={60} className="text-amber-500" />
                     </div>
                     <p className="text-amber-600 dark:text-amber-500 text-[10px] uppercase font-black tracking-wider flex items-center gap-1.5">
@@ -337,7 +366,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                   Fluxo de Acessos
               </h3>
               
-              {/* Chart Controls - Hidden for Managers as per request */}
               {!isManager && (
                   <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                       {(isAdmin || isViewer) && (
@@ -387,20 +415,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                   </BarChart>
               </ResponsiveContainer>
           </div>
-          <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-950/50 rounded-lg border border-slate-100 dark:border-slate-800/50 flex items-center gap-3">
-              <Info size={16} className="text-blue-500 shrink-0" />
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed italic">
-                  O gráfico reflete a intensidade de acessos na data de <span className="font-bold text-blue-500">{selectedChartDate.split('-').reverse().join('/')}</span>. 
-                  {selectedWarehouseChart !== 'ALL' ? (
-                      <> Visualizando dados exclusivos da unidade <span className="font-bold text-purple-500">{selectedWarehouseChart}</span>.</>
-                  ) : (
-                      <> A unidade com maior carga detectada no dia foi <span className="font-bold text-amber-500">{topUnitForDate.name}</span>.</>
-                  )}
-              </p>
-          </div>
       </div>
 
-      {/* Câmeras Offline Table */}
+      {/* Câmeras Offline Table & Barra Lateral */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
         <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg overflow-hidden">
@@ -544,11 +561,125 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
             </div>
         </div>
 
+        {/* COLUNA LATERAL - CONSULTA E PLANTÃO */}
         <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-            {/* Relatório de Plantão Preview - Hidden for Managers as requested */}
+            
+            {/* CONSULTA RÁPIDA DE ACESSO */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-lg flex flex-col h-[500px] overflow-hidden">
+                <h3 className="text-slate-800 dark:text-slate-200 font-bold text-sm mb-3 flex items-center gap-2 shrink-0">
+                    <Search size={18} className="text-blue-500" /> 
+                    Consulta Rápida de Acesso
+                </h3>
+                
+                {!selectedPersonKey ? (
+                    <div className="space-y-4 flex flex-col flex-1 overflow-hidden">
+                        <div className="relative shrink-0">
+                            <input 
+                                type="text"
+                                placeholder="Pesquisar por nome..."
+                                value={personalSearch}
+                                onChange={(e) => setPersonalSearch(e.target.value)}
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg pl-9 pr-4 py-2 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500"
+                            />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-1">
+                            {personalSearchResults.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-slate-500 text-[10px] uppercase font-bold tracking-widest text-center px-4">
+                                    {personalSearch.length < 2 ? 'Digite ao menos 2 letras' : 'Nenhum colaborador encontrado'}
+                                </div>
+                            ) : (
+                                personalSearchResults.map(p => (
+                                    <button 
+                                        key={p.key}
+                                        onClick={() => setSelectedPersonKey(p.key)}
+                                        className="w-full text-left bg-slate-50 dark:bg-slate-950/40 p-3 rounded-lg border border-slate-200 dark:border-slate-800/50 hover:border-blue-500/50 transition-all group"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                                                <UserIcon size={14} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block truncate uppercase">{p.name}</span>
+                                                <span className="text-[9px] text-slate-500 uppercase font-black">{p.company}</span>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col flex-1 overflow-hidden animate-fade-in">
+                        <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 mb-3 flex justify-between items-start shrink-0">
+                            <div className="flex-1 min-w-0">
+                                <span className="text-xs font-black text-blue-500 uppercase block truncate">{selectedPersonKey.split('|')[0]}</span>
+                                <span className="text-[9px] text-slate-500 font-bold uppercase truncate block">{selectedPersonKey.split('|')[1]}</span>
+                            </div>
+                            <button 
+                                onClick={() => { setSelectedPersonKey(null); setPersonalSearch(''); setPersonalDateFilter(''); }}
+                                className="p-1 text-slate-400 hover:text-rose-500 transition-colors shrink-0 ml-2"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        {/* FILTRO DE DATA */}
+                        <div className="px-1 mb-3 shrink-0">
+                            <div className="relative group">
+                                <input 
+                                    type="date"
+                                    value={personalDateFilter}
+                                    onChange={(e) => setPersonalDateFilter(e.target.value)}
+                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg pl-9 pr-8 py-1.5 text-[10px] text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 [color-scheme:light] dark:[color-scheme:dark]"
+                                />
+                                <CalendarSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                                {personalDateFilter && (
+                                    <button 
+                                        onClick={() => setPersonalDateFilter('')}
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-rose-500"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-1">
+                            {selectedPersonHistory.length === 0 ? (
+                                <div className="p-8 text-center text-slate-500 text-[10px] uppercase font-black">
+                                    {personalDateFilter ? 'Sem acessos nesta data' : 'Sem histórico disponível'}
+                                </div>
+                            ) : (
+                                selectedPersonHistory.map(h => (
+                                    <div key={h.id} className="bg-slate-50 dark:bg-slate-950/50 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/50 text-[10px] flex items-center gap-3">
+                                        <div className={`p-1.5 rounded-full shrink-0 ${h.eventType === 'ENTRADA' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                            {h.eventType === 'ENTRADA' ? <ArrowDownLeft size={12} /> : <ArrowUpRight size={12} />}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-center mb-0.5">
+                                                <span className="font-mono font-bold text-slate-400">{h.date.split('-').reverse().join('/')} {h.time}</span>
+                                                <span className={`font-black text-[8px] px-1 rounded border ${h.eventType === 'ENTRADA' ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-500' : 'bg-rose-500/5 border-rose-500/20 text-rose-500'}`}>
+                                                    {h.eventType}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1 text-slate-500 font-bold uppercase truncate">
+                                                <Warehouse size={10} className="text-blue-500/50" /> {h.unit} • <span className="opacity-70 truncate">{h.accessPoint}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* RELATÓRIO DE PLANTÃO RECENTE */}
             {!isManager && (
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-lg flex flex-col h-[350px]">
-                    <h3 className="text-slate-800 dark:text-slate-200 font-bold text-sm mb-3 flex items-center gap-2">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-lg flex flex-col h-[350px] overflow-hidden">
+                    <h3 className="text-slate-800 dark:text-slate-200 font-bold text-sm mb-3 flex items-center gap-2 shrink-0">
                         <History size={18} className="text-amber-500" /> 
                         Plantão Recente
                     </h3>
@@ -572,15 +703,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                     </div>
                 </div>
             )}
-
-            {/* Rede Video Chart */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-lg relative h-[350px]">
-                 <h3 className="text-slate-800 dark:text-slate-200 font-bold text-sm mb-2 flex items-center gap-2"><PieChartIcon size={18} className="text-blue-500" /> Rede Vídeo</h3>
-                <div className="h-[250px] w-full relative">
-                    <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={75} paddingAngle={5} dataKey="value" stroke="none">{pieData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}</Pie><Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9', borderRadius: '8px', fontSize: '10px' }} /><Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px' }} /></PieChart></ResponsiveContainer>
-                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center -mt-3 pointer-events-none"><span className="text-2xl font-bold text-slate-800 dark:text-white block">{stats.totalVideo}</span><span className="text-[8px] text-slate-500 uppercase tracking-widest">Câmeras</span></div>
-                </div>
-            </div>
         </div>
       </div>
 
