@@ -1,6 +1,6 @@
 
 import React, { useRef, useState } from 'react';
-import { FileSpreadsheet, RotateCcw, Upload, Video, DoorClosed, Save, Briefcase, Trash2, Clock, FileText, Download, Database, Check, Layers, Power, X, AlertTriangle } from 'lucide-react';
+import { FileSpreadsheet, RotateCcw, Upload, Video, DoorClosed, Save, Briefcase, Trash2, Clock, FileText, Download, Database, Check, Layers, Power, X, AlertTriangle, BookOpen, ExternalLink } from 'lucide-react';
 import { Camera, AccessPoint, Status, ProcessedWorker, ThirdPartyImport, ChannelType } from '../types';
 // @ts-ignore - jspdf might be loaded via CDN or missing type declarations
 import { jsPDF } from "jspdf";
@@ -394,6 +394,16 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
                 </p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full xl:w-auto relative z-10">
+                <a 
+                    href="https://www.canva.com/design/DAG95NSKkKA/QZnFKeOKhzynciRDBFNG1g/view?utm_content=DAG95NSKkKA&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=hbe7ee27a96"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-xl shadow-blue-900/40 transition-all font-black uppercase text-[10px] tracking-widest active:scale-95 group border border-blue-500/20"
+                >
+                    <BookOpen size={20} className="group-hover:scale-110 transition-transform" /> 
+                    MANUAL OPERACIONAL
+                    <ExternalLink size={14} className="opacity-50" />
+                </a>
                 <button onClick={handleProcess} className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-12 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-900/40 transition-all font-black uppercase text-xs tracking-widest active:scale-95 group">
                     <Save size={20} className="group-hover:scale-110 transition-transform" /> 
                     ATUALIZAR SISTEMA
