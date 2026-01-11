@@ -1,6 +1,6 @@
 
 import React, { useRef, useState } from 'react';
-import { FileSpreadsheet, RotateCcw, Upload, Video, DoorClosed, Save, Briefcase, Trash2, Clock, FileText, Download, Database, Check, Layers, Power, X, AlertTriangle, BookOpen, ExternalLink, HelpCircle, RefreshCw, Info } from 'lucide-react';
+import { FileSpreadsheet, RotateCcw, Upload, Video, DoorClosed, Save, Briefcase, Trash2, Clock, FileText, Download, Database, Check, Layers, Power, X, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 import { Camera, AccessPoint, Status, ProcessedWorker, ThirdPartyImport, ChannelType } from '../types';
 // @ts-ignore - jspdf might be loaded via CDN or missing type declarations
 import { jsPDF } from "jspdf";
@@ -198,7 +198,6 @@ interface ImporterProps {
 }
 
 const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDeleteImport, thirdPartyImports = [], onResetCameras, onResetAccess, onResetThirdParty }) => {
-  const [activeView, setActiveView] = useState<'sync' | 'manual'>('sync');
   const [cameraData, setCameraData] = useState<any[]>([]);
   const [accessData, setAccessData] = useState<any[]>([]);
   const [resetTarget, setResetTarget] = useState<'cameras' | 'access' | 'thirdparty' | null>(null);
@@ -246,7 +245,6 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
                 const rawEventType = (row['Tipo de evento'] || row['Eventos'] || '').toUpperCase();
                 const rawStatus = (row['Status de Entrada/Saída'] || '').toUpperCase();
                 
-                // Mapeamento Inteligente de Fluxo (Entrada/Saída)
                 let finalEvent = 'NORMAL';
                 if (rawStatus.includes('ENTRADA') || rawEventType.includes('ENTRADA') || rawEventType.includes('DESBLOQUEIO') || rawEventType.includes('ACESSO LIBERADO')) {
                     finalEvent = 'ENTRADA';
@@ -313,7 +311,6 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
 
   return (
     <div className="space-y-8 animate-fade-in mx-auto pb-20 max-w-6xl">
-        {/* CABEÇALHO COM TABS */}
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                 <Database size={160} className="text-white" />
@@ -323,179 +320,111 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
                     <div className="p-2 bg-emerald-500 rounded-lg shadow-lg shadow-emerald-900/40"><Power size={28} className="text-white" /></div>
                     Fonte de Dados
                 </h2>
-                <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 w-full sm:w-max">
-                    <button 
-                        onClick={() => setActiveView('sync')}
-                        className={`flex-1 sm:flex-none px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeView === 'sync' ? 'bg-slate-800 text-white shadow-lg border border-slate-700' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                        <RefreshCw size={14} /> Sincronismo
-                    </button>
-                    <button 
-                        onClick={() => setActiveView('manual')}
-                        className={`flex-1 sm:flex-none px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeView === 'manual' ? 'bg-blue-600 text-white shadow-lg border border-blue-500/20' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                        <BookOpen size={14} /> Manual Operacional
-                    </button>
-                </div>
+                <p className="text-slate-400 text-sm max-w-lg leading-relaxed">
+                    Interface central de sincronismo. Carregue as planilhas oficiais extraídas do IVMS/HikCentral para atualizar o ecossistema.
+                </p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full xl:w-auto relative z-10">
-                {activeView === 'sync' && (
-                    <button onClick={handleProcess} className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-12 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-900/40 transition-all font-black uppercase text-xs tracking-widest active:scale-95 group">
-                        <Save size={20} className="group-hover:scale-110 transition-transform" /> 
-                        ATUALIZAR SISTEMA
-                    </button>
-                )}
-                {activeView === 'manual' && (
-                    <a 
-                        href="https://www.canva.com/design/DAG95NSKkKA/if2-2d1bE7rN-kHEuDu55w/view?utm_content=DAG95NSKkKA&utm_campaign=designshare&utm_medium=embeds&utm_source=link"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-8 py-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-xl transition-all font-black uppercase text-xs tracking-widest active:scale-95 group border border-slate-700"
-                    >
-                        <ExternalLink size={20} /> ABRIR EM NOVA ABA
-                    </a>
+                <button onClick={handleProcess} className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-12 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-900/40 transition-all font-black uppercase text-xs tracking-widest active:scale-95 group">
+                    <Save size={20} className="group-hover:scale-110 transition-transform" /> 
+                    ATUALIZAR SISTEMA
+                </button>
+            </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
+                <div onClick={() => cameraInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
+                    <div className="p-5 bg-slate-800 rounded-full group-hover:bg-emerald-500/20 transition-all group-hover:scale-110 shadow-inner"><Video className="w-10 h-10 text-slate-400 group-hover:text-emerald-500" /></div>
+                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight">Câmeras / Alarmes</h3><p className="text-slate-500 text-xs mt-2 font-medium">{cameraData.length > 0 ? `${cameraData.length} linhas em espera` : 'Selecionar .xlsx oficial'}</p></div>
+                    <input type="file" accept=".xlsx, .xls" ref={cameraInputRef} className="hidden" onChange={(e) => handleFileUpload(e, 'camera')} />
+                    {cameraData.length > 0 && <div className="mt-2 px-3 py-1 bg-emerald-500/10 text-emerald-500 text-[10px] font-black rounded-full border border-emerald-500/20 animate-pulse uppercase">Arquivo Pronto</div>}
+                </div>
+                <button onClick={() => setResetTarget('cameras')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <RotateCcw size={12} /> Limpar
+                </button>
+            </div>
+
+            <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-blue-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
+                <div onClick={() => accessInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
+                    <div className="p-5 bg-slate-800 rounded-full group-hover:bg-blue-500/20 transition-all group-hover:scale-110 shadow-inner"><DoorClosed className="w-10 h-10 text-slate-400 group-hover:text-blue-500" /></div>
+                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors uppercase tracking-tight">Controle de Acesso</h3><p className="text-slate-500 text-xs mt-2 font-medium">{accessData.length > 0 ? `${accessData.length} linhas em espera` : 'Selecionar .xlsx oficial'}</p></div>
+                    <input type="file" accept=".xlsx, .xls" ref={accessInputRef} className="hidden" onChange={(e) => handleFileUpload(e, 'access')} />
+                    {accessData.length > 0 && <div className="mt-2 px-3 py-1 bg-blue-500/10 text-blue-500 text-[10px] font-black rounded-full border border-blue-500/20 animate-pulse uppercase">Arquivo Pronto</div>}
+                </div>
+                <button onClick={() => setResetTarget('access')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <RotateCcw size={12} /> Limpar
+                </button>
+            </div>
+
+            <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-amber-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
+                <div onClick={() => thirdPartyInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
+                    <div className="p-5 bg-slate-800 rounded-full group-hover:bg-amber-500/20 transition-all group-hover:scale-110 shadow-inner"><Briefcase className="w-10 h-10 text-slate-400 group-hover:text-amber-500" /></div>
+                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors uppercase tracking-tight">Terceirizados</h3><p className="text-slate-500 text-xs mt-2 font-medium">Acumular ao histórico de fluxo</p></div>
+                    <input type="file" accept=".xlsx, .xls" ref={thirdPartyInputRef} className="hidden" onChange={handleThirdPartyUpload} />
+                    <div className="mt-2 px-3 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black rounded-full border border-amber-500/20 uppercase tracking-widest">Acumulativo</div>
+                </div>
+                <button onClick={() => setResetTarget('thirdparty')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <RotateCcw size={12} /> Limpar
+                </button>
+            </div>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
+                <h3 className="text-white font-bold flex items-center gap-3 text-lg">
+                    <Clock size={22} className="text-amber-500" /> 
+                    Histórico de Importações Recentes
+                </h3>
+                <span className="text-[10px] font-black bg-slate-800 text-slate-400 px-3 py-1.5 rounded-full border border-slate-700 uppercase tracking-widest">{thirdPartyImports.length} Arquivos Armazenados</span>
+            </div>
+            <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                {thirdPartyImports.length === 0 ? (
+                    <div className="p-20 text-center text-slate-600 flex flex-col items-center gap-3">
+                        <Database size={48} className="opacity-20" />
+                        <p className="italic text-sm font-medium">Nenhum histórico de importação encontrado.</p>
+                    </div>
+                ) : (
+                    <table className="w-full text-left text-sm border-collapse">
+                        <thead className="bg-slate-950 text-slate-500 text-[10px] font-black uppercase tracking-widest sticky top-0 z-10 border-b border-slate-800">
+                            <tr>
+                                <th className="p-5">Arquivo</th>
+                                <th className="p-5">Data do Sincronismo</th>
+                                <th className="p-5 text-center">Volume Registros</th>
+                                <th className="p-5 text-right">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                            {thirdPartyImports.map((imp) => (
+                                <tr key={imp.id} className="hover:bg-slate-800/40 transition-colors group">
+                                    <td className="p-5">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-blue-500/10 text-blue-500 rounded"><FileSpreadsheet size={18} /></div>
+                                            <span className="font-bold text-slate-200 group-hover:text-blue-400 transition-colors">{imp.fileName}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-5">
+                                        <div className="flex flex-col">
+                                            <span className="text-xs font-bold text-slate-400">{new Date(imp.importedAt).toLocaleDateString('pt-BR')}</span>
+                                            <span className="text-[10px] text-slate-600 font-mono">{new Date(imp.importedAt).toLocaleTimeString('pt-BR')}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-5 text-center">
+                                        <span className="bg-slate-950 px-3 py-1 rounded-full border border-slate-800 text-emerald-400 font-mono font-bold">{imp.count}</span>
+                                    </td>
+                                    <td className="p-5 text-right">
+                                        <button onClick={() => onDeleteImport(imp.id)} className="p-2.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-all" title="Remover Histórico">
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 )}
             </div>
         </div>
 
-        {activeView === 'sync' ? (
-            <>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* CARD CÂMERAS */}
-                    <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
-                        <div onClick={() => cameraInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
-                            <div className="p-5 bg-slate-800 rounded-full group-hover:bg-emerald-500/20 transition-all group-hover:scale-110 shadow-inner"><Video className="w-10 h-10 text-slate-400 group-hover:text-emerald-500" /></div>
-                            <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight">Câmeras / Alarmes</h3><p className="text-slate-500 text-xs mt-2 font-medium">{cameraData.length > 0 ? `${cameraData.length} linhas em espera` : 'Selecionar .xlsx oficial'}</p></div>
-                            <input type="file" accept=".xlsx, .xls" ref={cameraInputRef} className="hidden" onChange={(e) => handleFileUpload(e, 'camera')} />
-                            {cameraData.length > 0 && <div className="mt-2 px-3 py-1 bg-emerald-500/10 text-emerald-500 text-[10px] font-black rounded-full border border-emerald-500/20 animate-pulse uppercase">Arquivo Pronto</div>}
-                        </div>
-                        <button onClick={() => setResetTarget('cameras')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                            <RotateCcw size={12} /> Limpar
-                        </button>
-                    </div>
-
-                    {/* CARD ACESSO */}
-                    <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-blue-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
-                        <div onClick={() => accessInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
-                            <div className="p-5 bg-slate-800 rounded-full group-hover:bg-blue-500/20 transition-all group-hover:scale-110 shadow-inner"><DoorClosed className="w-10 h-10 text-slate-400 group-hover:text-blue-500" /></div>
-                            <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors uppercase tracking-tight">Controle de Acesso</h3><p className="text-slate-500 text-xs mt-2 font-medium">{accessData.length > 0 ? `${accessData.length} linhas em espera` : 'Selecionar .xlsx oficial'}</p></div>
-                            <input type="file" accept=".xlsx, .xls" ref={accessInputRef} className="hidden" onChange={(e) => handleFileUpload(e, 'access')} />
-                            {accessData.length > 0 && <div className="mt-2 px-3 py-1 bg-blue-500/10 text-blue-500 text-[10px] font-black rounded-full border border-blue-500/20 animate-pulse uppercase">Arquivo Pronto</div>}
-                        </div>
-                        <button onClick={() => setResetTarget('access')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                            <RotateCcw size={12} /> Limpar
-                        </button>
-                    </div>
-
-                    {/* CARD TERCEIRIZADOS */}
-                    <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-amber-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
-                        <div onClick={() => thirdPartyInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
-                            <div className="p-5 bg-slate-800 rounded-full group-hover:bg-amber-500/20 transition-all group-hover:scale-110 shadow-inner"><Briefcase className="w-10 h-10 text-slate-400 group-hover:text-amber-500" /></div>
-                            <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors uppercase tracking-tight">Terceirizados</h3><p className="text-slate-500 text-xs mt-2 font-medium">Acumular ao histórico de fluxo</p></div>
-                            <input type="file" accept=".xlsx, .xls" ref={thirdPartyInputRef} className="hidden" onChange={handleThirdPartyUpload} />
-                            <div className="mt-2 px-3 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black rounded-full border border-amber-500/20 uppercase tracking-widest">Acumulativo</div>
-                        </div>
-                        <button onClick={() => setResetTarget('thirdparty')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                            <RotateCcw size={12} /> Limpar
-                        </button>
-                    </div>
-                </div>
-
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-                    <div className="p-6 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
-                        <h3 className="text-white font-bold flex items-center gap-3 text-lg">
-                            <Clock size={22} className="text-amber-500" /> 
-                            Histórico de Importações Recentes
-                        </h3>
-                        <span className="text-[10px] font-black bg-slate-800 text-slate-400 px-3 py-1.5 rounded-full border border-slate-700 uppercase tracking-widest">{thirdPartyImports.length} Arquivos Armazenados</span>
-                    </div>
-                    <div className="max-h-80 overflow-y-auto custom-scrollbar">
-                        {thirdPartyImports.length === 0 ? (
-                            <div className="p-20 text-center text-slate-600 flex flex-col items-center gap-3">
-                                <Database size={48} className="opacity-20" />
-                                <p className="italic text-sm font-medium">Nenhum histórico de importação encontrado.</p>
-                            </div>
-                        ) : (
-                            <table className="w-full text-left text-sm border-collapse">
-                                <thead className="bg-slate-950 text-slate-500 text-[10px] font-black uppercase tracking-widest sticky top-0 z-10 border-b border-slate-800">
-                                    <tr>
-                                        <th className="p-5">Arquivo</th>
-                                        <th className="p-5">Data do Sincronismo</th>
-                                        <th className="p-5 text-center">Volume Registros</th>
-                                        <th className="p-5 text-right">Ação</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                                    {thirdPartyImports.map((imp) => (
-                                        <tr key={imp.id} className="hover:bg-slate-800/40 transition-colors group">
-                                            <td className="p-5">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="p-2 bg-blue-500/10 text-blue-500 rounded"><FileSpreadsheet size={18} /></div>
-                                                    <span className="font-bold text-slate-200 group-hover:text-blue-400 transition-colors">{imp.fileName}</span>
-                                                </div>
-                                            </td>
-                                            <td className="p-5">
-                                                <div className="flex flex-col">
-                                                    <span className="text-xs font-bold text-slate-400">{new Date(imp.importedAt).toLocaleDateString('pt-BR')}</span>
-                                                    <span className="text-[10px] text-slate-600 font-mono">{new Date(imp.importedAt).toLocaleTimeString('pt-BR')}</span>
-                                                </div>
-                                            </td>
-                                            <td className="p-5 text-center">
-                                                <span className="bg-slate-950 px-3 py-1 rounded-full border border-slate-800 text-emerald-400 font-mono font-bold">{imp.count}</span>
-                                            </td>
-                                            <td className="p-5 text-right">
-                                                <button onClick={() => onDeleteImport(imp.id)} className="p-2.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-all" title="Remover Histórico">
-                                                    <Trash2 size={18} />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        )}
-                    </div>
-                </div>
-            </>
-        ) : (
-            <div className="bg-[#0b0e14] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl animate-fade-in flex flex-col min-h-[700px]">
-                <div className="p-6 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
-                    <h3 className="text-white font-bold flex items-center gap-3 text-lg italic uppercase tracking-tighter">
-                        <HelpCircle size={22} className="text-blue-500" /> 
-                        Manual Operacional ControlVision
-                    </h3>
-                </div>
-                <div className="flex-1 relative w-full overflow-hidden bg-black" style={{ minHeight: '600px' }}>
-                    <iframe 
-                        loading="lazy" 
-                        className="absolute inset-0 w-full h-full border-0"
-                        src="https://www.canva.com/design/DAG95NSKkKA/if2-2d1bE7rN-kHEuDu55w/view?embed" 
-                        allowFullScreen 
-                        allow="fullscreen"
-                        title="Manual do Sistema"
-                    ></iframe>
-                </div>
-                <div className="p-4 bg-slate-950/80 backdrop-blur-sm border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500 border border-blue-500/20">
-                            <Info size={18} />
-                        </div>
-                        <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Utilize as setas da apresentação para navegar entre os módulos.</p>
-                    </div>
-                    <div className="flex gap-2">
-                        <a 
-                            href="https://www.canva.com/design/DAG95NSKkKA/if2-2d1bE7rN-kHEuDu55w/view?utm_content=DAG95NSKkKA&utm_campaign=designshare&utm_medium=embeds&utm_source=link"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 border border-blue-500/20 shadow-lg shadow-blue-900/20"
-                        >
-                            Ver em Tela Cheia <ExternalLink size={12} />
-                        </a>
-                    </div>
-                </div>
-            </div>
-        )}
-
-        {/* MODAL DE CONFIRMAÇÃO DINÂMICO */}
         {resetTarget && (
             <div className="fixed inset-0 z-150 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
                 <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center space-y-6 relative overflow-hidden">

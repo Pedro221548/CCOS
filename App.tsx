@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef, useMemo } from 'react';
-import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar, Clock, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar, Clock, RefreshCw, BookOpen } from 'lucide-react';
 import { Camera, AccessPoint, User, ProcessedWorker, AppNotification, ThirdPartyImport, Note, ShiftNote } from './types';
 import { authService } from './services/auth';
 import { monitoringService } from './services/monitoring';
@@ -33,6 +33,7 @@ const TaskManagement = lazy(() => import('./components/TaskManagement'));
 const MyTasks = lazy(() => import('./components/MyTasks'));
 const AccessManagement = lazy(() => import('./components/AccessManagement'));
 const Heatmap = lazy(() => import('./components/Heatmap'));
+const Manual = lazy(() => import('./components/Manual'));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center h-full w-full">
@@ -62,7 +63,7 @@ const App: React.FC = () => {
   const [authLoading, setAuthLoading] = useState(true);
   
   // Tabs com persistência inicializada via localStorage
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'third-party-mgmt' | 'work-mgmt' | 'organizer' | 'data' | 'users' | 'registration'>(
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'third-party-mgmt' | 'work-mgmt' | 'manual' | 'organizer' | 'data' | 'users' | 'registration'>(
     (localStorage.getItem('cv_active_tab') as any) || 'dashboard'
   );
   const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'alarms' | 'access'>(
@@ -294,6 +295,7 @@ const App: React.FC = () => {
                 <button onClick={() => handleTabChange('registration')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'registration' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><PlusSquare size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Cadastro</span></button>
               </>
           )}
+          <button onClick={() => handleTabChange('manual')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'manual' ? 'bg-blue-600 text-white shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><BookOpen size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Manual</span></button>
           {isAdmin && (
             <div className="pt-4 mt-4 border-t border-slate-800/50 shrink-0">
                 <button onClick={() => handleTabChange('data')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'data' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}`}><FileSpreadsheet size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Fonte Dados</span></button>
@@ -387,6 +389,7 @@ const App: React.FC = () => {
                     {thirdPartySubTab === 'heatmap' && <Heatmap thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
                   </div>
                 )}
+                {activeTab === 'manual' && <Manual />}
                 {activeTab === 'work-mgmt' && (
                   <div className="space-y-6 animate-fade-in">
                     <div className="bg-slate-900/50 p-1 rounded-2xl border border-slate-800/50 shadow-sm">
