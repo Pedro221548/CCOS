@@ -12,7 +12,7 @@ const Manual: React.FC = () => {
           </div>
           <div>
             <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">Manual Operacional</h3>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Guia de treinamento e procedimentos ControlVision</p>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Guia de treinamento e procedimentos</p>
           </div>
         </div>
         <a 
