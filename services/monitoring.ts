@@ -1,7 +1,7 @@
 
 import { ref, set, update, push, remove } from 'firebase/database';
 import { db } from './firebase';
-import { Camera, AccessPoint, PublicDocument, ProcessedWorker, Status, ThirdPartyImport } from '../types';
+import { Camera, AccessPoint, PublicDocument, ProcessedWorker, Status, ThirdPartyImport, PaymentImport, ThirdPartyPayment } from '../types';
 
 const getNowFormatted = () => {
     const now = new Date();
@@ -130,6 +130,10 @@ class MonitoringService {
     await set(ref(db, 'monitoramento/third_party_imports'), {});
   }
 
+  async resetPayments() {
+    await set(ref(db, 'monitoramento/payment_imports'), {});
+  }
+
   // --- Bulk Operations (Import) ---
   async importData(cameras: Camera[], accessPoints: AccessPoint[]) {
     const now = new Date();
@@ -152,8 +156,24 @@ class MonitoringService {
       await set(importRef, newImport);
   }
 
+  async addPaymentImport(payments: ThirdPartyPayment[], fileName: string) {
+    const importRef = push(ref(db, 'monitoramento/payment_imports'));
+    const newImport: PaymentImport = {
+        id: importRef.key || Date.now().toString(),
+        fileName: fileName,
+        importedAt: new Date().toISOString(),
+        count: payments.length,
+        payments: payments
+    };
+    await set(importRef, newImport);
+  }
+
   async deleteThirdPartyImport(importId: string) {
       await remove(ref(db, `monitoramento/third_party_imports/${importId}`));
+  }
+
+  async deletePaymentImport(importId: string) {
+      await remove(ref(db, `monitoramento/payment_imports/${importId}`));
   }
 
   async fullReset() {
@@ -162,6 +182,7 @@ class MonitoringService {
         access_points: [],
         documents: [],
         third_party_imports: {},
+        payment_imports: {},
         metadata: { lastSync: '-' },
         organizer: { notes: [], meetings: [], events: [] }
     });

@@ -1,13 +1,11 @@
-
 import React, { useRef, useState } from 'react';
-import { FileSpreadsheet, RotateCcw, Upload, Video, DoorClosed, Save, Briefcase, Trash2, Clock, FileText, Download, Database, Check, Layers, Power, X, AlertTriangle, RefreshCw, Info } from 'lucide-react';
-import { Camera, AccessPoint, Status, ProcessedWorker, ThirdPartyImport, ChannelType } from '../types';
-// @ts-ignore - jspdf might be loaded via CDN or missing type declarations
-import { jsPDF } from "jspdf";
+import { FileSpreadsheet, RotateCcw, Upload, Video, DoorClosed, Save, Briefcase, Trash2, Clock, FileText, Download, Database, Check, Layers, Power, X, AlertTriangle, RefreshCw, Info, DollarSign, Wand2, ListChecks } from 'lucide-react';
+import { Camera, AccessPoint, Status, ProcessedWorker, ThirdPartyImport, ChannelType, ThirdPartyPayment, PaymentImport } from '../types';
+// Import WAREHOUSE_LIST from constants to fix the missing name error
+import { WAREHOUSE_LIST } from '../constants';
 
 const VALID_COMPANIES = ['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PRIMUS', 'PRAYLOG', 'GMILL', 'BSB'];
 
-// Mapeamento de Palavras-Chave atualizado
 const VALID_UNITS = [
     { id: 'GALPÃO MERITI', keywords: ['MERITI', 'SJM', 'EXPRESSA', 'BSB', 'GRADIL EXPRESSA', 'DOCA RECEXP', 'RUA 17', 'RUA 12', 'RUA 34', 'REC MEZANINO', 'MESA CONTROLADO', 'DOCA RECEBIMENTO', 'ALTO CUSTO', 'ALTO VALOR'] },
     { id: 'GALPÃO 4 ELOS ES', keywords: ['G4 ES', 'G10', '4ELOS ES', '4 ELOS ES', '4ELOS', 'SPEED DOME', 'LOLA', 'CONFERENCIA 04', 'CONFERENCIA 03', 'RUA FLOWRACK', 'CHK0', 'G1004LF', 'G1003LF', 'G1001LF', 'CAMERA 4ELOS'] },
@@ -33,7 +31,10 @@ const parseRowDate = (row: any): string => {
         let datePart = val.split(' ')[0].trim();
         if (datePart.includes('/')) {
             const parts = datePart.split('/');
-            if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            if (parts.length === 3) {
+                const year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+                return `${year}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            }
         }
         if (datePart.includes('-')) return datePart;
     }
@@ -62,59 +63,17 @@ const normalizeWarehouse = (rawWarehouse: string | null, location: string | null
     const modName = (module || '').toUpperCase();
     const idStr = (id || '').toString().trim();
 
-    // --- REGRAS DE IP (PRIORIDADE MÁXIMA) ---
-    const G5_EXCLUSIVO_IP = '201.49.121.109';
-    const MERITI_IPS = ['192.168.18.93', '192.168.18.92', '192.168.18.81', '192.168.18.80', '192.168.18.30', '192.168.18.27', '200.170.152.229'];
-    const G3_IPS = ['10.0.11.59', '10.0.11.16', '10.0.11.15', '10.0.11.14', '10.0.11.7', '10.0.11.9', '10.0.11.37', '10.0.11.4', '10.0.11.19', '10.0.11.21', '10.0.11.22', '10.0.11.23', '10.0.11.20', '10.0.11.26', '10.0.11.25', '10.0.11.24'];
-    const G2_IPS = ['10.0.11.227', '10.0.11.33', '10.0.11.34', '10.0.11.35', '10.0.11.32', '10.0.11.31', '10.0.11.30', '10.0.11.27', '10.0.11.28', '10.0.11.12', '10.0.11.11', '10.0.11.10', '10.0.11.29', '10.0.10.214', '10.0.10.213', '10.0.10.209', '10.0.10.208'];
-    const SP_IP = '177.69.119.221';
-    const RJ_IP = '179.127.193.194';
-    const ES_IPS = ['10.0.4.8', '149.40.19.46'];
+    const textToCheck = `${channelName} ${locName} ${modName} ${rawWarehouse}`.toUpperCase();
 
-    // 1. Checagem G5
-    if (idStr.includes(G5_EXCLUSIVO_IP)) return 'GALPÃO G5';
-
-    // 2. Checagem Meriti
-    if (MERITI_IPS.some(ip => idStr.includes(ip))) return 'GALPÃO MERITI';
-
-    // 3. Checagem G3
-    if (G3_IPS.some(ip => idStr.includes(ip))) return 'GALPÃO G3';
-
-    // 4. Checagem G2
-    if (G3_IPS.some(ip => idStr.includes(ip))) return 'GALPÃO G3';
-    
-    // 5. Checagem SP (Galpão IP)
-    if (idStr.includes(SP_IP)) return 'GALPÃO SP';
-
-    // 6. Checagem 4ELOS RJ
-    if (idStr.includes(RJ_IP)) return 'GALPÃO 4 ELOS RJ';
-
-    // 7. Checagem 4ELOS ES
-    if (ES_IPS.some(ip => idStr.includes(ip))) return 'GALPÃO 4 ELOS ES';
-
-    // --- REGRAS DE KEYWORDS / LEGACY ---
-    if (devName.includes('G5') || devName.includes('TERABYTE')) return 'GALPÃO G5';
-    if (devName.includes('G10') || devName.includes('4ELOS G4 ES') || devName.includes('ELOS ES') || devName.includes('4 ELOS ES')) return 'GALPÃO 4 ELOS ES';
-    if (devName.includes('SP 01') || devName.includes('SP 02') || devName.includes('SP-IP') || devName.includes('INVD 32')) return 'GALPÃO SP';
-    if (devName.includes('G3') || devName.includes('MYLAN') || devName.includes('ASPEN')) return 'GALPÃO G3';
-    if (devName.includes('PV0') || devName.includes('PAVUNA')) return 'GALPÃO PAVUNA';
-    if (devName.includes('SJM') || devName.includes('MERITI')) return 'GALPÃO MERITI';
-    if (devName.includes('4E0') || devName.includes('ELOS RJ')) return 'GALPÃO 4 ELOS RJ';
-    if (devName.includes('LSP')) return 'GALPÃO LSP';
-    if (devName.includes('G2')) return 'GALPÃO G2';
-
-    const textToCheck = `${channelName} ${locName} ${modName}`.toUpperCase();
-    if (textToCheck.includes('BEB') || textToCheck.includes('B E B') || textToCheck.includes('MD F') || textToCheck.includes('CHECKOUT')) return 'GALPÃO G2';
-    if (textToCheck.includes('CHK0') && !devName.includes('SP') && !devName.includes('G5')) return 'GALPÃO 4 ELOS ES';
-    if (textToCheck.includes('CATRACA G10') || textToCheck.includes('FRENTE RUA G10') || textToCheck.includes('EME DOCA 3 E 4')) return 'GALPÃO 4 ELOS ES';
-    if (textToCheck.includes('LOLA') && !textToCheck.includes('COS')) return 'GALPÃO 4 ELOS ES';
-    if (textToCheck.includes('CCOS G3') || textToCheck.includes('DIPRIVAN')) return 'GALPÃO G3';
-    if (textToCheck.includes('MD 4') || textToCheck.includes('MD 5') || textToCheck.includes('MD 6') || 
-        textToCheck.includes('MD 7') || textToCheck.includes('MD 8') || textToCheck.includes('MD 9') ||
-        textToCheck.includes('HERSHEYS') || textToCheck.includes('AC BRAZIL') || 
-        textToCheck.includes('BIOSANTE') || textToCheck.includes('BEYOUNG') || 
-        textToCheck.includes('LOLA COS') || textToCheck.includes('CELLERA')) return 'GALPÃO G5';
-    if (textToCheck.includes('HOSPDROGAS') || textToCheck.includes('NEURAXPHARM') || textToCheck.includes('IP0')) return 'GALPÃO SP';
+    if (textToCheck.includes('G5')) return 'GALPÃO G5';
+    if (textToCheck.includes('G2')) return 'GALPÃO G2';
+    if (textToCheck.includes('G3')) return 'GALPÃO G3';
+    if (textToCheck.includes('SP')) return 'GALPÃO SP';
+    if (textToCheck.includes('MERITI') || textToCheck.includes('SJM')) return 'GALPÃO MERITI';
+    if (textToCheck.includes('PAVUNA')) return 'GALPÃO PAVUNA';
+    if (textToCheck.includes('4ELOS ES') || textToCheck.includes('4 ELOS ES')) return 'GALPÃO 4 ELOS ES';
+    if (textToCheck.includes('4ELOS RJ') || textToCheck.includes('4 ELOS RJ')) return 'GALPÃO 4 ELOS RJ';
+    if (textToCheck.includes('LSP')) return 'GALPÃO LSP';
 
     for (const unit of VALID_UNITS) {
         if (unit.keywords.some(k => textToCheck.includes(k))) return unit.id;
@@ -190,21 +149,33 @@ const mapJsonToDevices = (jsonData: any[], type: 'camera' | 'access'): any[] => 
 interface ImporterProps {
   onImport: (cameras: Camera[], accessPoints: AccessPoint[]) => void;
   onImportThirdParty: (workers: ProcessedWorker[], fileName: string) => void;
+  onImportPayments: (payments: ThirdPartyPayment[], fileName: string) => void;
   onDeleteImport: (id: string) => void;
+  onDeletePayment: (id: string) => void;
   thirdPartyImports?: ThirdPartyImport[];
+  paymentImports?: PaymentImport[];
   onResetCameras: () => void;
   onResetAccess: () => void;
   onResetThirdParty: () => void;
+  onResetPayments: () => void;
 }
 
-const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDeleteImport, thirdPartyImports = [], onResetCameras, onResetAccess, onResetThirdParty }) => {
+const Importer: React.FC<ImporterProps> = ({ 
+    onImport, onImportThirdParty, onImportPayments, onDeleteImport, onDeletePayment,
+    thirdPartyImports = [], paymentImports = [],
+    onResetCameras, onResetAccess, onResetThirdParty, onResetPayments 
+}) => {
   const [cameraData, setCameraData] = useState<any[]>([]);
   const [accessData, setAccessData] = useState<any[]>([]);
-  const [resetTarget, setResetTarget] = useState<'cameras' | 'access' | 'thirdparty' | null>(null);
+  const [resetTarget, setResetTarget] = useState<'cameras' | 'access' | 'thirdparty' | 'payments' | null>(null);
   
+  // Pivot Unit selection
+  const [selectedPivotUnit, setSelectedPivotUnit] = useState<string>('GALPÃO G2');
+
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const accessInputRef = useRef<HTMLInputElement>(null);
   const thirdPartyInputRef = useRef<HTMLInputElement>(null);
+  const paymentInputRef = useRef<HTMLInputElement>(null);
   
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'camera' | 'access') => {
     const file = e.target.files?.[0];
@@ -239,7 +210,7 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
             const jsonData: any[] = window.XLSX.utils.sheet_to_json(ws);
             const newWorkers: ProcessedWorker[] = [];
             jsonData.forEach((row, index) => {
-                const rawName = row['Pessoa'] || row['Nome'];
+                const rawName = row['Pessoa'] || row['Nome'] || row['NOME'];
                 if (!rawName || typeof rawName !== 'string' || !rawName.trim()) return; 
 
                 const rawEventType = (row['Tipo de evento'] || row['Eventos'] || '').toUpperCase();
@@ -291,6 +262,82 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
     e.target.value = '';
   };
 
+  const handlePaymentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fileName = file.name;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+        const bstr = evt.target?.result;
+        if (window.XLSX) {
+            const wb = window.XLSX.read(bstr, { type: 'binary', cellDates: true });
+            const wsname = wb.SheetNames[0];
+            const ws = wb.Sheets[wsname];
+            const jsonData: any[] = window.XLSX.utils.sheet_to_json(ws);
+            const newPayments: ThirdPartyPayment[] = [];
+            
+            const headers = Object.keys(jsonData[0] || {});
+            const isPivot = headers.some(h => h.includes('Rótulos de Linha') || h.includes('Linha'));
+
+            if (isPivot) {
+                const nameKey = headers.find(h => h.includes('Rótulos de Linha') || h.includes('Linha')) || '';
+                
+                jsonData.forEach((row, rIdx) => {
+                    const name = row[nameKey];
+                    if (!name || name === 'Total Geral' || name === '(vazio)') return;
+
+                    headers.forEach((h, cIdx) => {
+                        const dateRegex = /\d{2}\/\d{2}\/\d{4}/;
+                        if (dateRegex.test(h) && row[h]) {
+                            const dateParts = h.split('/');
+                            const formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+                            
+                            newPayments.push({
+                                id: `p-pvt-${rIdx}-${cIdx}-${Date.now()}`,
+                                workerName: name.toString().trim(),
+                                company: 'TERCEIRIZADO',
+                                unit: selectedPivotUnit,
+                                date: formattedDate,
+                                value: 1, 
+                                reference: 'Frequência Automatizada',
+                                category: 'DIÁRIA'
+                            });
+                        }
+                    });
+                });
+            } else {
+                jsonData.forEach((row, index) => {
+                    const name = row['Colaborador'] || row['Nome'] || row['Pessoa'] || row['NOME'];
+                    const companyRaw = row['Empresa'] || row['Parceiro'] || row['Empresa_contratada'] || row['Empresa contratada'];
+                    const value = 1;
+                    const unitRaw = row['Unidade'] || row['Galpão'] || row['Local'] || 'Geral';
+                    const date = parseRowDate(row);
+                    const refCode = row['Referência'] || row['Referencia'] || row['ID'] || row['HORA TOTAL'] || 'N/A';
+
+                    if (name && name !== 'Total Geral') {
+                        const unit = normalizeWarehouse(unitRaw, unitRaw, null, null, null, null);
+                        newPayments.push({
+                            id: `p-${index}-${Date.now()}`,
+                            workerName: name.toString().trim(),
+                            company: companyRaw ? companyRaw.toString().trim().toUpperCase() : 'N/A',
+                            unit: unit,
+                            date,
+                            value,
+                            reference: refCode.toString().trim(),
+                            category: row['CATEGORIA'] || row['Categoria'] || 'Serviço'
+                        });
+                    }
+                });
+            }
+
+            if (newPayments.length > 0) onImportPayments(newPayments, fileName);
+            else alert("Nenhum registro válido encontrado.");
+        }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = '';
+  };
+
   const handleProcess = () => {
       const cameras = mapJsonToDevices(cameraData, 'camera');
       const access = mapJsonToDevices(accessData, 'access');
@@ -306,6 +353,7 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
       if (resetTarget === 'cameras') onResetCameras();
       else if (resetTarget === 'access') onResetAccess();
       else if (resetTarget === 'thirdparty') onResetThirdParty();
+      else if (resetTarget === 'payments') onResetPayments();
       setResetTarget(null);
   };
 
@@ -321,24 +369,23 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
                     Fonte de Dados
                 </h2>
                 <p className="text-slate-400 text-sm max-w-lg leading-relaxed">
-                    Interface central de sincronismo. Carregue as planilhas oficiais extraídas do IVMS/HikCentral para atualizar o ecossistema.
+                    Interface central de sincronismo. Carregue as planilhas extraídas dos sistemas oficiais para atualizar o ecossistema.
                 </p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full xl:w-auto relative z-10">
                 <button onClick={handleProcess} className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-12 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-900/40 transition-all font-black uppercase text-xs tracking-widest active:scale-95 group">
                     <Save size={20} className="group-hover:scale-110 transition-transform" /> 
-                    ATUALIZAR SISTEMA
+                    ATUALIZAR MONITORAMENTO
                 </button>
             </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
                 <div onClick={() => cameraInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
                     <div className="p-5 bg-slate-800 rounded-full group-hover:bg-emerald-500/20 transition-all group-hover:scale-110 shadow-inner"><Video className="w-10 h-10 text-slate-400 group-hover:text-emerald-500" /></div>
                     <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight">Câmeras / Alarmes</h3><p className="text-slate-500 text-xs mt-2 font-medium">{cameraData.length > 0 ? `${cameraData.length} linhas em espera` : 'Selecionar .xlsx oficial'}</p></div>
                     <input type="file" accept=".xlsx, .xls" ref={cameraInputRef} className="hidden" onChange={(e) => handleFileUpload(e, 'camera')} />
-                    {cameraData.length > 0 && <div className="mt-2 px-3 py-1 bg-emerald-500/10 text-emerald-500 text-[10px] font-black rounded-full border border-emerald-500/20 animate-pulse uppercase">Arquivo Pronto</div>}
                 </div>
                 <button onClick={() => setResetTarget('cameras')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                     <RotateCcw size={12} /> Limpar
@@ -350,7 +397,6 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
                     <div className="p-5 bg-slate-800 rounded-full group-hover:bg-blue-500/20 transition-all group-hover:scale-110 shadow-inner"><DoorClosed className="w-10 h-10 text-slate-400 group-hover:text-blue-500" /></div>
                     <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors uppercase tracking-tight">Controle de Acesso</h3><p className="text-slate-500 text-xs mt-2 font-medium">{accessData.length > 0 ? `${accessData.length} linhas em espera` : 'Selecionar .xlsx oficial'}</p></div>
                     <input type="file" accept=".xlsx, .xls" ref={accessInputRef} className="hidden" onChange={(e) => handleFileUpload(e, 'access')} />
-                    {accessData.length > 0 && <div className="mt-2 px-3 py-1 bg-blue-500/10 text-blue-500 text-[10px] font-black rounded-full border border-blue-500/20 animate-pulse uppercase">Arquivo Pronto</div>}
                 </div>
                 <button onClick={() => setResetTarget('access')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                     <RotateCcw size={12} /> Limpar
@@ -360,68 +406,112 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
             <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-amber-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
                 <div onClick={() => thirdPartyInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
                     <div className="p-5 bg-slate-800 rounded-full group-hover:bg-amber-500/20 transition-all group-hover:scale-110 shadow-inner"><Briefcase className="w-10 h-10 text-slate-400 group-hover:text-amber-500" /></div>
-                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors uppercase tracking-tight">Terceirizados</h3><p className="text-slate-500 text-xs mt-2 font-medium">Acumular ao histórico de fluxo</p></div>
+                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors uppercase tracking-tight">Fluxo Terceirizados</h3><p className="text-slate-500 text-xs mt-2 font-medium">Histórico bruto de catracas</p></div>
                     <input type="file" accept=".xlsx, .xls" ref={thirdPartyInputRef} className="hidden" onChange={handleThirdPartyUpload} />
-                    <div className="mt-2 px-3 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black rounded-full border border-amber-500/20 uppercase tracking-widest">Acumulativo</div>
                 </div>
                 <button onClick={() => setResetTarget('thirdparty')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                     <RotateCcw size={12} /> Limpar
                 </button>
             </div>
+
+            <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
+                <div className="w-full flex flex-col items-center">
+                    <div onClick={() => paymentInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
+                        <div className="p-5 bg-slate-800 rounded-full group-hover:bg-emerald-500/20 transition-all group-hover:scale-110 shadow-inner"><ListChecks className="w-10 h-10 text-slate-400 group-hover:text-emerald-500" /></div>
+                        <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight">Frequência/Pivot</h3><p className="text-slate-500 text-[10px] mt-2 font-black uppercase tracking-widest">Planilha de Diárias</p></div>
+                        <input type="file" accept=".xlsx, .xls" ref={paymentInputRef} className="hidden" onChange={handlePaymentUpload} />
+                    </div>
+                    {/* Unidade Alvo para Pivot */}
+                    <div className="mt-4 w-full px-2">
+                        <label className="block text-[9px] font-black text-slate-500 uppercase mb-1 ml-1">Vincular Diárias ao Galpão:</label>
+                        <select 
+                            value={selectedPivotUnit} 
+                            onChange={(e) => setSelectedPivotUnit(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg py-1 px-2 text-[10px] text-emerald-500 font-bold uppercase outline-none focus:border-emerald-500"
+                        >
+                            {WAREHOUSE_LIST.map(w => <option key={w} value={w}>{w}</option>)}
+                        </select>
+                    </div>
+                </div>
+                <button onClick={() => setResetTarget('payments')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <RotateCcw size={12} /> Limpar
+                </button>
+            </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
-                <h3 className="text-white font-bold flex items-center gap-3 text-lg">
-                    <Clock size={22} className="text-amber-500" /> 
-                    Histórico de Importações Recentes
-                </h3>
-                <span className="text-[10px] font-black bg-slate-800 text-slate-400 px-3 py-1.5 rounded-full border border-slate-700 uppercase tracking-widest">{thirdPartyImports.length} Arquivos Armazenados</span>
-            </div>
-            <div className="max-h-80 overflow-y-auto custom-scrollbar">
-                {thirdPartyImports.length === 0 ? (
-                    <div className="p-20 text-center text-slate-600 flex flex-col items-center gap-3">
-                        <Database size={48} className="opacity-20" />
-                        <p className="italic text-sm font-medium">Nenhum histórico de importação encontrado.</p>
-                    </div>
-                ) : (
-                    <table className="w-full text-left text-sm border-collapse">
-                        <thead className="bg-slate-950 text-slate-500 text-[10px] font-black uppercase tracking-widest sticky top-0 z-10 border-b border-slate-800">
-                            <tr>
-                                <th className="p-5">Arquivo</th>
-                                <th className="p-5">Data do Sincronismo</th>
-                                <th className="p-5 text-center">Volume Registros</th>
-                                <th className="p-5 text-right">Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                            {thirdPartyImports.map((imp) => (
-                                <tr key={imp.id} className="hover:bg-slate-800/40 transition-colors group">
-                                    <td className="p-5">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-blue-500/10 text-blue-500 rounded"><FileSpreadsheet size={18} /></div>
-                                            <span className="font-bold text-slate-200 group-hover:text-blue-400 transition-colors">{imp.fileName}</span>
-                                        </div>
-                                    </td>
-                                    <td className="p-5">
-                                        <div className="flex flex-col">
-                                            <span className="text-xs font-bold text-slate-400">{new Date(imp.importedAt).toLocaleDateString('pt-BR')}</span>
-                                            <span className="text-[10px] text-slate-600 font-mono">{new Date(imp.importedAt).toLocaleTimeString('pt-BR')}</span>
-                                        </div>
-                                    </td>
-                                    <td className="p-5 text-center">
-                                        <span className="bg-slate-950 px-3 py-1 rounded-full border border-slate-800 text-emerald-400 font-mono font-bold">{imp.count}</span>
-                                    </td>
-                                    <td className="p-5 text-right">
-                                        <button onClick={() => onDeleteImport(imp.id)} className="p-2.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-all" title="Remover Histórico">
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </td>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+                <div className="p-6 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
+                    <h3 className="text-white font-bold flex items-center gap-3 text-lg">
+                        <Clock size={22} className="text-amber-500" /> 
+                        Fluxo Terceirizados
+                    </h3>
+                    <span className="text-[10px] font-black bg-slate-800 text-slate-400 px-3 py-1.5 rounded-full border border-slate-700 uppercase tracking-widest">{thirdPartyImports.length} Arquivos</span>
+                </div>
+                <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                    {thirdPartyImports.length === 0 ? (
+                        <div className="p-20 text-center text-slate-600 flex flex-col items-center gap-3">
+                            <Database size={48} className="opacity-20" />
+                            <p className="italic text-sm font-medium">Sem histórico de fluxo.</p>
+                        </div>
+                    ) : (
+                        <table className="w-full text-left text-sm border-collapse">
+                            <thead className="bg-slate-950 text-slate-500 text-[10px] font-black uppercase tracking-widest sticky top-0 z-10 border-b border-slate-800">
+                                <tr>
+                                    <th className="p-5">Arquivo</th>
+                                    <th className="p-5 text-center">Volume</th>
+                                    <th className="p-5 text-right">Ação</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                                {thirdPartyImports.map((imp) => (
+                                    <tr key={imp.id} className="hover:bg-slate-800/40 transition-colors group">
+                                        <td className="p-5"><span className="font-bold text-slate-200">{imp.fileName}</span></td>
+                                        <td className="p-5 text-center"><span className="bg-slate-950 px-2 py-1 rounded text-emerald-400 font-mono font-bold text-xs">{imp.count}</span></td>
+                                        <td className="p-5 text-right"><button onClick={() => onDeleteImport(imp.id)} className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded transition-all"><Trash2 size={16} /></button></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+                <div className="p-6 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
+                    <h3 className="text-white font-bold flex items-center gap-3 text-lg">
+                        <ListChecks size={22} className="text-emerald-500" /> 
+                        Planilhas de Frequência
+                    </h3>
+                    <span className="text-[10px] font-black bg-slate-800 text-slate-400 px-3 py-1.5 rounded-full border border-slate-700 uppercase tracking-widest">{paymentImports.length} Arquivos</span>
+                </div>
+                <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                    {paymentImports.length === 0 ? (
+                        <div className="p-20 text-center text-slate-600 flex flex-col items-center gap-3">
+                            <ListChecks size={48} className="opacity-20" />
+                            <p className="italic text-sm font-medium">Sem histórico de frequência.</p>
+                        </div>
+                    ) : (
+                        <table className="w-full text-left text-sm border-collapse">
+                            <thead className="bg-slate-950 text-slate-500 text-[10px] font-black uppercase tracking-widest sticky top-0 z-10 border-b border-slate-800">
+                                <tr>
+                                    <th className="p-5">Arquivo</th>
+                                    <th className="p-5 text-center">Volume</th>
+                                    <th className="p-5 text-right">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                                {paymentImports.map((imp) => (
+                                    <tr key={imp.id} className="hover:bg-slate-800/40 transition-colors group">
+                                        <td className="p-5"><span className="font-bold text-slate-200">{imp.fileName}</span></td>
+                                        <td className="p-5 text-center"><span className="bg-slate-950 px-2 py-1 rounded text-emerald-400 font-mono font-bold text-xs">{imp.count}</span></td>
+                                        <td className="p-5 text-right"><button onClick={() => onDeletePayment(imp.id)} className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded transition-all"><Trash2 size={16} /></button></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
             </div>
         </div>
 
@@ -435,7 +525,11 @@ const Importer: React.FC<ImporterProps> = ({ onImport, onImportThirdParty, onDel
                     <div>
                         <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Apagar Dados?</h3>
                         <p className="text-slate-400 text-sm mt-3 leading-relaxed">
-                            Esta ação irá remover permanentemente a base de <strong>{resetTarget === 'cameras' ? 'Câmeras e Alarmes' : resetTarget === 'access' ? 'Controle de Acesso' : 'Histórico de Terceirizados'}</strong>.
+                            Esta ação removerá permanentemente a base de <strong>{
+                                resetTarget === 'cameras' ? 'Câmeras' : 
+                                resetTarget === 'access' ? 'Acessos' : 
+                                resetTarget === 'thirdparty' ? 'Fluxo Terceiros' : 'Frequência'
+                            }</strong>.
                         </p>
                     </div>
                     <div className="flex gap-4 pt-2">

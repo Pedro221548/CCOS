@@ -40,7 +40,7 @@ export interface Camera {
   responsible: string; 
   status: Status;      
   ticket?: string;     
-  observation?: string; // Motivo do offline
+  observation?: string; 
   channelType: ChannelType;
   lastLog?: string; 
 }
@@ -80,16 +80,36 @@ export interface ShiftNote {
   createdAt: string; 
 }
 
-export interface AppFeedback {
-  id: string;
-  userId: string;
-  userName: string;
-  content: string;
-  timestamp: string;
-  type: 'bug' | 'suggestion' | 'praise';
-  status?: 'pending' | 'completed';
-  adminReply?: string;
-  repliedAt?: string;
+export interface ThirdPartyPayment {
+    id: string;
+    workerName: string;
+    company: string;
+    unit: string;
+    date: string;
+    value: number;
+    reference: string;
+    category?: string;
+}
+
+export interface PaymentImport {
+    id: string;
+    fileName: string;
+    importedAt: string;
+    count: number;
+    payments: ThirdPartyPayment[];
+}
+
+export interface AppData {
+  cameras: Camera[];
+  accessPoints: AccessPoint[];
+  documents: PublicDocument[];
+  notes: Note[];
+  shiftNotes?: ShiftNote[]; 
+  meetings: Meeting[];
+  events: CalendarEvent[];
+  thirdPartyImports?: ThirdPartyImport[]; 
+  paymentImports?: PaymentImport[];
+  lastSync: string;
 }
 
 export interface Meeting {
@@ -107,25 +127,6 @@ export interface CalendarEvent {
   description: string;
   date: string; 
   time: string; 
-}
-
-export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'file' | 'location';
-
-export interface ChatMessage {
-  id: string;
-  senderId: string;
-  senderName: string;
-  senderPhoto?: string;
-  text: string; 
-  fileUrl?: string; 
-  type: MessageType;
-  timestamp: string; 
-  replyTo?: { id: string; text: string; senderName: string };
-  reactions?: { [emoji: string]: string[] }; 
-  edited?: boolean;
-  pinned?: boolean;
-  status?: 'sent' | 'delivered' | 'read';
-  important?: boolean;
 }
 
 export interface ProcessedWorker {
@@ -182,16 +183,41 @@ export interface Task {
     completionNote?: string; 
 }
 
-export interface AppData {
-  cameras: Camera[];
-  accessPoints: AccessPoint[];
-  documents: PublicDocument[];
-  notes: Note[];
-  shiftNotes?: ShiftNote[]; 
-  meetings: Meeting[];
-  events: CalendarEvent[];
-  thirdPartyImports?: ThirdPartyImport[]; 
-  lastSync: string;
+// Added fix for missing exports required by Chat and UserManagement components
+export type MessageType = 'text' | 'image' | 'video' | 'file' | 'audio' | 'location';
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderPhoto?: string;
+  text: string;
+  type: MessageType;
+  timestamp: string;
+  status: 'sent' | 'delivered' | 'read';
+  fileUrl?: string;
+  pinned?: boolean;
+  edited?: boolean;
+  replyTo?: {
+    id: string;
+    text: string;
+    senderName: string;
+  };
+  reactions?: {
+    [emoji: string]: number;
+  };
+}
+
+export interface AppFeedback {
+  id: string;
+  userId: string;
+  userName: string;
+  type: 'bug' | 'suggestion' | 'praise';
+  content: string;
+  timestamp: string;
+  status: 'pending' | 'completed';
+  adminReply?: string;
+  repliedAt?: string;
 }
 
 declare global {

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef, useMemo } from 'react';
-import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar, Clock, RefreshCw, BookOpen } from 'lucide-react';
-import { Camera, AccessPoint, User, ProcessedWorker, AppNotification, ThirdPartyImport, Note, ShiftNote } from './types';
+import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar, Clock, RefreshCw, BookOpen, DollarSign } from 'lucide-react';
+import { Camera, AccessPoint, User, ProcessedWorker, AppNotification, ThirdPartyImport, Note, ShiftNote, ThirdPartyPayment, PaymentImport } from './types';
 import { authService } from './services/auth';
 import { monitoringService } from './services/monitoring';
 import { organizerService } from './services/organizer';
@@ -34,6 +34,7 @@ const MyTasks = lazy(() => import('./components/MyTasks'));
 const AccessManagement = lazy(() => import('./components/AccessManagement'));
 const Heatmap = lazy(() => import('./components/Heatmap'));
 const Manual = lazy(() => import('./components/Manual'));
+const Payments = lazy(() => import('./components/Payments'));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center h-full w-full">
@@ -62,8 +63,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   
-  // Tabs com persistência inicializada via localStorage
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'third-party-mgmt' | 'work-mgmt' | 'manual' | 'organizer' | 'data' | 'users' | 'registration'>(
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users' | 'registration'>(
     (localStorage.getItem('cv_active_tab') as any) || 'dashboard'
   );
   const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'alarms' | 'access'>(
@@ -81,7 +81,7 @@ const App: React.FC = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [refreshCountdown, setRefreshCountdown] = useState(600); // 10 Minutos = 600 segundos
+  const [refreshCountdown, setRefreshCountdown] = useState(600); 
   
   const mainContentRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -90,17 +90,15 @@ const App: React.FC = () => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   
   const { theme, toggleTheme } = useTheme();
-  const { data, thirdPartyWorkers } = useAppData(user);
+  const { data, thirdPartyWorkers, paymentRecords } = useAppData(user);
 
   const isAdmin = user?.role === 'admin';
 
-  // Persistência de Abas no LocalStorage
   useEffect(() => { localStorage.setItem('cv_active_tab', activeTab); }, [activeTab]);
   useEffect(() => { localStorage.setItem('cv_mon_tab', monitoringSubTab); }, [monitoringSubTab]);
   useEffect(() => { localStorage.setItem('cv_tp_tab', thirdPartySubTab); }, [thirdPartySubTab]);
   useEffect(() => { localStorage.setItem('cv_work_tab', workSubTab); }, [workSubTab]);
 
-  // Timer de Relógio e Atualização de Página (10 min)
   useEffect(() => {
     const timer = setInterval(() => {
         setCurrentTime(new Date());
@@ -115,7 +113,6 @@ const App: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Helper para formatar segundos em MM:SS
   const formatCountdown = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -179,7 +176,7 @@ const App: React.FC = () => {
   const handleImportData = async (cameras: Camera[], accessPoints: AccessPoint[]) => {
       try {
           await monitoringService.importData(cameras, accessPoints);
-          addToast("Sistema atualizado com sucesso!", "success");
+          addToast("Sistema atualizado!", "success");
       } catch (e) {
           addToast("Erro ao importar dados.", "alert");
       }
@@ -194,41 +191,39 @@ const App: React.FC = () => {
       }
   };
 
+  const handleImportPayments = async (payments: ThirdPartyPayment[], fileName: string) => {
+    try {
+        await monitoringService.addPaymentImport(payments, fileName);
+        addToast(`Pagamentos importados: ${fileName}`, "success");
+    } catch (e) {
+        addToast("Erro ao importar pagamentos.", "alert");
+    }
+  };
+
   const handleDeleteImport = async (id: string) => {
-      if (!window.confirm("Deseja remover este histórico de importação?")) return;
-      try {
-          await monitoringService.deleteThirdPartyImport(id);
-          addToast("Importação removida.", "info");
-      } catch (e) {
-          addToast("Erro ao remover.", "alert");
-      }
+      if (!window.confirm("Deseja remover este histórico?")) return;
+      try { await monitoringService.deleteThirdPartyImport(id); addToast("Removido.", "info"); } catch (e) { addToast("Erro.", "alert"); }
+  };
+
+  const handleDeletePayment = async (id: string) => {
+      if (!window.confirm("Deseja remover este histórico financeiro?")) return;
+      try { await monitoringService.deletePaymentImport(id); addToast("Financeiro removido.", "info"); } catch (e) { addToast("Erro.", "alert"); }
   };
 
   const handleResetCameras = async () => {
-    try {
-        await monitoringService.resetCameras();
-        addToast("Base de câmeras limpa!", "success");
-    } catch (e) {
-        addToast("Erro ao limpar câmeras.", "alert");
-    }
+    try { await monitoringService.resetCameras(); addToast("Câmeras limpas!", "success"); } catch (e) { addToast("Erro.", "alert"); }
   };
 
   const handleResetAccess = async () => {
-    try {
-        await monitoringService.resetAccessPoints();
-        addToast("Base de acessos limpa!", "success");
-    } catch (e) {
-        addToast("Erro ao limpar acessos.", "alert");
-    }
+    try { await monitoringService.resetAccessPoints(); addToast("Acessos limpos!", "success"); } catch (e) { addToast("Erro.", "alert"); }
   };
 
   const handleResetThirdParty = async () => {
-    try {
-        await monitoringService.resetThirdParty();
-        addToast("Base de terceirizados limpa!", "success");
-    } catch (e) {
-        addToast("Erro ao limpar terceirizados.", "alert");
-    }
+    try { await monitoringService.resetThirdParty(); addToast("Terceirizados limpos!", "success"); } catch (e) { addToast("Erro.", "alert"); }
+  };
+
+  const handleResetPayments = async () => {
+    try { await monitoringService.resetPayments(); addToast("Financeiro limpo!", "success"); } catch (e) { addToast("Erro.", "alert"); }
   };
 
   const counts = useMemo(() => {
@@ -245,7 +240,6 @@ const App: React.FC = () => {
     };
   }, [data.cameras, data.accessPoints, user]);
 
-  // Handlers para o Organizer
   const handleAddNote = (note: Note) => organizerService.addNote(note, data.notes);
   const handleToggleNote = (id: string) => organizerService.toggleNote(id, data.notes);
   const handleDeleteNote = (id: string) => organizerService.deleteNote(id, data.notes);
@@ -262,9 +256,7 @@ const App: React.FC = () => {
       <div className="fixed top-4 right-4 z-[200] flex flex-col gap-3 pointer-events-none">
           {toasts.map(t => (
               <div key={t.id} className={`pointer-events-auto min-w-[280px] max-w-sm p-4 rounded-xl shadow-2xl border flex items-center gap-3 animate-slide-in-right ${
-                  t.type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white' : 
-                  t.type === 'alert' ? 'bg-amber-600 border-amber-500 text-white' : 
-                  'bg-amber-600 border-amber-500 text-white'
+                  t.type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-amber-600 border-amber-500 text-white'
               }`}>
                   {t.type === 'success' ? <CheckCircle2 size={24} /> : t.type === 'alert' ? <Megaphone size={24} /> : <Info size={24} />}
                   <p className="text-sm font-bold">{t.message}</p>
@@ -280,15 +272,14 @@ const App: React.FC = () => {
                     <Shield className="w-16 h-16 text-amber-500 relative z-10 fill-amber-500/10 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" strokeWidth={1.5} />
                 </div>
                 <h1 className="text-4xl font-black text-amber-500 mb-4 leading-none tracking-tighter drop-shadow-md">CCOS</h1>
-                <div className="px-5 py-1.5 bg-amber-500/5 border border-amber-500/20 rounded-full inline-block mx-auto shadow-inner">
-                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-[0.3em]">DEMONSTRAÇÃO</span>
-                </div>
+                <div className="px-5 py-1.5 bg-amber-500/5 border border-amber-500/20 rounded-full inline-block mx-auto shadow-inner"><span className="text-[10px] font-black text-amber-600 uppercase tracking-[0.3em]">DEMONSTRAÇÃO</span></div>
             </div>
         </div>
         <nav className="p-4 space-y-1 flex-1 overflow-y-auto custom-scrollbar border-t border-slate-800/50 mt-4">
           <button onClick={() => handleTabChange('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><LayoutDashboard size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Dashboard</span></button>
           <button onClick={() => handleTabChange('monitoring')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'monitoring' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><Shield size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Monitoramento</span></button>
           <button onClick={() => handleTabChange('third-party-mgmt')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'third-party-mgmt' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><Users size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Gestão Fluxo</span></button>
+          <button onClick={() => handleTabChange('finance')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'finance' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><DollarSign size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Financeiro</span></button>
           {user?.role !== 'manager' && (
               <>
                 <button onClick={() => handleTabChange('work-mgmt')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'work-mgmt' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><ClipboardList size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Operacional</span></button>
@@ -309,10 +300,7 @@ const App: React.FC = () => {
                 <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.name}&background=f59e0b&color=000`} alt="Avatar" className="w-11 h-11 rounded-full border-2 border-slate-800 object-cover group-hover:border-amber-500 transition-colors" />
                 <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-950"></div>
               </div>
-              <div className="flex-1 min-w-0">
-                  <p className="text-xs font-black text-white uppercase truncate tracking-tight">{user.name}</p>
-                  <p className="text-[9px] font-bold text-slate-500 uppercase truncate">{user.jobTitle || 'OPERADOR'}</p>
-              </div>
+              <div className="flex-1 min-w-0"><p className="text-xs font-black text-white uppercase truncate tracking-tight">{user.name}</p><p className="text-[9px] font-bold text-slate-500 uppercase truncate">{user.jobTitle || 'OPERADOR'}</p></div>
            </div>
            <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 mt-2 px-4 py-2 rounded-lg text-slate-500 hover:text-rose-500 hover:bg-rose-500/5 transition-all text-[10px] font-black uppercase tracking-widest"><LogOut size={14} /> <span>Sair</span></button>
         </div>
@@ -325,12 +313,7 @@ const App: React.FC = () => {
             <div className="px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>Operação Ativa</div>
           </div>
           <div className="flex items-center gap-3">
-             <div className="hidden sm:flex items-center bg-slate-950/80 px-4 py-1.5 rounded-xl border border-slate-800 shadow-inner mr-2">
-                <div className="text-sm font-mono font-black text-white tracking-widest flex items-center gap-2">
-                    <Clock size={16} className="text-blue-500" />
-                    {currentTime.toLocaleTimeString('pt-BR')}
-                </div>
-             </div>
+             <div className="hidden sm:flex items-center bg-slate-950/80 px-4 py-1.5 rounded-xl border border-slate-800 shadow-inner mr-2"><div className="text-sm font-mono font-black text-white tracking-widest flex items-center gap-2"><Clock size={16} className="text-blue-500" />{currentTime.toLocaleTimeString('pt-BR')}</div></div>
              <button onClick={() => setShowFeedbackModal(true)} className="p-2 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all flex items-center gap-1 group" title="Sugerir Melhoria"><MessageSquareHeart size={20} strokeWidth={2.5} /><span className="hidden xl:inline text-[10px] font-black uppercase tracking-widest">Feedback</span></button>
              <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-white transition-colors">{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
              <div className="relative">
@@ -348,12 +331,7 @@ const App: React.FC = () => {
 
         <div className="bg-amber-600/10 border-b border-amber-600/20 py-2 px-4 flex items-center justify-center gap-3 animate-fade-in relative z-10">
              <Shield size={14} className="text-amber-500" />
-             <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-2">
-                 CCOS • Plataforma em Fase de Desenvolvimento
-                 <span className="mx-2 opacity-30">|</span>
-                 <RefreshCw size={12} className="animate-spin-slow" />
-                 Sincronização Automática em <span className="text-amber-400 font-mono w-12 inline-block text-left">{formatCountdown(refreshCountdown)}</span>
-             </span>
+             <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-2">CCOS • Plataforma em Fase de Desenvolvimento<span className="mx-2 opacity-30">|</span><RefreshCw size={12} className="animate-spin-slow" />Sincronização Automática em <span className="text-amber-400 font-mono w-12 inline-block text-left">{formatCountdown(refreshCountdown)}</span></span>
              <Shield size={14} className="text-amber-500" />
         </div>
 
@@ -361,6 +339,7 @@ const App: React.FC = () => {
           <div className="max-w-[1600px] mx-auto space-y-8">
             <Suspense fallback={<LoadingFallback />}>
                 {activeTab === 'dashboard' && <Dashboard data={data} thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
+                {activeTab === 'finance' && <Payments payments={paymentRecords} currentUser={user} />}
                 {activeTab === 'monitoring' && (
                   <div className="space-y-8 animate-fade-in">
                     <div className="bg-slate-900/50 p-1 rounded-2xl border border-slate-800/50 shadow-sm">
@@ -427,11 +406,15 @@ const App: React.FC = () => {
                     <Importer 
                         onImport={handleImportData} 
                         onImportThirdParty={handleImportThirdParty} 
+                        onImportPayments={handleImportPayments}
                         onDeleteImport={handleDeleteImport} 
+                        onDeletePayment={handleDeletePayment}
                         thirdPartyImports={data.thirdPartyImports} 
+                        paymentImports={data.paymentImports}
                         onResetCameras={handleResetCameras}
                         onResetAccess={handleResetAccess}
                         onResetThirdParty={handleResetThirdParty}
+                        onResetPayments={handleResetPayments}
                     />
                 )}
                 {activeTab === 'users' && <UserManagement currentUser={user} />}

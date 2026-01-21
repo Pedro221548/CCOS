@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../services/firebase';
-import { AppData, ProcessedWorker, User, ThirdPartyImport, ShiftNote } from '../types';
+import { AppData, ProcessedWorker, User, ThirdPartyImport, ShiftNote, PaymentImport, ThirdPartyPayment } from '../types';
 
 const INITIAL_DATA: AppData = {
   cameras: [],
@@ -13,12 +13,14 @@ const INITIAL_DATA: AppData = {
   meetings: [],
   events: [],
   thirdPartyImports: [],
+  paymentImports: [],
   lastSync: '-'
 };
 
 export const useAppData = (user: User | null) => {
   const [data, setData] = useState<AppData>(INITIAL_DATA);
   const [thirdPartyWorkers, setThirdPartyWorkers] = useState<ProcessedWorker[]>([]);
+  const [paymentRecords, setPaymentRecords] = useState<ThirdPartyPayment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -32,6 +34,7 @@ export const useAppData = (user: User | null) => {
     const accessRef = ref(db, 'monitoramento/access_points');
     const documentsRef = ref(db, 'monitoramento/documents');
     const importsRef = ref(db, 'monitoramento/third_party_imports');
+    const paymentsRef = ref(db, 'monitoramento/payment_imports');
     const metadataRef = ref(db, 'monitoramento/metadata');
     const notesRef = ref(db, 'monitoramento/organizer/notes');
     const shiftNotesRef = ref(db, 'monitoramento/organizer/shift_notes');
@@ -50,7 +53,6 @@ export const useAppData = (user: User | null) => {
         setData(prev => ({ ...prev, documents: snap.val() || [] }));
     });
     
-    // Ouvinte de importações (Histórico)
     const unsubImports = onValue(importsRef, (snap) => {
         const val = snap.val();
         if (val) {
@@ -74,6 +76,29 @@ export const useAppData = (user: User | null) => {
         }
     });
 
+    const unsubPayments = onValue(paymentsRef, (snap) => {
+        const val = snap.val();
+        if (val) {
+            const imports: PaymentImport[] = Object.keys(val).map(key => ({
+                id: key,
+                ...val[key]
+            })).sort((a, b) => new Date(b.importedAt).getTime() - new Date(a.importedAt).getTime());
+
+            setData(prev => ({ ...prev, paymentImports: imports }));
+
+            const allPayments: ThirdPartyPayment[] = [];
+            imports.forEach(imp => {
+                if (imp.payments) {
+                    allPayments.push(...imp.payments);
+                }
+            });
+            setPaymentRecords(allPayments);
+        } else {
+            setData(prev => ({ ...prev, paymentImports: [] }));
+            setPaymentRecords([]);
+        }
+    });
+
     const unsubMetadata = onValue(metadataRef, (snap) => {
         const meta = snap.val();
         if (meta && meta.lastSync) {
@@ -89,11 +114,12 @@ export const useAppData = (user: User | null) => {
         unsubAccess();
         unsubDocs();
         unsubImports();
+        unsubPayments();
         unsubMetadata();
         unsubNotes();
         unsubShiftNotes();
     };
   }, [user]);
 
-  return { data, thirdPartyWorkers, isLoading };
+  return { data, thirdPartyWorkers, paymentRecords, isLoading };
 };
