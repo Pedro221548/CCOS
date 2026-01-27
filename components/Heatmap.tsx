@@ -179,36 +179,45 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
                         </button>
 
                         {showAPDropdown && (
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 max-h-[300px] overflow-y-auto z-50 custom-scrollbar animate-fade-in">
+                            <div className="absolute top-full right-0 mt-2 bg-[#0d1117] border border-slate-700 rounded-2xl shadow-2xl p-2 w-[90vw] sm:min-w-[400px] sm:max-w-[500px] max-h-[400px] overflow-y-auto z-[60] custom-scrollbar animate-fade-in ring-4 ring-black/20">
                                 <div 
-                                    className="flex items-center gap-2 p-2 hover:bg-slate-800 rounded-lg cursor-pointer transition-colors border-b border-slate-800 mb-2"
+                                    className="flex items-center gap-3 p-3 hover:bg-emerald-500/10 rounded-xl cursor-pointer transition-all border-b border-slate-800 mb-2 group"
                                     onClick={toggleAllAccessPoints}
                                 >
                                     {selectedAccessPoints.length === availableAccessPoints.length ? (
-                                        <CheckSquare size={16} className="text-emerald-500" />
+                                        <CheckSquare size={18} className="text-emerald-500" />
                                     ) : (
-                                        <Square size={16} className="text-slate-600" />
+                                        <Square size={18} className="text-slate-600 group-hover:text-slate-400" />
                                     )}
-                                    <span className="text-xs font-black text-white uppercase tracking-widest">Selecionar Tudo</span>
+                                    <span className="text-xs font-black text-white uppercase tracking-[0.1em]">Selecionar / Desmarcar Tudo</span>
                                 </div>
                                 
-                                {availableAccessPoints.map(ap => (
-                                    <div 
-                                        key={ap} 
-                                        className="flex items-center gap-2 p-2 hover:bg-slate-800 rounded-lg cursor-pointer transition-colors"
-                                        onClick={() => toggleAccessPoint(ap)}
-                                    >
-                                        {selectedAccessPoints.includes(ap) ? (
-                                            <CheckSquare size={16} className="text-emerald-500" />
-                                        ) : (
-                                            <Square size={16} className="text-slate-600" />
-                                        )}
-                                        <span className="text-xs text-slate-300 truncate">{ap}</span>
-                                    </div>
-                                ))}
+                                <div className="space-y-1">
+                                    {availableAccessPoints.map(ap => (
+                                        <div 
+                                            key={ap} 
+                                            className={`grid grid-cols-[24px_1fr] items-start gap-3 p-3 rounded-xl cursor-pointer transition-all ${selectedAccessPoints.includes(ap) ? 'bg-emerald-500/5 border border-emerald-500/20' : 'hover:bg-slate-800 border border-transparent'}`}
+                                            onClick={() => toggleAccessPoint(ap)}
+                                        >
+                                            <div className="mt-0.5">
+                                                {selectedAccessPoints.includes(ap) ? (
+                                                    <CheckSquare size={18} className="text-emerald-500" />
+                                                ) : (
+                                                    <Square size={18} className="text-slate-600" />
+                                                )}
+                                            </div>
+                                            <span className={`text-[11px] font-bold leading-relaxed ${selectedAccessPoints.includes(ap) ? 'text-white' : 'text-slate-400'}`}>
+                                                {ap}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
 
                                 {availableAccessPoints.length === 0 && (
-                                    <div className="p-4 text-center text-slate-600 text-[10px] uppercase font-bold">Sem portas disponíveis</div>
+                                    <div className="p-8 text-center">
+                                        <DoorClosed className="mx-auto text-slate-700 mb-2" size={32} />
+                                        <p className="text-slate-600 text-[10px] uppercase font-black tracking-widest">Sem portas disponíveis neste galpão</p>
+                                    </div>
                                 )}
                             </div>
                         )}
