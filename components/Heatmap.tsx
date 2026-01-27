@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { User, ProcessedWorker } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
-import { Activity, Clock, Filter, X, AlertCircle, DoorClosed, CheckSquare, Square, ChevronDown } from 'lucide-react';
+import { Activity, Clock, Filter, X, AlertCircle, DoorClosed, CheckSquare, Square, ChevronDown, Calendar, RotateCcw } from 'lucide-react';
 
 interface HeatmapProps {
     thirdPartyWorkers: ProcessedWorker[];
@@ -12,6 +12,8 @@ interface HeatmapProps {
 const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => {
     const [selectedWarehouse, setSelectedWarehouse] = useState<string>('ALL');
     const [selectedAccessPoints, setSelectedAccessPoints] = useState<string[]>([]);
+    const [startDate, setStartDate] = useState<string>('');
+    const [endDate, setEndDate] = useState<string>('');
     const [showAPDropdown, setShowAPDropdown] = useState(false);
     const [heatmapModalData, setHeatmapModalData] = useState<{ day: string, hour: number, people: ProcessedWorker[] } | null>(null);
     
@@ -85,21 +87,31 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
             subset = subset.filter(w => selectedAccessPoints.includes(w.accessPoint));
         }
 
+        // 4. Filtro de Data (Período)
+        if (startDate) {
+            subset = subset.filter(w => w.date >= startDate);
+        }
+        if (endDate) {
+            subset = subset.filter(w => w.date <= endDate);
+        }
+
         return subset;
-    }, [thirdPartyWorkers, selectedWarehouse, selectedAccessPoints, currentUser, allowedWarehouses]);
+    }, [thirdPartyWorkers, selectedWarehouse, selectedAccessPoints, startDate, endDate, currentUser, allowedWarehouses]);
 
     // --- ANALYTICS: HEATMAP (Day x Hour) ---
     const heatmapData = useMemo(() => {
         const grid: ProcessedWorker[][][] = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => []));
         filteredWorkers.forEach(w => {
             if (w.date && w.time) {
-                let dateObj: Date | null = null;
-                if (w.date.includes('-')) dateObj = new Date(w.date + 'T12:00:00'); 
+                // Criar data garantindo o timezone correto para evitar offset de dia
+                const [year, month, day] = w.date.split('-').map(Number);
+                const dateObj = new Date(year, month - 1, day);
+                
                 if (dateObj && !isNaN(dateObj.getTime())) {
-                    const day = dateObj.getDay(); 
+                    const dayOfWeek = dateObj.getDay(); 
                     const hour = parseInt(w.time.split(':')[0], 10);
                     if (hour >= 0 && hour < 24) {
-                        grid[day][hour].push(w);
+                        grid[dayOfWeek][hour].push(w);
                     }
                 }
             }
@@ -129,27 +141,66 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
         }
     };
 
+    const clearDateFilters = () => {
+        setStartDate('');
+        setEndDate('');
+    };
+
     return (
         <div className="space-y-6 animate-fade-in pb-12 max-w-7xl mx-auto p-4 md:p-6">
-            {/* Header com Filtros */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 relative z-30">
-                <div>
+            {/* Header com Filtros Avançados */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 relative z-30">
+                <div className="shrink-0">
                     <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                         <Activity className="text-emerald-500" />
                         Mapa de Calor
                     </h2>
                     <p className="text-slate-400 text-sm mt-1">
-                        Densidade de acessos por dia, horário e portas selecionadas.
+                        Densidade de acessos por período, unidade e portas.
                     </p>
                 </div>
                 
-                <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
+                <div className="flex flex-wrap items-center gap-4 w-full xl:w-auto">
+                    {/* Filtro de Período */}
+                    <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800 shadow-inner">
+                        <div className="relative">
+                            <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                            <input 
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="pl-8 pr-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] text-slate-200 focus:border-emerald-500 outline-none font-bold [color-scheme:dark]"
+                                title="Data Inicial"
+                            />
+                        </div>
+                        <span className="text-slate-600 font-black text-[10px]">ATÉ</span>
+                        <div className="relative">
+                            <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                            <input 
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="pl-8 pr-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] text-slate-200 focus:border-emerald-500 outline-none font-bold [color-scheme:dark]"
+                                title="Data Final"
+                            />
+                        </div>
+                        {(startDate || endDate) && (
+                            <button 
+                                onClick={clearDateFilters}
+                                className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-all"
+                                title="Limpar Datas"
+                            >
+                                <RotateCcw size={14} />
+                            </button>
+                        )}
+                    </div>
+
                     {/* Filtro Galpão */}
-                    <div className="relative w-full sm:w-64">
+                    <div className="relative flex-1 min-w-[200px] sm:min-w-[240px]">
                         <select 
                             value={selectedWarehouse} 
                             onChange={(e) => setSelectedWarehouse(e.target.value)} 
-                            className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-emerald-500 appearance-none cursor-pointer"
+                            className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-200 text-xs font-bold uppercase focus:outline-none focus:border-emerald-500 appearance-none cursor-pointer"
                         >
                             <option value="ALL">
                                 {currentUser.role === 'manager' ? 'Meus Galpões Permitidos' : 'Todos os Galpões'}
@@ -162,17 +213,17 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
                     </div>
 
                     {/* Multi-Filtro Ponto de Acesso */}
-                    <div className="relative w-full sm:w-72" ref={dropdownRef}>
+                    <div className="relative flex-1 min-w-[220px] sm:min-w-[280px]" ref={dropdownRef}>
                         <button 
                             onClick={() => setShowAPDropdown(!showAPDropdown)}
-                            className="w-full pl-9 pr-10 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-200 text-sm text-left flex items-center justify-between hover:border-emerald-500 transition-colors"
+                            className="w-full pl-9 pr-10 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-200 text-xs font-bold uppercase text-left flex items-center justify-between hover:border-emerald-500 transition-colors"
                         >
                             <div className="flex items-center gap-2 truncate">
                                 <DoorClosed className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                                 {selectedAccessPoints.length === 0 ? (
                                     <span className="text-slate-500">Todas as Portas</span>
                                 ) : (
-                                    <span className="text-emerald-400 font-bold">{selectedAccessPoints.length} Portas Selecionadas</span>
+                                    <span className="text-emerald-400 font-black">{selectedAccessPoints.length} Selecionadas</span>
                                 )}
                             </div>
                             <ChevronDown size={16} className={`text-slate-500 transition-transform ${showAPDropdown ? 'rotate-180' : ''}`} />
@@ -184,7 +235,7 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
                                     className="flex items-center gap-3 p-3 hover:bg-emerald-500/10 rounded-xl cursor-pointer transition-all border-b border-slate-800 mb-2 group"
                                     onClick={toggleAllAccessPoints}
                                 >
-                                    {selectedAccessPoints.length === availableAccessPoints.length ? (
+                                    {selectedAccessPoints.length === availableAccessPoints.length && availableAccessPoints.length > 0 ? (
                                         <CheckSquare size={18} className="text-emerald-500" />
                                     ) : (
                                         <Square size={18} className="text-slate-600 group-hover:text-slate-400" />
@@ -235,7 +286,7 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
             ) : (
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-lg relative z-10">
                     <div className="animate-fade-in overflow-x-auto">
-                        <div className="flex justify-between items-center mb-4">
+                        <div className="flex justify-between items-center mb-6">
                             <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
                                 <Clock size={20} className="text-emerald-500" />
                                 Grade Semanal de Intensidade
@@ -244,7 +295,7 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
                                 {selectedAccessPoints.length > 0 && (
                                     <button 
                                         onClick={() => setSelectedAccessPoints([])}
-                                        className="text-[10px] text-rose-500 font-bold uppercase hover:text-rose-400 underline underline-offset-4"
+                                        className="text-[10px] text-rose-500 font-black uppercase hover:text-rose-400 underline underline-offset-4 tracking-widest"
                                     >
                                         Limpar Filtro de Portas
                                     </button>
@@ -258,21 +309,21 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
                             <div className="grid grid-cols-[50px_repeat(7,1fr)] gap-1 mb-2 border-b border-slate-700 pb-2">
                                 <div className="text-xs font-bold text-slate-500 text-center flex items-end justify-center">Hora</div>
                                 {daysOfWeek.map(day => (
-                                    <div key={day} className="text-xs font-bold text-center text-slate-400 uppercase tracking-wide">{day}</div>
+                                    <div key={day} className="text-xs font-black text-center text-slate-400 uppercase tracking-widest">{day}</div>
                                 ))}
                             </div>
 
                             {/* Body: Horas (Linhas) -> Dias (Colunas) */}
                             {hoursOfDay.map((hour) => (
-                                <div key={hour} className="grid grid-cols-[50px_repeat(7,1fr)] gap-1 mb-1 items-center hover:bg-slate-800/30 rounded px-1">
-                                    <div className="text-[10px] font-bold text-slate-500 text-center">{hour}h</div>
+                                <div key={hour} className="grid grid-cols-[50px_repeat(7,1fr)] gap-1 mb-1 items-center hover:bg-slate-800/30 rounded px-1 transition-colors">
+                                    <div className="text-[10px] font-black text-slate-500 text-center">{hour}h</div>
                                     {daysOfWeek.map((_, dayIdx) => {
                                         const count = heatmapData[dayIdx][hour].length;
                                         return (
                                             <div 
                                                 key={`${dayIdx}-${hour}`}
                                                 onClick={() => handleHeatmapClick(dayIdx, hour)}
-                                                className={`h-8 rounded-md cursor-pointer transition-all hover:scale-105 hover:z-10 flex items-center justify-center text-[10px] font-bold border border-transparent hover:border-slate-500 ${getHeatmapColor(count)}`}
+                                                className={`h-8 rounded-md cursor-pointer transition-all hover:scale-105 hover:z-10 flex items-center justify-center text-[10px] font-black border border-transparent hover:border-slate-500 ${getHeatmapColor(count)}`}
                                                 title={`${count} acessos às ${hour}h em ${daysOfWeek[dayIdx]}`}
                                             >
                                                 {count > 0 ? count : ''}
