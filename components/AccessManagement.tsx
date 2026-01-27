@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { User, ProcessedWorker, AccessPoint } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
-import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, CheckSquare, Square, MessageCircle, Mail, X, ArrowUpRight, ArrowDownLeft, GripHorizontal, DoorClosed, Clock, Hourglass } from 'lucide-react';
+import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, CheckSquare, Square, MessageCircle, Mail, X, ArrowUpRight, ArrowDownLeft, GripHorizontal, DoorClosed, Clock, Hourglass, RotateCcw } from 'lucide-react';
 
 interface AccessManagementProps {
     accessPoints: AccessPoint[];
@@ -24,7 +24,8 @@ const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehou
 const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, thirdPartyWorkers, currentUser }) => {
     const [activeTab, setActiveTab] = useState<'history' | 'report'>('history');
     const [selectedWarehouse, setSelectedWarehouse] = useState<string>('ALL');
-    const [selectedAccessPoint, setSelectedAccessPoint] = useState<string>('ALL');
+    const [selectedAccessPoints, setSelectedAccessPoints] = useState<string[]>([]);
+    const [showAPDropdown, setShowAPDropdown] = useState(false);
     const [peopleSearch, setPeopleSearch] = useState('');
     const [dateSearch, setDateSearch] = useState(''); 
     
@@ -39,8 +40,20 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
     const [pos, setPos] = useState({ x: 0, y: 0 });
     const [rel, setRel] = useState({ x: 0, y: 0 }); 
     const dragBoxRef = useRef<HTMLDivElement>(null);
+    const apDropdownRef = useRef<HTMLDivElement>(null);
 
     const isAuthorizedForReport = currentUser.role === 'admin' || currentUser.role === 'manager';
+
+    // Fechar dropdown ao clicar fora
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (apDropdownRef.current && !apDropdownRef.current.contains(event.target as Node)) {
+                setShowAPDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // Monitorar tamanho da tela
     useEffect(() => {
@@ -59,32 +72,44 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         const set = new Set<string>();
         thirdPartyWorkers.forEach(w => {
             if (selectedWarehouse === 'ALL' || w.unit === selectedWarehouse) {
-                if (w.accessPoint) set.add(w.accessPoint);
+                if (w.accessPoint && w.accessPoint !== '-') set.add(w.accessPoint);
             }
         });
         return Array.from(set).sort();
     }, [thirdPartyWorkers, selectedWarehouse]);
 
+    // Resetar seleção de portas ao mudar o galpão
     useEffect(() => {
-        setSelectedAccessPoint('ALL');
+        setSelectedAccessPoints([]);
+        setShowAPDropdown(false);
     }, [selectedWarehouse]);
+
+    const toggleAccessPoint = (ap: string) => {
+        setSelectedAccessPoints(prev => 
+            prev.includes(ap) ? prev.filter(item => item !== ap) : [...prev, ap]
+        );
+    };
+
+    const toggleAllAccessPoints = () => {
+        if (selectedAccessPoints.length === availableAccessPoints.length) {
+            setSelectedAccessPoints([]);
+        } else {
+            setSelectedAccessPoints([...availableAccessPoints]);
+        }
+    };
 
     // Lógica de cálculo de Duração/Permanência
     const calculateDuration = (records: ProcessedWorker[]) => {
         if (records.length < 2) return null;
         
-        // Ordenar por data e hora para pegar o primeiro e o último
         const sorted = [...records].sort((a, b) => {
             const dateA = new Date(`${a.date}T${a.time.length === 5 ? a.time + ':00' : a.time}`).getTime();
             const dateB = new Date(`${b.date}T${b.time.length === 5 ? b.time + ':00' : b.time}`).getTime();
             return dateA - dateB;
         });
 
-        const first = sorted[0];
-        const last = sorted[sorted.length - 1];
-
-        const start = new Date(`${first.date}T${first.time.length === 5 ? first.time + ':00' : first.time}`);
-        const end = new Date(`${last.date}T${last.time.length === 5 ? last.time + ':00' : last.time}`);
+        const start = new Date(`${sorted[0].date}T${sorted[0].time.length === 5 ? sorted[0].time + ':00' : sorted[0].time}`);
+        const end = new Date(`${sorted[sorted.length - 1].date}T${sorted[sorted.length - 1].time.length === 5 ? sorted[sorted.length - 1].time + ':00' : sorted[sorted.length - 1].time}`);
         
         const diffMs = end.getTime() - start.getTime();
         if (diffMs <= 0) return null;
@@ -112,12 +137,16 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         if (first) {
             msg += `👤 Colaborador: *${first.name}*\n`;
             msg += `🏢 Empresa: ${first.company}\n`;
-            msg += `📍 Local: ${first.unit} (${first.accessPoint})\n\n`;
+            msg += `📍 Unidade: ${first.unit}\n\n`;
         }
 
-        selectedRecords.sort((a, b) => a.time.localeCompare(b.time)).forEach(r => {
+        selectedRecords.sort((a, b) => {
+            const dateA = new Date(`${a.date}T${a.time}`).getTime();
+            const dateB = new Date(`${b.date}T${b.time}`).getTime();
+            return dateA - dateB;
+        }).forEach(r => {
             const dateStr = r.date.split('-').reverse().join('/');
-            msg += `• ${r.eventType}: ${dateStr} às ${r.time}\n`;
+            msg += `• ${r.eventType}: ${dateStr} às ${r.time} (${r.accessPoint})\n`;
         });
 
         if (duration) {
@@ -145,14 +174,14 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         if (selectedWarehouse !== 'ALL') {
             subset = subset.filter(w => w.unit === selectedWarehouse);
         }
-        if (selectedAccessPoint !== 'ALL') {
-            subset = subset.filter(w => w.accessPoint === selectedAccessPoint);
+        if (selectedAccessPoints.length > 0) {
+            subset = subset.filter(w => selectedAccessPoints.includes(w.accessPoint));
         }
         if (dateSearch) {
             subset = subset.filter(w => w.date === dateSearch);
         }
         return subset;
-    }, [thirdPartyWorkers, selectedWarehouse, selectedAccessPoint, dateSearch, currentUser]);
+    }, [thirdPartyWorkers, selectedWarehouse, selectedAccessPoints, dateSearch, currentUser]);
 
     const groupedPeople = useMemo(() => {
         const groups: { [key: string]: { id: string, name: string, company: string, history: ProcessedWorker[] } } = {};
@@ -294,7 +323,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-lg min-h-[500px]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-lg min-h-[500px] overflow-visible">
                 {currentUser.role === 'manager' && (!currentUser.allowedWarehouses || currentUser.allowedWarehouses.length === 0) ? (
                     <div className="flex flex-col items-center justify-center py-20 text-center">
                         <AlertCircle size={48} className="text-amber-500 mb-4" />
@@ -304,48 +333,109 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                 ) : (
                     <div className="animate-fade-in space-y-4">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
-                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2 uppercase tracking-tighter">
                                 <Users size={20} className="text-amber-500" />
                                 {activeTab === 'report' ? 'Selecione entradas e saídas' : 'Histórico por Pessoa'}
                             </h3>
                             
-                            <div className="flex flex-col xl:flex-row gap-3 w-full md:w-auto">
-                                <div className="relative">
-                                    <DoorClosed className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                                    <select 
-                                        value={selectedAccessPoint}
-                                        onChange={(e) => setSelectedAccessPoint(e.target.value)}
-                                        className="w-full xl:w-48 pl-8 pr-4 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-purple-500 appearance-none cursor-pointer"
+                            <div className="flex flex-wrap xl:flex-nowrap gap-3 w-full md:w-auto items-center">
+                                {/* FILTRO MULTI-SELEÇÃO DE PORTAS (ALTA VISIBILIDADE) */}
+                                <div className="relative z-[50]" ref={apDropdownRef}>
+                                    <button 
+                                        onClick={() => setShowAPDropdown(!showAPDropdown)}
+                                        className="w-full xl:w-72 pl-10 pr-10 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-200 text-xs font-bold text-left flex items-center justify-between hover:border-purple-500 transition-all shadow-sm"
                                     >
-                                        <option value="ALL">Todos os Pontos</option>
-                                        {availableAccessPoints.map(ap => (
-                                            <option key={ap} value={ap}>{ap}</option>
-                                        ))}
-                                    </select>
+                                        <div className="flex items-center gap-2 truncate">
+                                            <DoorClosed className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500" size={16} />
+                                            {selectedAccessPoints.length === 0 ? (
+                                                <span className="text-slate-500 italic">Todos os Pontos de Acesso</span>
+                                            ) : (
+                                                <span className="text-purple-500">{selectedAccessPoints.length} Selecionados</span>
+                                            )}
+                                        </div>
+                                        <ChevronDown size={16} className={`text-slate-500 transition-transform duration-300 ${showAPDropdown ? 'rotate-180' : ''}`} />
+                                    </button>
+
+                                    {showAPDropdown && (
+                                        <div className="absolute top-full right-0 mt-3 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-2 w-[90vw] sm:min-w-[350px] sm:max-w-[450px] max-h-[450px] overflow-y-auto z-[100] custom-scrollbar animate-fade-in ring-4 ring-black/30">
+                                            <div 
+                                                className="flex items-center gap-3 p-3 hover:bg-purple-500/10 rounded-xl cursor-pointer transition-all border-b border-slate-800 mb-2 group"
+                                                onClick={toggleAllAccessPoints}
+                                            >
+                                                {selectedAccessPoints.length === availableAccessPoints.length && availableAccessPoints.length > 0 ? (
+                                                    <CheckSquare size={18} className="text-purple-500" />
+                                                ) : (
+                                                    <Square size={18} className="text-slate-600 group-hover:text-slate-400" />
+                                                )}
+                                                <span className="text-[11px] font-black text-white uppercase tracking-widest">Selecionar / Limpar Tudo</span>
+                                            </div>
+                                            
+                                            <div className="space-y-1">
+                                                {availableAccessPoints.map(ap => (
+                                                    <div 
+                                                        key={ap} 
+                                                        className={`grid grid-cols-[28px_1fr] items-center gap-2 p-3 rounded-xl cursor-pointer transition-all ${selectedAccessPoints.includes(ap) ? 'bg-purple-500/10 border-purple-500/20' : 'hover:bg-slate-800 border-transparent'} border`}
+                                                        onClick={() => toggleAccessPoint(ap)}
+                                                    >
+                                                        <div className="shrink-0">
+                                                            {selectedAccessPoints.includes(ap) ? (
+                                                                <CheckSquare size={18} className="text-purple-500" />
+                                                            ) : (
+                                                                <Square size={18} className="text-slate-600" />
+                                                            )}
+                                                        </div>
+                                                        <span className={`text-[11px] font-bold leading-tight ${selectedAccessPoints.includes(ap) ? 'text-white' : 'text-slate-400'} truncate`}>
+                                                            {ap}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {availableAccessPoints.length === 0 && (
+                                                <div className="p-12 text-center">
+                                                    <DoorClosed className="mx-auto text-slate-700 mb-2 opacity-50" size={48} />
+                                                    <p className="text-slate-600 text-[10px] uppercase font-black tracking-widest">Sem portas neste galpão</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
+
                                 <div className="relative">
                                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                                     <input 
                                         type="date"
                                         value={dateSearch}
                                         onChange={(e) => setDateSearch(e.target.value)}
-                                        className="w-full sm:w-auto pl-8 pr-4 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-purple-500 [color-scheme:light] dark:[color-scheme:dark]"
+                                        className="w-full sm:w-auto pl-9 pr-4 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-purple-500 [color-scheme:light] dark:[color-scheme:dark]"
                                     />
                                 </div>
+                                
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                                     <input 
                                         type="text" 
                                         value={peopleSearch}
                                         onChange={(e) => setPeopleSearch(e.target.value)}
-                                        placeholder="Buscar pessoa..." 
-                                        className="w-full sm:w-auto pl-8 pr-4 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:border-purple-500"
+                                        placeholder="Buscar por nome..." 
+                                        className="w-full sm:w-auto pl-9 pr-4 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold focus:outline-none focus:border-purple-500"
                                     />
                                 </div>
+                                
+                                {selectedAccessPoints.length > 0 && (
+                                    <button 
+                                        onClick={() => setSelectedAccessPoints([])}
+                                        className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-all"
+                                        title="Limpar filtros de porta"
+                                    >
+                                        <RotateCcw size={18} />
+                                    </button>
+                                )}
                             </div>
                         </div>
 
-                        <div className="space-y-3">
+                        {/* LISTA DE PESSOAS */}
+                        <div className="space-y-3 pt-2">
                             {groupedPeople
                                 .filter(p => p.name.toLowerCase().includes(peopleSearch.toLowerCase()))
                                 .map((person) => {
@@ -354,7 +444,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                     const isPartialSelected = allPersonIds.some(id => selectedIds.has(id)) && !isAllSelected;
 
                                     return (
-                                        <div key={person.id} className={`border rounded-lg overflow-hidden transition-all duration-300 ${activeTab === 'report' && (isAllSelected || isPartialSelected) ? 'border-purple-500/50 bg-purple-500/5' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40'}`}>
+                                        <div key={person.id} className={`border rounded-xl overflow-hidden transition-all duration-300 ${activeTab === 'report' && (isAllSelected || isPartialSelected) ? 'border-purple-500/50 bg-purple-500/5' : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/20'}`}>
                                             <div 
                                                 className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                                 onClick={(e) => {
@@ -362,47 +452,47 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                                     togglePersonExpand(person.id);
                                                 }}
                                             >
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-4">
                                                     {activeTab === 'report' && (
                                                         <div className="selection-checkbox" onClick={(e) => e.stopPropagation()}>
                                                             <button 
                                                                 onClick={() => handleSelectPersonGroup(person.history)}
-                                                                className={`p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${isAllSelected || isPartialSelected ? 'text-purple-500' : 'text-slate-400'}`}
+                                                                className={`p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${isAllSelected || isPartialSelected ? 'text-purple-500' : 'text-slate-400'}`}
                                                             >
-                                                                {isAllSelected ? <CheckSquare size={20} /> : isPartialSelected ? <div className="relative"><Square size={20} /><div className="absolute inset-0 m-auto w-3 h-3 bg-purple-500 rounded-sm"></div></div> : <Square size={20} />}
+                                                                {isAllSelected ? <CheckSquare size={22} /> : isPartialSelected ? <div className="relative"><Square size={22} /><div className="absolute inset-0 m-auto w-3 h-3 bg-purple-500 rounded-sm"></div></div> : <Square size={22} />}
                                                             </button>
                                                         </div>
                                                     )}
-                                                    <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 font-bold">
+                                                    <div className="w-11 h-11 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-500 font-black text-sm">
                                                         {person.name.charAt(0)}
                                                     </div>
                                                     <div>
-                                                        <h4 className="font-bold text-slate-800 dark:text-white">{person.name}</h4>
-                                                        <p className="text-xs text-slate-500 dark:text-slate-400">{person.company}</p>
+                                                        <h4 className="font-bold text-slate-900 dark:text-white uppercase text-sm tracking-tight">{person.name}</h4>
+                                                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{person.company}</p>
                                                     </div>
                                                 </div>
                                                 
-                                                <div className="flex items-center gap-4 mt-3 sm:mt-0 w-full sm:w-auto justify-between sm:justify-end">
-                                                    <div className="text-right mr-4">
-                                                        <span className="block text-[10px] text-slate-500 uppercase">Registros</span>
-                                                        <span className="block font-mono font-bold text-emerald-500 text-lg">{person.history.length}</span>
+                                                <div className="flex items-center gap-6 mt-3 sm:mt-0 w-full sm:w-auto justify-between sm:justify-end">
+                                                    <div className="text-right">
+                                                        <span className="block text-[9px] text-slate-500 font-black uppercase tracking-tighter">Registros Filtrados</span>
+                                                        <span className="block font-mono font-black text-emerald-500 text-lg leading-none">{person.history.length}</span>
                                                     </div>
                                                     {expandedPersonKey === person.id ? <ChevronUp size={20} className="text-slate-400"/> : <ChevronDown size={20} className="text-slate-400"/>}
                                                 </div>
                                             </div>
 
                                             {expandedPersonKey === person.id && (
-                                                <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50 p-4 animate-fade-in">
+                                                <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 p-5 animate-fade-in">
                                                     <div className="overflow-x-auto">
                                                         <table className="w-full text-left text-xs">
-                                                            <thead className="text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
+                                                            <thead className="text-slate-400 font-black uppercase text-[10px] tracking-widest border-b border-slate-200 dark:border-slate-800">
                                                                 <tr>
-                                                                    {activeTab === 'report' && <th className="pb-2 w-8"></th>}
-                                                                    <th className="pb-2">Data</th>
-                                                                    <th className="pb-2">Horário</th>
-                                                                    <th className="pb-2">Local / Galpão</th>
-                                                                    <th className="pb-2">Ponto de Acesso</th>
-                                                                    <th className="pb-2">Direção</th>
+                                                                    {activeTab === 'report' && <th className="pb-3 w-8"></th>}
+                                                                    <th className="pb-3">Data</th>
+                                                                    <th className="pb-3">Horário</th>
+                                                                    <th className="pb-3">Unidade</th>
+                                                                    <th className="pb-3">Ponto de Acesso</th>
+                                                                    <th className="pb-3">Ação</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
@@ -415,25 +505,25 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                                                             onClick={() => activeTab === 'report' && handleSelectRecord(record.id)}
                                                                         >
                                                                             {activeTab === 'report' && (
-                                                                                <td className="py-2.5">
-                                                                                    <button className={`text-purple-500 ${isSelected ? 'opacity-100' : 'opacity-30 hover:opacity-100'}`}>
-                                                                                        {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
+                                                                                <td className="py-3">
+                                                                                    <button className={`text-purple-500 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-20 hover:opacity-100'}`}>
+                                                                                        {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
                                                                                     </button>
                                                                                 </td>
                                                                             )}
-                                                                            <td className="py-2.5 font-mono text-slate-600 dark:text-slate-400">
+                                                                            <td className="py-3 font-mono text-slate-500 font-bold">
                                                                                 {record.date !== 'N/A' ? record.date.split('-').reverse().join('/') : '-'}
                                                                             </td>
-                                                                            <td className="py-2.5 font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                                                                            <td className="py-3 font-mono text-emerald-500 font-black">
                                                                                 {record.time}
                                                                             </td>
-                                                                            <td className="py-2.5 text-slate-700 dark:text-slate-300 font-bold uppercase">
+                                                                            <td className="py-3 text-slate-700 dark:text-slate-300 font-black uppercase text-[10px] tracking-tight">
                                                                                 {record.unit}
                                                                             </td>
-                                                                            <td className="py-2.5 text-slate-500">
+                                                                            <td className="py-3 text-slate-500 font-bold text-[10px]">
                                                                                 {record.accessPoint}
                                                                             </td>
-                                                                            <td className="py-2.5">
+                                                                            <td className="py-3">
                                                                                 {getFlowBadge(record.eventType)}
                                                                             </td>
                                                                         </tr>
@@ -461,14 +551,14 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                         position: 'fixed', 
                         left: `${pos.x}px`, 
                         top: `${pos.y}px`, 
-                        zIndex: 150,
+                        zIndex: 200,
                         touchAction: 'none'
                     } : {
                         position: 'fixed',
                         top: 0,
                         left: 0,
                         width: '100%',
-                        zIndex: 200,
+                        zIndex: 300,
                         touchAction: 'none'
                     }}
                     className={`bg-slate-900 border-2 border-purple-500 shadow-2xl overflow-hidden backdrop-blur-md transition-transform duration-200 select-none
