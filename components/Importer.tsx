@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react';
 import { FileSpreadsheet, RotateCcw, Upload, Video, DoorClosed, Save, Briefcase, Trash2, Clock, FileText, Download, Database, Check, Layers, Power, X, AlertTriangle, RefreshCw, Info, DollarSign, Wand2, ListChecks } from 'lucide-react';
 import { Camera, AccessPoint, Status, ProcessedWorker, ThirdPartyImport, ChannelType, ThirdPartyPayment, PaymentImport } from '../types';
@@ -9,9 +10,9 @@ const VALID_COMPANIES = ['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PR
 const VALID_UNITS = [
     { id: 'GALPÃO MERITI', keywords: ['MERITI', 'SJM', 'EXPRESSA', 'BSB', 'GRADIL EXPRESSA', 'DOCA RECEXP', 'RUA 17', 'RUA 12', 'RUA 34', 'REC MEZANINO', 'MESA CONTROLADO', 'DOCA RECEBIMENTO', 'ALTO CUSTO', 'ALTO VALOR'] },
     { id: 'GALPÃO 4 ELOS ES', keywords: ['G4 ES', 'G10', '4ELOS ES', '4 ELOS ES', '4ELOS', 'SPEED DOME', 'LOLA', 'CONFERENCIA 04', 'CONFERENCIA 03', 'RUA FLOWRACK', 'CHK0', 'G1004LF', 'G1003LF', 'G1001LF', 'CAMERA 4ELOS'] },
-    { id: 'GALPÃO SP', keywords: ['INVD 32', 'SP 01', 'SP 02', 'SP 3_', 'SP_1', 'HOSPIDROGAS', 'FAVO', 'SALLVE', 'ITAPEVI', 'NEURAXPHARM', 'IP01LF', 'IP02LF', 'IP03LF', 'IP04LF', 'IP05LF', 'IP06LF', 'IP07LF', 'IP08LF'] },
+    { id: 'GALPÃO LSP', keywords: ['10.0.30.65', '179.108.121.85', 'LSP_', 'LSP01', 'ENTRADA RODOVIA', 'PORTÃO SOCIAL', 'SPEED ESTACIONAMENTO', 'PÁTIO DOCAS', 'GUARITA', 'LSP01LF', 'LSP02LF', 'LSP03LF', 'ECLUSA LSP'] },
+    { id: 'GALPÃO SP', keywords: ['177.69.119.221', 'INVD 32', 'SP 01', 'SP 02', 'SP 3_', 'SP_1', 'HOSPIDROGAS', 'FAVO', 'SALLVE', 'ITAPEVI', 'NEURAXPHARM', 'IP01LF', 'IP02LF', 'IP03LF', 'IP04LF', 'IP05LF', 'IP06LF', 'IP07LF', 'IP08LF'] },
     { id: 'GALPÃO 4 ELOS RJ', keywords: ['4 ELOS RJ', 'ELOS RJ', 'RUA 1 FRENTE', 'REFEITORIO MEZANINO', 'DOCA 40414243', 'ACESSO MD 2', '4E01LF', '4E02LF', '4E03LF'] },
-    { id: 'GALPÃO LSP', keywords: ['LSP_', 'LSP01', 'ENTRADA RODOVIA', 'PORTÃO SOCIAL', 'SPEED ESTACIONAMENTO', 'PÁTIO DOCAS', 'GUARITA', 'LSP01LF', 'LSP02LF', 'LSP03LF', 'ECLUSA LSP'] },
     { id: 'GALPÃO G5', keywords: ['TERABYTE', 'NVD 1 G5', 'NVD 2 G5', 'NVD 3 G5', 'NVD 4 G5', 'NVD 5 G5', 'MD 4', 'MD 5', 'MD 6', 'MD 7', 'MD 8', 'MD 9', 'MD4', 'MD5', 'MD6', 'MD7', 'MD8', 'MD9', 'PINOS0', 'HERSHEYS', 'AC BRAZIL', 'BIOSANTE', 'BEYOUNG', 'LOLA COS', 'SERVIER', 'CELLERA', 'BIOCHIMICO', 'TUNEL', 'SAIDA EMER'] },
     { id: 'GALPÃO PAVUNA', keywords: ['PAVUNA', 'UNILOG PAVUNA', 'PV01', 'PV02', 'REC MODULO 01', 'ANTECAMARA ENTRADA', 'PV01LF', 'PV02LF', 'PV03LF'] },
     { id: 'GALPÃO G2', keywords: ['10.0.10.13', '10.0.10.14', '10.0.10.15', '10.0.10.16', '10.0.10.20', 'G2 MODULO', 'G2 DOCA', 'SEMEAR', 'RG SOLUÇÕES', 'PFS', 'PRESTIGE', 'BEAUTYGLAM', 'MERCO', 'BIOCON', 'MD A', 'MD B', 'MD C', 'MD D', 'MD E', 'MD F', 'VESTIARIO', 'COPA G2', 'ESCANINHO CELULAR', 'G216LF', 'G213LF', 'G203LF', 'G208LF', 'G207LF', 'G205LF', 'G210LF', 'G215LF', 'G201LF', 'G214LF', 'G212LF', 'G206LF', 'G204LF', 'G209LF', 'G217LF', 'G211LF', 'G202LF', 'ZYDUS', 'PRATI', 'GAIOLA', 'CATRACA G2', 'BEB', 'B E B', 'CHECKOUT'] },
@@ -63,18 +64,29 @@ const normalizeWarehouse = (rawWarehouse: string | null, location: string | null
     const modName = (module || '').toUpperCase();
     const idStr = (id || '').toString().trim();
 
+    // 1. REGRA DE OURO (IP): Precedência máxima para os IPs solicitados
+    if (idStr.includes('177.69.119.221')) return 'GALPÃO SP';
+    if (idStr.includes('10.0.30.65') || idStr.includes('179.108.121.85')) return 'GALPÃO LSP';
+
     const textToCheck = `${channelName} ${locName} ${modName} ${rawWarehouse}`.toUpperCase();
 
+    // 2. ORDEM DE CHECAGEM POR TEXTO (Importante: LSP deve vir antes de SP)
+    if (textToCheck.includes('LSP')) return 'GALPÃO LSP'; 
     if (textToCheck.includes('G5')) return 'GALPÃO G5';
     if (textToCheck.includes('G2')) return 'GALPÃO G2';
     if (textToCheck.includes('G3')) return 'GALPÃO G3';
-    if (textToCheck.includes('SP')) return 'GALPÃO SP';
+    
+    // Check SP de forma mais criteriosa se não for LSP
+    if (textToCheck.includes('SP-IP') || textToCheck.includes('SP0') || textToCheck.includes('SP_') || (textToCheck.includes('SP') && !textToCheck.includes('LSP'))) {
+        return 'GALPÃO SP';
+    }
+
     if (textToCheck.includes('MERITI') || textToCheck.includes('SJM')) return 'GALPÃO MERITI';
     if (textToCheck.includes('PAVUNA')) return 'GALPÃO PAVUNA';
     if (textToCheck.includes('4ELOS ES') || textToCheck.includes('4 ELOS ES')) return 'GALPÃO 4 ELOS ES';
     if (textToCheck.includes('4ELOS RJ') || textToCheck.includes('4 ELOS RJ')) return 'GALPÃO 4 ELOS RJ';
-    if (textToCheck.includes('LSP')) return 'GALPÃO LSP';
 
+    // Fallback para lista de unidades válidas se não caiu nos filtros manuais
     for (const unit of VALID_UNITS) {
         if (unit.keywords.some(k => textToCheck.includes(k))) return unit.id;
     }

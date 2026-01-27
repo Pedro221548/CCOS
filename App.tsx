@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef, useMemo } from 'react';
 import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar, Clock, RefreshCw, BookOpen, DollarSign } from 'lucide-react';
-import { Camera, AccessPoint, User, ProcessedWorker, AppNotification, ThirdPartyImport, Note, ShiftNote, ThirdPartyPayment, PaymentImport } from './types';
+import { Camera, AccessPoint, User, ProcessedWorker, AppNotification, ThirdPartyImport, Note, ShiftNote, ThirdPartyPayment, PaymentImport, Status } from './types';
 import { authService } from './services/auth';
 import { monitoringService } from './services/monitoring';
 import { organizerService } from './services/organizer';
@@ -182,6 +182,37 @@ const App: React.FC = () => {
       }
   };
 
+  const handleToggleCameraStatus = async (uuid: string) => {
+    try {
+        const result = await monitoringService.toggleCameraStatus(uuid, data.cameras);
+        if (result) {
+            addToast(`${result.name}: Status alterado para ${result.newStatus}`, "info");
+        }
+    } catch (e) {
+        addToast("Erro ao alterar status da câmera.", "alert");
+    }
+  };
+
+  const handleToggleAccessStatus = async (uuid: string) => {
+    try {
+        const result = await monitoringService.toggleAccessStatus(uuid, data.accessPoints);
+        if (result) {
+            addToast(`${result.name}: Status alterado para ${result.newStatus}`, "info");
+        }
+    } catch (e) {
+        addToast("Erro ao alterar status de acesso.", "alert");
+    }
+  };
+
+  const handleSetWarehouseStatus = async (warehouse: string, status: Status) => {
+    try {
+        await monitoringService.setWarehouseStatus(warehouse, status, data.cameras);
+        addToast(`${warehouse}: Todas as câmeras definidas como ${status}`, "success");
+    } catch (e) {
+        addToast("Erro ao alterar status do galpão.", "alert");
+    }
+  };
+
   const handleImportThirdParty = async (workers: ProcessedWorker[], fileName: string) => {
       try {
           await monitoringService.addThirdPartyImport(workers, fileName);
@@ -346,12 +377,13 @@ const App: React.FC = () => {
                         <div className="flex bg-[#020408] border border-slate-800 p-1.5 rounded-xl shadow-inner w-full overflow-x-auto no-scrollbar scroll-smooth gap-2">
                             <button onClick={() => setMonitoringSubTab('cameras')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${monitoringSubTab === 'cameras' ? 'bg-amber-600 text-slate-950 font-bold shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>CÂMERAS <span className="text-[10px] opacity-80">({counts.video})</span></button>
                             <button onClick={() => setMonitoringSubTab('alarms')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${monitoringSubTab === 'alarms' ? 'bg-[#ea580c] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>ALARMES <span className="text-[10px] opacity-80">({counts.alarm})</span></button>
+                            {/* Fix: changed monitoringSubSubTab to monitoringSubTab below */}
                             <button onClick={() => setMonitoringSubTab('access')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${monitoringSubTab === 'access' ? 'bg-amber-600 text-slate-950 font-bold shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>ACESSO <span className="text-[10px] opacity-80">({counts.access})</span></button>
                         </div>
                     </div>
-                    {monitoringSubTab === 'cameras' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'video')} onToggleStatus={() => {}} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
-                    {monitoringSubTab === 'alarms' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'alarm')} onToggleStatus={() => {}} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
-                    {monitoringSubTab === 'access' && <AccessControlList accessPoints={data.accessPoints} onToggleStatus={() => {}} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
+                    {monitoringSubTab === 'cameras' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'video')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
+                    {monitoringSubTab === 'alarms' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'alarm')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
+                    {monitoringSubTab === 'access' && <AccessControlList accessPoints={data.accessPoints} onToggleStatus={handleToggleAccessStatus} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
                   </div>
                 )}
                 {activeTab === 'third-party-mgmt' && (
