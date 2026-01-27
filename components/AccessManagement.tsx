@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { User, ProcessedWorker, AccessPoint } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
-import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, CheckSquare, Square, MessageCircle, Mail, X, ArrowUpRight, ArrowDownLeft, GripHorizontal, DoorClosed } from 'lucide-react';
+import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, CheckSquare, Square, MessageCircle, Mail, X, ArrowUpRight, ArrowDownLeft, GripHorizontal, DoorClosed, Clock, Hourglass } from 'lucide-react';
 
 interface AccessManagementProps {
     accessPoints: AccessPoint[];
@@ -31,6 +31,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
     const [expandedPersonKey, setExpandedPersonKey] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [generatedMessage, setGeneratedMessage] = useState('');
+    const [stayDuration, setStayDuration] = useState<string | null>(null);
 
     // Estados para Arraste e Responsividade
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -54,7 +55,6 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         return WAREHOUSE_LIST;
     }, [currentUser]);
 
-    // Lista dinâmica de Pontos de Acesso baseada no Galpão selecionado
     const availableAccessPoints = useMemo(() => {
         const set = new Set<string>();
         thirdPartyWorkers.forEach(w => {
@@ -65,26 +65,77 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         return Array.from(set).sort();
     }, [thirdPartyWorkers, selectedWarehouse]);
 
-    // Resetar filtro de Ponto de Acesso ao mudar o Galpão
     useEffect(() => {
         setSelectedAccessPoint('ALL');
     }, [selectedWarehouse]);
+
+    // Lógica de cálculo de Duração/Permanência
+    const calculateDuration = (records: ProcessedWorker[]) => {
+        if (records.length < 2) return null;
+        
+        // Ordenar por data e hora para pegar o primeiro e o último
+        const sorted = [...records].sort((a, b) => {
+            const dateA = new Date(`${a.date}T${a.time.length === 5 ? a.time + ':00' : a.time}`).getTime();
+            const dateB = new Date(`${b.date}T${b.time.length === 5 ? b.time + ':00' : b.time}`).getTime();
+            return dateA - dateB;
+        });
+
+        const first = sorted[0];
+        const last = sorted[sorted.length - 1];
+
+        const start = new Date(`${first.date}T${first.time.length === 5 ? first.time + ':00' : first.time}`);
+        const end = new Date(`${last.date}T${last.time.length === 5 ? last.time + ':00' : last.time}`);
+        
+        const diffMs = end.getTime() - start.getTime();
+        if (diffMs <= 0) return null;
+
+        const totalMinutes = Math.floor(diffMs / 60000);
+        const hours = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+
+        return hours > 0 ? `${hours}h ${mins}min` : `${mins}min`;
+    };
+
+    useEffect(() => {
+        if (selectedIds.size === 0) {
+            setGeneratedMessage('');
+            setStayDuration(null);
+            return;
+        }
+        
+        const selectedRecords = thirdPartyWorkers.filter(w => selectedIds.has(w.id));
+        const duration = calculateDuration(selectedRecords);
+        setStayDuration(duration);
+
+        let msg = `*RELATÓRIO DE ACESSO - PERMANÊNCIA*\n`;
+        const first = selectedRecords[0];
+        if (first) {
+            msg += `👤 Colaborador: *${first.name}*\n`;
+            msg += `🏢 Empresa: ${first.company}\n`;
+            msg += `📍 Local: ${first.unit} (${first.accessPoint})\n\n`;
+        }
+
+        selectedRecords.sort((a, b) => a.time.localeCompare(b.time)).forEach(r => {
+            const dateStr = r.date.split('-').reverse().join('/');
+            msg += `• ${r.eventType}: ${dateStr} às ${r.time}\n`;
+        });
+
+        if (duration) {
+            msg += `\n⏱️ *Tempo de Permanência: ${duration}*`;
+        }
+
+        setGeneratedMessage(msg.trim());
+    }, [selectedIds, thirdPartyWorkers]);
 
     // Posicionamento inicial Desktop
     useEffect(() => {
         if (!isMobile && selectedIds.size > 0 && pos.x === 0 && pos.y === 0) {
             setPos({ 
                 x: window.innerWidth / 2 - 350, 
-                y: window.innerHeight - 350 
+                y: window.innerHeight - 450 
             });
         }
     }, [selectedIds.size, pos.x, pos.y, isMobile]);
-
-    useEffect(() => {
-        if (selectedWarehouse !== 'ALL' && !hasWarehousePermission(allowedWarehouses, selectedWarehouse)) {
-            setSelectedWarehouse('ALL');
-        }
-    }, [allowedWarehouses, selectedWarehouse]);
 
     const filteredWorkers = useMemo(() => {
         let subset = thirdPartyWorkers;
@@ -144,44 +195,22 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         setSelectedIds(newSet);
     };
 
-    useEffect(() => {
-        if (selectedIds.size === 0) {
-            setGeneratedMessage('');
-            return;
-        }
-        const selectedRecords = thirdPartyWorkers.filter(w => selectedIds.has(w.id));
-        let msg = "";
-        selectedRecords.forEach(r => {
-            const dateStr = r.date.split('-').reverse().join('/');
-            msg += `Segue o acesso (${r.eventType}) de ${r.name} na data ${dateStr} às ${r.time}\n`;
-        });
-        setGeneratedMessage(msg.trim());
-    }, [selectedIds, thirdPartyWorkers]);
-
-    // Lógica Draggable Nativa (Desativada no Mobile)
     const onMouseDown = (e: React.MouseEvent) => {
         if (isMobile || e.button !== 0) return; 
         setIsDragging(true);
-        const box = dragBoxRef.current?.getBoundingClientRect();
-        if (box) {
-            setRel({
-                x: e.pageX - pos.x,
-                y: e.pageY - pos.y
-            });
-        }
+        setRel({
+            x: e.pageX - pos.x,
+            y: e.pageY - pos.y
+        });
         e.stopPropagation();
     };
 
     useEffect(() => {
         const onMouseMove = (e: MouseEvent) => {
             if (!isDragging || isMobile) return;
-            setPos({
-                x: e.pageX - rel.x,
-                y: e.pageY - rel.y
-            });
+            setPos({ x: e.pageX - rel.x, y: e.pageY - rel.y });
         };
         const onMouseUp = () => setIsDragging(false);
-
         if (isDragging) {
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('mouseup', onMouseUp);
@@ -194,11 +223,11 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(generatedMessage);
-        alert("Mensagem copiada!");
+        alert("Mensagem copiada para o WhatsApp!");
     };
 
     const sendEmail = () => {
-        window.open(`mailto:?subject=${encodeURIComponent("Relatório de Acessos")}&body=${encodeURIComponent(generatedMessage)}`);
+        window.open(`mailto:?subject=${encodeURIComponent("Relatório de Permanência de Acesso")}&body=${encodeURIComponent(generatedMessage)}`);
     };
 
     const getFlowBadge = (type: string) => {
@@ -225,8 +254,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                         Gestão de Acessos
                     </h2>
                     <p className="text-slate-400 text-sm mt-1">
-                        Histórico detalhado de fluxo de pessoas.
-                        {currentUser.role === 'manager' && <span className="ml-2 text-purple-400 font-bold">(Filtro: Meus Galpões)</span>}
+                        Histórico detalhado de fluxo de pessoas. Use o modo Relatório para calcular permanência.
                     </p>
                 </div>
                 
@@ -243,7 +271,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                 onClick={() => setActiveTab('report')}
                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'report' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
                             >
-                                <FileText size={14} /> Gerar Relatório
+                                <FileText size={14} /> Relatórios
                             </button>
                         </div>
                     )}
@@ -271,14 +299,14 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                     <div className="flex flex-col items-center justify-center py-20 text-center">
                         <AlertCircle size={48} className="text-amber-500 mb-4" />
                         <h3 className="text-lg font-bold text-white">Sem Acesso</h3>
-                        <p className="text-slate-400 max-w-xs">Nenhuma unidade foi vinculada ao seu perfil. Contate o administrador.</p>
+                        <p className="text-slate-400 max-w-xs">Nenhuma unidade foi vinculada ao seu perfil.</p>
                     </div>
                 ) : (
                     <div className="animate-fade-in space-y-4">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
                             <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
                                 <Users size={20} className="text-amber-500" />
-                                {activeTab === 'report' ? 'Selecione os Acessos' : 'Histórico por Pessoa'}
+                                {activeTab === 'report' ? 'Selecione entradas e saídas' : 'Histórico por Pessoa'}
                             </h3>
                             
                             <div className="flex flex-col xl:flex-row gap-3 w-full md:w-auto">
@@ -326,7 +354,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                     const isPartialSelected = allPersonIds.some(id => selectedIds.has(id)) && !isAllSelected;
 
                                     return (
-                                        <div key={person.id} className={`border rounded-lg overflow-hidden transition-all duration-300 ${activeTab === 'report' && isPartialSelected ? 'border-purple-500/50 bg-purple-500/5' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40'}`}>
+                                        <div key={person.id} className={`border rounded-lg overflow-hidden transition-all duration-300 ${activeTab === 'report' && (isAllSelected || isPartialSelected) ? 'border-purple-500/50 bg-purple-500/5' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40'}`}>
                                             <div 
                                                 className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                                 onClick={(e) => {
@@ -383,7 +411,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                                                     return (
                                                                         <tr 
                                                                             key={record.id} 
-                                                                            className={`transition-colors ${isSelected && activeTab === 'report' ? 'bg-purple-500/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'}`}
+                                                                            className={`transition-colors cursor-pointer ${isSelected && activeTab === 'report' ? 'bg-purple-500/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'}`}
                                                                             onClick={() => activeTab === 'report' && handleSelectRecord(record.id)}
                                                                         >
                                                                             {activeTab === 'report' && (
@@ -425,7 +453,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                 )}
             </div>
 
-            {/* JANELA FLUTUANTE (DESKTOP) OU BARRA FIXA (MOBILE) */}
+            {/* JANELA FLUTUANTE DE RELATÓRIO COM DURAÇÃO */}
             {activeTab === 'report' && selectedIds.size > 0 && (
                 <div 
                     ref={dragBoxRef}
@@ -443,68 +471,87 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                         zIndex: 200,
                         touchAction: 'none'
                     }}
-                    className={`bg-slate-900 border-2 border-purple-500/50 shadow-2xl overflow-hidden backdrop-blur-md transition-transform duration-200 select-none
+                    className={`bg-slate-900 border-2 border-purple-500 shadow-2xl overflow-hidden backdrop-blur-md transition-transform duration-200 select-none
                         ${!isMobile ? 'w-[90vw] md:w-[700px] rounded-2xl' : 'w-full rounded-none border-t-0 border-x-0'}
-                        ${!isMobile && isDragging ? 'scale-[1.02] shadow-purple-500/20' : 'scale-100'}
+                        ${!isMobile && isDragging ? 'scale-[1.02] shadow-purple-500/30' : 'scale-100'}
                     `}
                 >
-                    {/* Cabeçalho - Alça de Arraste apenas no Desktop */}
+                    {/* Cabeçalho */}
                     <div 
                         onMouseDown={onMouseDown}
-                        className={`bg-slate-950/80 p-3 border-b border-slate-800 flex justify-between items-center 
+                        className={`bg-slate-950/90 p-4 border-b border-slate-800 flex justify-between items-center 
                             ${!isMobile ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}
                         `}
                     >
                         <div className="flex items-center gap-3">
                             {!isMobile && (
-                                <div className="p-1.5 bg-purple-500/20 rounded-lg">
+                                <div className="p-2 bg-purple-500/20 rounded-lg">
                                     <GripHorizontal size={18} className="text-purple-400" />
                                 </div>
                             )}
-                            <h3 className="text-white font-black text-xs uppercase tracking-widest flex items-center gap-2">
-                                <FileText size={14} className="text-purple-500" /> 
-                                Visualização do Texto
-                            </h3>
+                            <div className="flex flex-col">
+                                <h3 className="text-white font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                                    <FileText size={14} className="text-purple-500" /> 
+                                    Relatório de Permanência
+                                </h3>
+                                <span className="text-[9px] text-slate-500 font-bold uppercase">{selectedIds.size} acessos selecionados</span>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <span className="text-[10px] font-black bg-purple-500/10 text-purple-400 px-2 py-1 rounded-full border border-purple-500/20 uppercase tracking-tighter">
-                                {selectedIds.size} Registros
-                            </span>
-                            <button 
-                                onClick={() => setSelectedIds(new Set())} 
-                                className="p-1 text-slate-500 hover:text-white transition-colors"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
+                        <button 
+                            onClick={() => setSelectedIds(new Set())} 
+                            className="p-2 bg-slate-800 hover:bg-rose-600 text-slate-400 hover:text-white rounded-lg transition-all"
+                        >
+                            <X size={18} />
+                        </button>
                     </div>
 
-                    <div className="p-4 md:p-6 flex flex-col gap-4">
-                        <textarea 
-                            value={generatedMessage}
-                            onChange={(e) => setGeneratedMessage(e.target.value)}
-                            className="w-full h-[100px] md:h-[120px] bg-slate-950/50 border border-slate-800 rounded-xl p-4 text-sm text-slate-200 focus:border-purple-500 focus:outline-none resize-none font-mono leading-relaxed custom-scrollbar"
-                        />
+                    <div className="p-4 md:p-6 flex flex-col gap-5">
+                        {/* Card de Duração em Destaque */}
+                        {stayDuration && (
+                            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex items-center justify-between animate-fade-in shadow-inner">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-lg">
+                                        <Hourglass size={24} className="animate-spin-slow" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-emerald-500/70 uppercase tracking-widest leading-none mb-1">Permanência Estimada</p>
+                                        <p className="text-2xl font-black text-emerald-400 leading-none">{stayDuration}</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <div className="px-3 py-1 bg-emerald-500 text-slate-950 rounded-lg text-[10px] font-black uppercase tracking-tighter">
+                                        Cálculo Ativo
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="relative">
+                            <textarea 
+                                value={generatedMessage}
+                                onChange={(e) => setGeneratedMessage(e.target.value)}
+                                className="w-full h-[120px] md:h-[150px] bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs md:text-sm text-slate-300 focus:border-purple-500 focus:outline-none resize-none font-mono leading-relaxed custom-scrollbar shadow-inner"
+                            />
+                            <div className="absolute bottom-2 right-2 p-1.5 bg-slate-900/80 rounded-md border border-slate-800">
+                                <Clock size={14} className="text-slate-600" />
+                            </div>
+                        </div>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <button 
                                 onClick={copyToClipboard}
-                                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
+                                className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[11px] tracking-widest rounded-xl flex items-center justify-center gap-2 shadow-xl shadow-emerald-900/40 transition-all active:scale-95"
                             >
-                                <MessageCircle size={18} /> Copiar WhatsApp
+                                <MessageCircle size={20} /> Copiar WhatsApp
                             </button>
                             <button 
                                 onClick={sendEmail}
-                                className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all active:scale-95"
+                                className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-[11px] tracking-widest rounded-xl flex items-center justify-center gap-2 shadow-xl shadow-blue-900/40 transition-all active:scale-95"
                             >
-                                <Mail size={18} /> Enviar E-mail
+                                <Mail size={20} /> Enviar E-mail
                             </button>
                         </div>
                     </div>
-                    
-                    {!isMobile && (
-                        <div className="h-1.5 w-full bg-gradient-to-r from-transparent via-purple-500/30 to-transparent opacity-50"></div>
-                    )}
                 </div>
             )}
         </div>
