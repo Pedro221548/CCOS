@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { User, ProcessedWorker, AccessPoint } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
-import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, CheckSquare, Square, MessageCircle, Mail, Copy, X, ArrowUpRight, ArrowDownLeft, GripHorizontal } from 'lucide-react';
+import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, CheckSquare, Square, MessageCircle, Mail, X, ArrowUpRight, ArrowDownLeft, GripHorizontal, DoorClosed } from 'lucide-react';
 
 interface AccessManagementProps {
     accessPoints: AccessPoint[];
@@ -24,6 +24,7 @@ const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehou
 const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, thirdPartyWorkers, currentUser }) => {
     const [activeTab, setActiveTab] = useState<'history' | 'report'>('history');
     const [selectedWarehouse, setSelectedWarehouse] = useState<string>('ALL');
+    const [selectedAccessPoint, setSelectedAccessPoint] = useState<string>('ALL');
     const [peopleSearch, setPeopleSearch] = useState('');
     const [dateSearch, setDateSearch] = useState(''); 
     
@@ -53,6 +54,22 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         return WAREHOUSE_LIST;
     }, [currentUser]);
 
+    // Lista dinâmica de Pontos de Acesso baseada no Galpão selecionado
+    const availableAccessPoints = useMemo(() => {
+        const set = new Set<string>();
+        thirdPartyWorkers.forEach(w => {
+            if (selectedWarehouse === 'ALL' || w.unit === selectedWarehouse) {
+                if (w.accessPoint) set.add(w.accessPoint);
+            }
+        });
+        return Array.from(set).sort();
+    }, [thirdPartyWorkers, selectedWarehouse]);
+
+    // Resetar filtro de Ponto de Acesso ao mudar o Galpão
+    useEffect(() => {
+        setSelectedAccessPoint('ALL');
+    }, [selectedWarehouse]);
+
     // Posicionamento inicial Desktop
     useEffect(() => {
         if (!isMobile && selectedIds.size > 0 && pos.x === 0 && pos.y === 0) {
@@ -77,11 +94,14 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         if (selectedWarehouse !== 'ALL') {
             subset = subset.filter(w => w.unit === selectedWarehouse);
         }
+        if (selectedAccessPoint !== 'ALL') {
+            subset = subset.filter(w => w.accessPoint === selectedAccessPoint);
+        }
         if (dateSearch) {
             subset = subset.filter(w => w.date === dateSearch);
         }
         return subset;
-    }, [thirdPartyWorkers, selectedWarehouse, dateSearch, currentUser]);
+    }, [thirdPartyWorkers, selectedWarehouse, selectedAccessPoint, dateSearch, currentUser]);
 
     const groupedPeople = useMemo(() => {
         const groups: { [key: string]: { id: string, name: string, company: string, history: ProcessedWorker[] } } = {};
@@ -129,14 +149,14 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
             setGeneratedMessage('');
             return;
         }
-        const selectedRecords = filteredWorkers.filter(w => selectedIds.has(w.id));
+        const selectedRecords = thirdPartyWorkers.filter(w => selectedIds.has(w.id));
         let msg = "";
         selectedRecords.forEach(r => {
             const dateStr = r.date.split('-').reverse().join('/');
             msg += `Segue o acesso (${r.eventType}) de ${r.name} na data ${dateStr} às ${r.time}\n`;
         });
         setGeneratedMessage(msg.trim());
-    }, [selectedIds, filteredWorkers]);
+    }, [selectedIds, thirdPartyWorkers]);
 
     // Lógica Draggable Nativa (Desativada no Mobile)
     const onMouseDown = (e: React.MouseEvent) => {
@@ -261,7 +281,20 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                 {activeTab === 'report' ? 'Selecione os Acessos' : 'Histórico por Pessoa'}
                             </h3>
                             
-                            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                            <div className="flex flex-col xl:flex-row gap-3 w-full md:w-auto">
+                                <div className="relative">
+                                    <DoorClosed className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                                    <select 
+                                        value={selectedAccessPoint}
+                                        onChange={(e) => setSelectedAccessPoint(e.target.value)}
+                                        className="w-full xl:w-48 pl-8 pr-4 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-purple-500 appearance-none cursor-pointer"
+                                    >
+                                        <option value="ALL">Todos os Pontos</option>
+                                        {availableAccessPoints.map(ap => (
+                                            <option key={ap} value={ap}>{ap}</option>
+                                        ))}
+                                    </select>
+                                </div>
                                 <div className="relative">
                                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                                     <input 
