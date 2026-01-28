@@ -2,7 +2,7 @@
 export type Status = 'ONLINE' | 'OFFLINE';
 export type ChannelType = 'video' | 'alarm';
 
-export type UserRole = 'admin' | 'viewer' | 'manager';
+export type UserRole = 'admin' | 'viewer' | 'manager' | 'provider';
 export type UserStatus = 'pending' | 'active' | 'blocked';
 
 export interface User {
@@ -16,6 +16,31 @@ export interface User {
   bannerURL?: string;
   jobTitle?: string;
   bio?: string;
+  companyName?: string; // Para o perfil de Prestador
+}
+
+export interface ServiceWorker {
+  id: string;
+  name: string;
+  cpf: string;
+  companyId: string;
+  companyName: string;
+  photoUrl: string;
+  docFrontUrl?: string; // Tornando opcional
+  docBackUrl?: string;  // Tornando opcional
+  documentUrl?: string; // Novo campo para PDF ou imagem única
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
+export interface AttendanceRoster {
+  id: string;
+  date: string;
+  workerId: string;
+  workerName: string;
+  companyName: string;
+  unit: string;
+  checkedIn?: boolean;
 }
 
 export interface AppNotification {
@@ -183,7 +208,6 @@ export interface Task {
     completionNote?: string; 
 }
 
-// Added fix for missing exports required by Chat and UserManagement components
 export type MessageType = 'text' | 'image' | 'video' | 'file' | 'audio' | 'location';
 
 export interface ChatMessage {

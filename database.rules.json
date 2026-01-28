@@ -14,17 +14,30 @@
 
     "messages": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      ".indexOn": ["senderId", "status", "timestamp"]
     },
 
     "private_messages": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      "$chatId": {
+        ".indexOn": ["status", "timestamp", "senderId"]
+      }
     },
 
     "tasks": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      ".indexOn": ["assignedToId", "status", "createdAt"]
+    },
+
+    "notifications": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$uid": {
+        ".indexOn": ["timestamp"]
+      }
     },
 
     "email_pendencies": {
@@ -34,7 +47,16 @@
 
     "monitoramento": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      "feedbacks": {
+        ".indexOn": ["timestamp", "userId"]
+      },
+      "service_workers": {
+        ".indexOn": ["companyId", "cpf", "companyName"]
+      },
+      "attendance_roster": {
+        ".indexOn": ["date", "workerId", "companyName"]
+      }
     }
   }
 }

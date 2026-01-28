@@ -1,802 +1,751 @@
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Camera, AccessPoint, PublicDocument, UserRole } from '../types';
-import { CheckCircle2, Camera as CameraIcon, Upload, Image as ImageIcon, X, List, FileText, Search, CheckSquare, Trash2, ClipboardList, Loader2, Scan, Wand2, Plus, Calendar, ShieldAlert, Building2, AlertTriangle, Clock, Sparkles, User as UserIcon, Briefcase, Warehouse, Copy, ShieldCheck } from 'lucide-react';
-import { ref, push, onValue, update, remove, off } from 'firebase/database';
-import { db } from '../services/firebase';
-import { monitoringService } from '../services/monitoring';
-import { GoogleGenAI, Type } from "@google/genai";
+import React, { useState, useEffect, useMemo } from 'react';
+import { User, ServiceWorker, AttendanceRoster } from '../types';
+import { 
+    Users, UserPlus, Calendar, ShieldCheck, FileText, Camera as CameraIcon, 
+    Upload, X, CheckCircle2, AlertTriangle, Shield, Smartphone, 
+    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2 as LoaderIcon, Copy, ImageIcon, Check
+} from 'lucide-react';
+import { ref, push, onValue, set, remove, update } from 'firebase/database';
+import { auth, db } from '../services/firebase';
+import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { WAREHOUSE_LIST } from '../constants';
 
 interface RegistrationProps {
-  onAddCamera: (cam: Camera) => void;
-  onAddAccess: (ap: AccessPoint) => void;
-  onAddDocument: (doc: PublicDocument) => void;
-  onDeleteDocument: (uuid: string) => void;
-  documents?: PublicDocument[];
-  userRole?: UserRole;
+  currentUser: User;
 }
 
-const OCR_SPACE_KEY = "K89510033988957";
+const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
+    const isAdmin = currentUser.role === 'admin' || currentUser.role === 'manager';
+    const isProvider = currentUser.role === 'provider';
 
-const COMPANIES = ['MULT', 'MPI', 'PRIMUS', 'MJM', 'B11', 'FORMA', 'SUPERA LOG', 'GMILL', 'BSB'];
+    const [activeTab, setActiveTab] = useState<'roster' | 'team' | 'admin_view'>(isProvider ? 'roster' : 'admin_view');
+    const [workers, setWorkers] = useState<ServiceWorker[]>([]);
+    const [dailyRoster, setDailyRoster] = useState<AttendanceRoster[]>([]);
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('TODOS');
+    
+    // Multi-seleção para Escala
+    const [selectedWorkerIds, setSelectedWorkerIds] = useState<Set<string>>(new Set());
+    const [targetUnit, setTargetUnit] = useState<string>(WAREHOUSE_LIST[0]);
 
-const WAREHOUSE_RESPONSIBLE: { [key: string]: string } = {
-    'GALPÃO G2': 'ROBSON DIAS BRITO',
-    'GALPÃO G3': 'EDNEI RODRIGUES SOARES',
-    'GALPÃO G5': 'MOACIR ANDRADE NUNES',
-    'GALPÃO SP': 'JOSENIAS SANTOS NASCIMENTO',
-    'GALPÃO PAVUNA': 'MAURO BAPTISTA CERQUEIRA',
-    'GALPÃO 4 ELOS ES': 'SILVIA SANTOS',
-    'GALPÃO 4 ELOS RJ': 'DANIEL CESAR MACHADO',
-    'GALPÃO LSP': 'MAURO BAPTISTA CERQUEIRA',
-    'GALPÃO MERITI': 'MAURO BAPTISTA CERQUEIRA'
-};
+    // Form States
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+    const [documentData, setDocumentData] = useState<{ url: string, name: string } | null>(null);
+    const [formData, setFormData] = useState({ name: '', cpf: '' });
 
-// Validação oficial de CPF
-const validateCPF = (cpf: string): boolean => {
-    const cleanCPF = cpf.replace(/\D/g, '');
-    if (cleanCPF.length !== 11) return false;
-    if (/^(\d)\1{10}$/.test(cleanCPF)) return false;
-    let sum = 0;
-    let remainder;
-    for (let i = 1; i <= 9; i++) sum = sum + parseInt(cleanCPF.substring(i - 1, i)) * (11 - i);
-    remainder = (sum * 10) % 11;
-    if ((remainder === 10) || (remainder === 11)) remainder = 0;
-    if (remainder !== parseInt(cleanCPF.substring(9, 10))) return false;
-    sum = 0;
-    for (let i = 1; i <= 10; i++) sum = sum + parseInt(cleanCPF.substring(i - 1, i)) * (12 - i);
-    remainder = (sum * 10) % 11;
-    if ((remainder === 10) || (remainder === 11)) remainder = 0;
-    if (remainder !== parseInt(cleanCPF.substring(10, 11))) return false;
-    return true;
-};
+    // Segurança e Download
+    const [showVerifyModal, setShowVerifyModal] = useState(false);
+    const [verifyPassword, setVerifyPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [verifying, setVerifying] = useState(false);
+    const [targetWorker, setTargetWorker] = useState<ServiceWorker | null>(null);
+    const [batchDownloadMode, setBatchDownloadMode] = useState(false);
+    const [errorVerify, setErrorVerify] = useState('');
+    const [copySuccess, setCopySuccess] = useState(false);
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-const formatNameNormal = (name: string) => {
-    if (!name) return "";
-    return name
-        .toLowerCase()
-        .trim()
-        .split(/\s+/)
-        .filter(word => word.length > 0)
-        .map(word => {
-            const prepositions = ['de', 'da', 'do', 'dos', 'das', 'e'];
-            if (prepositions.includes(word)) return word;
-            return word.charAt(0).toUpperCase() + word.slice(1);
-        })
-        .join(' ');
-};
+    // Exclusão Segura
+    const [deleteConfig, setDeleteConfig] = useState<{ id: string, type: 'roster' | 'worker', name: string } | null>(null);
 
-const Registration: React.FC<RegistrationProps> = ({ userRole = 'viewer', documents = [] }) => {
-  const [activeTab, setActiveTab] = useState<'ocr' | 'documents'>('ocr');
-  const [successMsg, setSuccessMsg] = useState('');
-  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
-  const [isProcessingAI, setIsProcessingAI] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [showCamera, setShowCamera] = useState(false);
-  
-  // Estados para metadados (Painel de Cópia Rápida - Não salvos no DB)
-  const [ocrWarehouse, setOcrWarehouse] = useState('');
-  const [ocrOperatorName, setOcrOperatorName] = useState('');
-  const [ocrCompany, setOcrCompany] = useState('');
-
-  // Responsável Automático
-  const currentResponsible = useMemo(() => WAREHOUSE_RESPONSIBLE[ocrWarehouse] || '', [ocrWarehouse]);
-
-  // Campo calculado para Empresa/Operador (ex: PEDRO-MULT)
-  const ocrOperatorComposite = useMemo(() => {
-    if (!ocrOperatorName) return ocrCompany;
-    if (!ocrCompany) return ocrOperatorName.toUpperCase();
-    return `${ocrOperatorName.toUpperCase()}-${ocrCompany}`;
-  }, [ocrOperatorName, ocrCompany]);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  const [rawText, setRawText] = useState('');
-  const [processedPeople, setProcessedPeople] = useState<any[]>([]);
-  const [listSearch, setListSearch] = useState('');
-
-  // Estados para Documentos
-  const [docForm, setDocForm] = useState({ name: '', organ: '', expirationDate: '' });
-  const [isAddingDoc, setIsAddingDoc] = useState(false);
-
-  useEffect(() => {
-    const regRef = ref(db, 'monitoramento/cadastros_ocr');
-    const unsub = onValue(regRef, (snapshot) => {
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-            setProcessedPeople(list);
-        } else {
-            setProcessedPeople([]);
-        }
-    });
-    return () => off(regRef);
-  }, []);
-
-  // --- GEMINI AI REFINEMENT ---
-  const handleAIRefinement = async () => {
-    if (!rawText.trim()) return;
-    setIsProcessingAI(true);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Analise o seguinte texto bruto extraído de um documento de identificação (RG/CNH) via OCR. 
-        Extraia o nome completo e o CPF de cada pessoa encontrada.
-        Retorne os dados em uma lista de objetos JSON contendo "name" e "cpf".
-        Texto: ${rawText}`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                name: { type: Type.STRING },
-                cpf: { type: Type.STRING }
-              },
-              required: ["name", "cpf"]
-            }
-          }
-        }
-      });
-
-      const structuredData = JSON.parse(response.text || '[]');
-      let count = 0;
-      for (const item of structuredData) {
-        const cpfClean = item.cpf.replace(/\D/g, '');
-        if (cpfClean.length === 11 && validateCPF(cpfClean)) {
-            const cpfFormatted = `${cpfClean.slice(0,3)}.${cpfClean.slice(3,6)}.${cpfClean.slice(6,9)}-${cpfClean.slice(9,11)}`;
-            await push(ref(db, 'monitoramento/cadastros_ocr'), {
-                name: formatNameNormal(item.name),
-                cpf: cpfFormatted,
-                done: false,
-                timestamp: new Date().toISOString()
-            });
-            count++;
-        }
-      }
-      setSuccessMsg(`IA processou ${count} registros com sucesso!`);
-      setRawText('');
-    } catch (error) {
-      console.error("AI Error:", error);
-      alert("Falha no processamento inteligente. Verifique o texto bruto.");
-    } finally {
-      setIsProcessingAI(false);
-      setTimeout(() => setSuccessMsg(''), 3000);
-    }
-  };
-
-  // --- HANDLERS DOCUMENTOS ---
-  const handleAddDoc = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!docForm.name || !docForm.organ || !docForm.expirationDate) return;
-      
-      setIsAddingDoc(true);
-      try {
-          const newDoc: PublicDocument = {
-              uuid: `doc-${Date.now()}`,
-              name: docForm.name.toUpperCase(),
-              organ: docForm.organ.toUpperCase(),
-              expirationDate: docForm.expirationDate
-          };
-          await monitoringService.addDocument(newDoc, documents);
-          setDocForm({ name: '', organ: '', expirationDate: '' });
-          setSuccessMsg("Documento cadastrado com sucesso!");
-          setTimeout(() => setSuccessMsg(''), 3000);
-      } catch (e) {
-          alert("Erro ao cadastrar documento.");
-      } finally {
-          setIsAddingDoc(false);
-      }
-  };
-
-  const handleDeleteDoc = async (uuid: string) => {
-      if (window.confirm("Deseja remover este documento do monitoramento?")) {
-          await monitoringService.deleteDocument(uuid, documents);
-      }
-  };
-
-  const getDocStatus = (expirationDate: string) => {
-      const today = new Date();
-      const exp = new Date(expirationDate);
-      const diffTime = exp.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays < 0) return { label: 'EXPIRADO', color: 'text-rose-500 bg-rose-500/10 border-rose-500/20' };
-      if (diffDays <= 30) return { label: 'ALERTA', color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' };
-      return { label: 'VÁLIDO', color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' };
-  };
-
-  // --- HANDLERS OCR ---
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (evt) => setSelectedImage(evt.target?.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const startCamera = async () => {
-    setShowCamera(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      if (videoRef.current) videoRef.current.srcObject = stream;
-    } catch (err) { alert("Câmera indisponível."); setShowCamera(false); }
-  };
-
-  const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const context = canvasRef.current.getContext('2d');
-      if (context) {
-        context.drawImage(videoRef.current, 0, 0, 640, 480);
-        setSelectedImage(canvasRef.current.toDataURL('image/png'));
-        stopCamera();
-      }
-    }
-  };
-
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
-    setShowCamera(false);
-  };
-
-  const handleStartOCR = async () => {
-      if (!selectedImage) return;
-      setIsProcessingOCR(true);
-      try {
-          const formData = new FormData();
-          formData.append("base64image", selectedImage);
-          formData.append("apikey", OCR_SPACE_KEY);
-          formData.append("language", "por");
-          const response = await fetch("https://api.ocr.space/parse/image", { method: "POST", body: formData });
-          const result = await response.json();
-          if (result.OCRExitCode === 1) {
-              setRawText(result.ParsedResults[0].ParsedText);
-              setSuccessMsg("Texto extraído com sucesso!");
-          } else {
-              throw new Error(result.ErrorMessage || "Erro OCR.");
-          }
-      } catch (e: any) {
-          alert(`Erro: ${e.message}`);
-      } finally {
-          setIsProcessingOCR(false);
-          setTimeout(() => setSuccessMsg(''), 3000);
-      }
-  };
-
-  const handleOrganizeRecords = async () => {
-      if (!rawText.trim()) return;
-      const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 2);
-      const cpfRegex = /(\d{3}\.?\d{3}\.?\d{3}-?\d{2})|(\d{11})/;
-      let count = 0;
-
-      for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          const cpfMatch = line.match(cpfRegex);
-          
-          if (cpfMatch) {
-              const cpfRaw = cpfMatch[0];
-              const cpfClean = cpfRaw.replace(/\D/g, '');
-              
-              if (!validateCPF(cpfClean)) continue;
-
-              const cpfFormatted = `${cpfClean.slice(0,3)}.${cpfClean.slice(3,6)}.${cpfClean.slice(6,9)}-${cpfClean.slice(9,11)}`;
-              let namePart = line.replace(cpfRaw, '').replace(/[^a-zA-Z\sà-úÀ-Ú]/g, '').trim();
-              
-              if (namePart.length < 3 && i > 0) {
-                  namePart = lines[i - 1].replace(/[^a-zA-Z\sà-úÀ-Ú]/g, '').trim();
-              }
-
-              if (namePart.length > 3) {
-                  await push(ref(db, 'monitoramento/cadastros_ocr'), {
-                      name: formatNameNormal(namePart),
-                      cpf: cpfFormatted,
-                      done: false,
-                      timestamp: new Date().toISOString()
-                  });
-                  count++;
-              }
-          }
-      }
-
-      if (count > 0) {
-          setSuccessMsg(`${count} registro(s) salvo(s)`);
-          setRawText('');
-          setSelectedImage(null);
-      } else {
-          setSuccessMsg("Nenhum registro válido encontrado");
-      }
-      setTimeout(() => setSuccessMsg(''), 3000);
-  };
-
-  const toggleDone = async (id: string, currentStatus: boolean) => {
-      await update(ref(db, `monitoramento/cadastros_ocr/${id}`), { done: !currentStatus });
-  };
-
-  const deleteRecord = async (id: string) => {
-      if (window.confirm("Remover este cadastro?")) {
-          await remove(ref(db, `monitoramento/cadastros_ocr/${id}`));
-      }
-  };
-
-  const copyToClipboard = (text: string) => {
-      if (!text) return;
-      navigator.clipboard.writeText(text);
-      setSuccessMsg('Copiado!');
-      setTimeout(() => setSuccessMsg(''), 1500);
-  };
-
-  const filteredPeople = useMemo(() => {
-    return processedPeople
-        .filter(p => p.name.toLowerCase().includes(listSearch.toLowerCase()))
-        .sort((a, b) => (a.done === b.done ? 0 : a.done ? 1 : -1));
-  }, [processedPeople, listSearch]);
-
-  return (
-    <div className="max-w-6xl mx-auto animate-fade-in space-y-6 pb-20 px-4 sm:px-0">
-      
-      {/* HEADER INTEGRADO */}
-      <div className="bg-[#0f172a] border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6">
-        <div className="flex items-center gap-5">
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-inner">
-            <ClipboardList size={32} className="text-amber-500" />
-          </div>
-          <div className="flex flex-col">
-            <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">CENTRAL CADASTRO</h2>
-            <div className="h-1 w-20 bg-amber-500 rounded-full mt-1"></div>
-          </div>
-        </div>
-
-        <div className="bg-slate-950/50 p-1.5 rounded-2xl border border-slate-800 flex gap-2">
-            <button 
-                onClick={() => setActiveTab('ocr')}
-                className={`px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'ocr' ? 'bg-slate-800 text-white shadow-xl border border-slate-700' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-                LISTAS OCR
-            </button>
-            <button 
-                onClick={() => setActiveTab('documents')}
-                className={`px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'documents' ? 'bg-slate-800 text-white shadow-xl border border-slate-700' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-                DOCUMENTOS
-            </button>
-        </div>
-      </div>
-
-      {successMsg && (
-          <div className="bg-emerald-600 border border-emerald-500 text-white p-4 rounded-xl flex items-center gap-3 animate-fade-in shadow-xl sticky top-4 z-50">
-              <CheckCircle2 size={24} /> <span className="font-bold text-xs uppercase tracking-widest">{successMsg}</span>
-          </div>
-      )}
-
-      {/* CONTEÚDO ABAS */}
-      {activeTab === 'ocr' ? (
-        <div className="space-y-6">
-            {/* 1. CAPTURA DE FICHA */}
-            <div className="bg-[#0d1117] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl relative">
-                <div className="bg-slate-900/40 px-8 py-5 border-b border-slate-800 flex items-center gap-3">
-                    <div className="p-1.5 bg-amber-500/10 rounded-lg">
-                        <Scan size={20} className="text-amber-500" />
-                    </div>
-                    <h3 className="text-xs font-black text-slate-300 uppercase tracking-[0.3em]">1. CAPTURA DE FICHA</h3>
-                </div>
+    useEffect(() => {
+        // Listener de Colaboradores
+        const workersRef = ref(db, 'monitoramento/service_workers');
+        const unsubWorkers = onValue(workersRef, (snap) => {
+            if (snap.exists()) {
+                const data = snap.val();
+                let list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
                 
-                <div className="p-8 flex flex-col lg:flex-row gap-12 items-center">
-                    <div className="w-full lg:w-2/5">
-                        <div className="w-full aspect-[4/3] bg-slate-950 rounded-3xl border-2 border-dashed border-slate-700 relative overflow-hidden flex items-center justify-center group shadow-inner">
-                            {selectedImage ? (
+                // PRIVACIDADE: Fornecedor só vê quem ele cadastrou
+                if (isProvider) {
+                    list = list.filter(w => w.companyId === currentUser.uid);
+                }
+                
+                setWorkers(list);
+            } else setWorkers([]);
+        });
+
+        // Listener de Escala (Attendance)
+        const rosterRef = ref(db, 'monitoramento/attendance_roster');
+        const unsubRoster = onValue(rosterRef, (snap) => {
+            if (snap.exists()) {
+                const data = snap.val();
+                let list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
+                
+                // PRIVACIDADE: Fornecedor só vê a escala da sua empresa
+                if (isProvider) {
+                    list = list.filter(r => r.companyName === currentUser.companyName);
+                }
+
+                setDailyRoster(list);
+            } else setDailyRoster([]);
+        });
+
+        return () => { unsubWorkers(); unsubRoster(); };
+    }, [currentUser.uid, currentUser.companyName, isProvider]);
+
+    const handleSaveWorker = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!photoPreview) { alert("A foto de perfil é obrigatória."); return; }
+        if (!documentData) { alert("O documento (PDF ou Imagem) é obrigatório."); return; }
+        
+        setIsSaving(true);
+        try {
+            // Garante que o cadastro seja vinculado à empresa do fornecedor logado
+            const finalCompanyName = currentUser.companyName || "NÃO IDENTIFICADO";
+            const newWorkerRef = push(ref(db, 'monitoramento/service_workers'));
+            await set(newWorkerRef, {
+                name: formData.name.toUpperCase(),
+                cpf: formData.cpf,
+                companyId: currentUser.uid,
+                companyName: finalCompanyName.toUpperCase(),
+                photoUrl: photoPreview,
+                documentUrl: documentData.url,
+                status: 'pending',
+                createdAt: new Date().toISOString()
+            });
+            setShowAddModal(false);
+            setPhotoPreview(null);
+            setDocumentData(null);
+            setFormData({ name: '', cpf: '' });
+        } catch (e) { alert("Erro ao salvar."); } finally { setIsSaving(false); }
+    };
+
+    const startDownloadProcess = (workerId: string) => {
+        const worker = workers.find(w => w.id === workerId);
+        if (worker) {
+            setTargetWorker(worker);
+            setBatchDownloadMode(false);
+            setShowVerifyModal(true);
+            setVerifyPassword('');
+            setErrorVerify('');
+        }
+    };
+
+    const startBatchPhotoDownload = () => {
+        if (confirmedTodayFiltered.length === 0) return;
+        setBatchDownloadMode(true);
+        setTargetWorker(null);
+        setShowVerifyModal(true);
+        setVerifyPassword('');
+        setErrorVerify('');
+    };
+
+    const triggerFileDownload = async (url: string, filename: string) => {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(blobUrl);
+            document.body.removeChild(a);
+        } catch (e) {
+            console.error("Erro no download de " + filename);
+        }
+    };
+
+    const handleVerifyAndAction = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!auth.currentUser) return;
+
+        setVerifying(true);
+        setErrorVerify('');
+
+        try {
+            const credential = EmailAuthProvider.credential(auth.currentUser.email!, verifyPassword);
+            await reauthenticateWithCredential(auth.currentUser, credential);
+            
+            if (batchDownloadMode) {
+                for (const roster of confirmedTodayFiltered) {
+                    const worker = workers.find(w => w.id === roster.workerId);
+                    if (worker?.photoUrl) {
+                        await triggerFileDownload(
+                            worker.photoUrl, 
+                            `FOTO_${worker.name.replace(/\s+/g, '_')}.jpg`
+                        );
+                        await new Promise(r => setTimeout(r, 400));
+                    }
+                }
+            } else if (targetWorker) {
+                const fileUrl = targetWorker.documentUrl;
+                if (!fileUrl) throw new Error("Documento não encontrado.");
+
+                let ext = 'pdf';
+                if (fileUrl.includes('data:image/png')) ext = 'png';
+                else if (fileUrl.includes('data:image/jpeg')) ext = 'jpg';
+                
+                await triggerFileDownload(
+                    fileUrl, 
+                    `DOCUMENTO_${targetWorker.name.replace(/\s+/g, '_')}.${ext}`
+                );
+            }
+
+            setShowVerifyModal(false);
+            setTargetWorker(null);
+            setBatchDownloadMode(false);
+        } catch (err: any) {
+            setErrorVerify("Senha incorreta ou erro na reautenticação.");
+        } finally {
+            setVerifying(false);
+        }
+    };
+
+    const handleApproveWorker = async (workerId: string, rosterId: string) => {
+        setActionLoading(rosterId);
+        try {
+            await update(ref(db, `monitoramento/service_workers/${workerId}`), {
+                status: 'approved'
+            });
+            await update(ref(db, `monitoramento/attendance_roster/${rosterId}`), {
+                checkedIn: true
+            });
+        } catch (e) {
+            alert("Erro ao liberar colaborador.");
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const toggleWorkerSelection = (id: string) => {
+        const newSet = new Set(selectedWorkerIds);
+        if (newSet.has(id)) newSet.delete(id);
+        else newSet.add(id);
+        setSelectedWorkerIds(newSet);
+    };
+
+    const handleBatchAddToRoster = async () => {
+        if (selectedWorkerIds.size === 0) return;
+        
+        const promises = Array.from(selectedWorkerIds).map(workerId => {
+            const worker = workers.find(w => w.id === workerId);
+            if (!worker) return Promise.resolve();
+
+            const alreadyIn = dailyRoster.some(r => r.workerId === workerId && r.date === selectedDate);
+            if (alreadyIn) return Promise.resolve();
+
+            const rosterRef = push(ref(db, 'monitoramento/attendance_roster'));
+            return set(rosterRef, {
+                date: selectedDate,
+                workerId: worker.id,
+                workerName: worker.name,
+                companyName: worker.companyName,
+                unit: targetUnit,
+                checkedIn: false
+            });
+        });
+
+        try {
+            await Promise.all(promises);
+            setSelectedWorkerIds(new Set());
+            setActiveTab('roster');
+        } catch (e) {
+            alert("Erro ao escalar equipe.");
+        }
+    };
+
+    const confirmDeleteAction = async () => {
+        if (!deleteConfig) return;
+        try {
+            const path = deleteConfig.type === 'roster' 
+                ? `monitoramento/attendance_roster/${deleteConfig.id}` 
+                : `monitoramento/service_workers/${deleteConfig.id}`;
+            await remove(ref(db, path));
+            setDeleteConfig(null);
+        } catch (e) {
+            alert("Erro ao excluir.");
+        }
+    };
+
+    const confirmedTodayRaw = useMemo(() => {
+        return dailyRoster.filter(r => r.date === selectedDate);
+    }, [dailyRoster, selectedDate]);
+
+    const activeCompanies = useMemo(() => {
+        const companies = new Set<string>();
+        confirmedTodayRaw.forEach(r => { if (r.companyName) companies.add(r.companyName.toUpperCase()); });
+        return Array.from(companies).sort();
+    }, [confirmedTodayRaw]);
+
+    const confirmedTodayFiltered = useMemo(() => {
+        if (selectedCompanyFilter === 'TODOS' || isProvider) return confirmedTodayRaw;
+        return confirmedTodayRaw.filter(r => r.companyName.toUpperCase() === selectedCompanyFilter);
+    }, [confirmedTodayRaw, selectedCompanyFilter, isProvider]);
+
+    const handleCopyAllVisible = () => {
+        if (confirmedTodayFiltered.length === 0) return;
+        
+        const textToCopy = confirmedTodayFiltered.map(roster => {
+            const worker = workers.find(w => w.id === roster.workerId);
+            const cpfFormatted = worker?.cpf ? worker.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : 'CPF NÃO LOCALIZADO';
+            return `${roster.workerName} - ${cpfFormatted}`;
+        }).join('\n');
+
+        navigator.clipboard.writeText(textToCopy);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+    };
+
+    return (
+        <div className="max-w-[1400px] mx-auto space-y-6 animate-fade-in pb-20 px-4 sm:px-0">
+            
+            <div className="bg-[#0f172a] border border-slate-800 rounded-[24px] p-8 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-6">
+                <div className="flex items-center gap-6 z-10">
+                    <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl shadow-inner">
+                        <Shield className="text-amber-500" size={36} strokeWidth={1.5} />
+                    </div>
+                    <div>
+                        <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Controle de Acesso</h2>
+                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
+                             <Lock size={12} className="text-slate-600" /> {isProvider ? `Gestão: ${currentUser.companyName}` : 'Gestão Centralizada de Terceirizados'}
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-4 z-10">
+                    {isProvider && (
+                        <div className="flex gap-2">
+                            <button onClick={() => setActiveTab(activeTab === 'team' ? 'roster' : 'team')} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all">
+                                {activeTab === 'team' ? 'Ver Escala Diária' : 'Minha Equipe (Cadastros)'}
+                            </button>
+                            <button onClick={() => setShowAddModal(true)} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-xl shadow-blue-900/40 flex items-center gap-2">
+                                <UserPlus size={18} /> Novo Cadastro
+                            </button>
+                        </div>
+                    )}
+                    <div className="px-6 py-3 bg-slate-950/50 border border-slate-800 rounded-xl text-amber-500 font-black text-[10px] uppercase tracking-[0.2em] flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+                        {isProvider ? 'Módulo Fornecedor' : 'Painel Administrativo'}
+                    </div>
+                </div>
+            </div>
+
+            {activeTab === 'team' && isProvider ? (
+                <div className="space-y-6 animate-fade-in">
+                    <div className="bg-slate-900 border border-slate-800 rounded-[24px] p-6 shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-blue-500/10 rounded-xl text-blue-500">
+                                <Users size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-white font-black uppercase text-sm">Escala Operacional</h3>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{selectedWorkerIds.size} colaboradores selecionados</p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+                            <div className="relative w-full sm:w-64">
+                                <select 
+                                    value={targetUnit}
+                                    onChange={(e) => setTargetUnit(e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white font-bold uppercase outline-none focus:border-blue-500 appearance-none cursor-pointer"
+                                >
+                                    {WAREHOUSE_LIST.map(u => <option key={u} value={u}>{u}</option>)}
+                                </select>
+                                <Warehouse className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" size={16} />
+                            </div>
+
+                            <button 
+                                onClick={handleBatchAddToRoster}
+                                disabled={selectedWorkerIds.size === 0}
+                                className="w-full sm:w-auto px-8 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 disabled:grayscale text-white font-black rounded-xl uppercase text-xs tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-xl shadow-emerald-900/20"
+                            >
+                                <ClipboardCheck size={20} /> Confirmar Escala Hoje
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {workers.map(w => {
+                            const isSelected = selectedWorkerIds.has(w.id);
+                            return (
+                                <div 
+                                    key={w.id} 
+                                    onClick={() => toggleWorkerSelection(w.id)}
+                                    className={`relative cursor-pointer bg-slate-950 border rounded-[28px] p-5 transition-all group overflow-hidden
+                                        ${isSelected ? 'border-blue-500 bg-blue-500/5 shadow-xl shadow-blue-900/20' : 'border-slate-800 hover:border-slate-700'}
+                                    `}
+                                >
+                                    <div className="flex items-center gap-4 relative z-10">
+                                        <div className="relative">
+                                            <img src={w.photoUrl} className="w-14 h-14 rounded-2xl object-cover border-2 border-slate-800" />
+                                            <div className={`absolute -top-2 -left-2 p-1 rounded-lg border shadow-lg transition-all ${isSelected ? 'bg-blue-600 border-blue-400 scale-110' : 'bg-slate-800 border-slate-700'}`}>
+                                                {isSelected ? <CheckSquare size={16} className="text-white" /> : <Square size={16} className="text-slate-600" />}
+                                            </div>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex flex-col gap-1">
+                                                <p className="text-white font-black uppercase text-xs truncate leading-tight">{w.name}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-[9px] text-slate-600 font-mono font-bold">{w.cpf}</p>
+                                                    <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase border tracking-widest ${w.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                                                        {w.status === 'approved' ? 'CADASTRADO' : 'PENDENTE'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-1">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); startDownloadProcess(w.id); }}
+                                                className="p-2 text-slate-800 hover:text-blue-500 transition-all"
+                                                title="Baixar Documentos"
+                                            >
+                                                <Download size={18} />
+                                            </button>
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setDeleteConfig({ id: w.id, type: 'worker', name: w.name }); }}
+                                                className="p-2 text-slate-800 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {isSelected && <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 blur-3xl rounded-full"></div>}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            ) : (
+                <>
+                    <div className="bg-slate-900 border border-slate-800 rounded-[20px] p-5 shadow-xl flex flex-col md:flex-row items-center gap-6 animate-fade-in">
+                        <div className="bg-slate-950 p-2 rounded-2xl border border-slate-800 flex items-center gap-4 flex-1 w-full md:w-auto pr-6">
+                            <div className="p-3 bg-amber-500/10 rounded-xl text-amber-500">
+                                <Calendar size={22} />
+                            </div>
+                            <input 
+                                type="date" 
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                className="bg-transparent border-none text-white font-black text-sm uppercase outline-none flex-1 [color-scheme:dark] cursor-pointer font-bold" 
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-12 px-4">
+                            <div className="text-center md:text-right">
+                                <span className="block text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Escalados Hoje</span>
+                                <span className="block text-4xl font-black text-amber-500 tabular-nums">{confirmedTodayRaw.length}</span>
+                            </div>
+                            {!isProvider && (
                                 <>
-                                    <img src={selectedImage} alt="Preview" className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105" />
-                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity backdrop-blur-sm">
-                                        <button onClick={() => setSelectedImage(null)} className="p-4 bg-rose-600 hover:bg-rose-500 text-white rounded-full shadow-2xl transform transition-transform hover:scale-110 active:scale-95"><X size={32} /></button>
+                                    <div className="h-10 w-px bg-slate-800"></div>
+                                    <div className="text-center md:text-right">
+                                        <span className="block text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Empresas Ativas</span>
+                                        <span className="block text-4xl font-black text-blue-500 tabular-nums">{activeCompanies.length}</span>
                                     </div>
                                 </>
-                            ) : (
-                                <div className="flex flex-col items-center gap-4 opacity-30 text-slate-500">
-                                    <div className="p-6 bg-slate-900 rounded-full border border-slate-800">
-                                        <ImageIcon size={64} strokeWidth={1} />
-                                    </div>
-                                    <span className="text-[10px] font-black uppercase tracking-[0.4em]">AGUARDANDO IMAGEM</span>
-                                </div>
-                            )}
-                            {showCamera && (
-                                <div className="absolute inset-0 bg-black z-30 flex flex-col">
-                                    <video ref={videoRef} autoPlay playsInline className="flex-1 w-full h-full object-cover" />
-                                    <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-6">
-                                        <button onClick={stopCamera} className="p-4 bg-rose-600 rounded-full text-white shadow-xl"><X size={24}/></button>
-                                        <button onClick={capturePhoto} className="p-4 bg-emerald-600 rounded-full text-white px-10 text-xs font-black uppercase tracking-widest shadow-xl">Capturar</button>
-                                    </div>
-                                </div>
                             )}
                         </div>
                     </div>
 
-                    <div className="flex-1 w-full flex flex-col gap-6">
-                        <div className="grid grid-cols-2 gap-6">
-                            <button onClick={startCamera} className="flex flex-col items-center justify-center gap-4 p-10 bg-slate-900/50 hover:bg-slate-800 border border-slate-800 rounded-3xl text-slate-300 transition-all hover:border-amber-500/50 group shadow-xl active:scale-95">
-                                <div className="p-4 bg-amber-500/10 rounded-2xl group-hover:bg-amber-500/20 transition-colors">
-                                    <CameraIcon size={40} className="text-amber-500" />
-                                </div>
-                                <span className="text-xs font-black uppercase tracking-[0.2em]">CÂMERA</span>
-                            </button>
-                            <button onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center gap-4 p-10 bg-slate-900/50 hover:bg-slate-800 border border-slate-800 rounded-3xl text-slate-300 transition-all hover:border-blue-500/50 group shadow-xl active:scale-95">
-                                <div className="p-4 bg-blue-500/10 rounded-2xl group-hover:bg-blue-500/20 transition-colors">
-                                    <Upload size={40} className="text-blue-500" />
-                                </div>
-                                <span className="text-xs font-black uppercase tracking-[0.2em]">ARQUIVO</span>
-                            </button>
-                            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileSelect} />
-                        </div>
-                        
-                        <button 
-                            onClick={handleStartOCR} 
-                            disabled={isProcessingOCR || !selectedImage} 
-                            className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-4 disabled:opacity-20 shadow-2xl shadow-blue-900/40 transition-all active:scale-95"
-                        >
-                            {isProcessingOCR ? <Loader2 className="animate-spin" size={24} /> : <Scan size={24} />} 
-                            INICIAR PROCESSAMENTO OCR
-                        </button>
-                    </div>
-                </div>
-            </div>
+                    {!isProvider && (
+                        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
+                            <div className="flex items-center gap-2 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800 shadow-inner">
+                                <button 
+                                    onClick={() => setSelectedCompanyFilter('TODOS')}
+                                    className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2
+                                        ${selectedCompanyFilter === 'TODOS' ? 'bg-slate-800 text-white shadow-lg border border-slate-700' : 'text-slate-600 hover:text-slate-400'}
+                                    `}
+                                >
+                                    <LayoutGrid size={14} /> TODOS
+                                </button>
+                                
+                                <div className="w-px h-4 bg-slate-800 mx-2"></div>
 
-            {/* 2. REVISÃO - PAINEL DE CÓPIA RÁPIDA (Não salvo no banco) */}
-            <div className="bg-[#0b0e14] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl animate-fade-in relative p-8">
-                {/* Metadados: 4 colunas - Apenas UI Helper */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    {/* COLUNA 1: GALPÃO */}
-                    <div className="space-y-4">
-                        <label className="text-xs font-black text-[#facc15] text-center w-full block uppercase tracking-widest">
-                            Galpão:
-                        </label>
-                        <div className="space-y-3">
-                            <select 
-                                value={ocrWarehouse}
-                                onChange={e => setOcrWarehouse(e.target.value)}
-                                className="w-full h-[54px] bg-[#1a1c24] border border-slate-700 rounded-xl px-5 text-sm text-white font-bold focus:border-amber-500 outline-none transition-all appearance-none cursor-pointer"
-                            >
-                                <option value="">Selecione...</option>
-                                {WAREHOUSE_LIST.map(wh => <option key={wh} value={wh}>{wh}</option>)}
-                            </select>
-                            <button 
-                                onClick={() => copyToClipboard(ocrWarehouse)}
-                                disabled={!ocrWarehouse}
-                                className="w-full py-3 bg-[#1a1c24] hover:bg-[#252833] text-[#facc15] font-black rounded-xl uppercase text-[11px] tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-20"
-                            >
-                                Copiar
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* COLUNA 2: EMPRESA/OPERADOR */}
-                    <div className="space-y-4">
-                        <label className="text-xs font-black text-[#facc15] text-center w-full block uppercase tracking-widest">
-                            Empresa/Operador:
-                        </label>
-                        <div className="space-y-3">
-                            <div className="relative">
-                                <input 
-                                    placeholder="Nome do Operador..."
-                                    value={ocrOperatorName}
-                                    onChange={e => setOcrOperatorName(e.target.value)}
-                                    className="w-full h-[54px] bg-[#1a1c24] border border-slate-700 rounded-xl px-5 text-sm text-white font-bold focus:border-amber-500 outline-none transition-all placeholder-slate-600"
-                                />
-                                {ocrOperatorComposite && (
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-amber-500/50 uppercase">
-                                        {ocrOperatorComposite}
-                                    </div>
-                                )}
-                            </div>
-                            <button 
-                                onClick={() => copyToClipboard(ocrOperatorComposite)}
-                                disabled={!ocrOperatorComposite}
-                                className="w-full py-3 bg-[#1a1c24] hover:bg-[#252833] text-[#facc15] font-black rounded-xl uppercase text-[11px] tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-20"
-                            >
-                                Copiar
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* COLUNA 3: EMPRESA */}
-                    <div className="space-y-4">
-                        <label className="text-xs font-black text-[#facc15] text-center w-full block uppercase tracking-widest">
-                            Empresa:
-                        </label>
-                        <div className="space-y-3">
-                            <select 
-                                value={ocrCompany}
-                                onChange={e => setOcrCompany(e.target.value)}
-                                className="w-full h-[54px] bg-[#1a1c24] border border-slate-700 rounded-xl px-5 text-sm text-white font-bold focus:border-amber-500 outline-none transition-all appearance-none cursor-pointer"
-                            >
-                                <option value="">Empresa Parceira...</option>
-                                {COMPANIES.map(comp => <option key={comp} value={comp}>{comp}</option>)}
-                            </select>
-                            <button 
-                                onClick={() => copyToClipboard(ocrCompany)}
-                                disabled={!ocrCompany}
-                                className="w-full py-3 bg-[#1a1c24] hover:bg-[#252833] text-[#facc15] font-black rounded-xl uppercase text-[11px] tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-20"
-                            >
-                                Copiar
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* COLUNA 4: RESPONSÁVEL (Automático) */}
-                    <div className="space-y-4">
-                        <label className="text-xs font-black text-[#facc15] text-center w-full block uppercase tracking-widest">
-                            Responsável:
-                        </label>
-                        <div className="space-y-3">
-                            <div className="w-full h-[54px] bg-[#1a1c24]/50 border border-slate-700/50 rounded-xl px-5 flex items-center justify-center text-sm text-slate-300 font-black uppercase tracking-tight overflow-hidden text-center">
-                                {currentResponsible || '---'}
-                            </div>
-                            <button 
-                                onClick={() => copyToClipboard(currentResponsible)}
-                                disabled={!currentResponsible}
-                                className="w-full py-3 bg-[#1a1c24] hover:bg-[#252833] text-[#facc15] font-black rounded-xl uppercase text-[11px] tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-20"
-                            >
-                                Copiar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ÁREA DE TEXTO BRUTO */}
-                <div className="bg-slate-900/40 p-1 rounded-2xl border border-slate-800 shadow-inner">
-                    <div className="bg-slate-950/40 px-8 py-4 border-b border-slate-800 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <FileText size={18} className="text-amber-500" />
-                            <h3 className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em]">2. TEXTO BRUTO</h3>
-                        </div>
-                        {rawText && (
-                            <button 
-                                onClick={handleAIRefinement}
-                                disabled={isProcessingAI}
-                                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:opacity-50"
-                            >
-                                {isProcessingAI ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                                Refinar com Inteligência Artificial
-                            </button>
-                        )}
-                    </div>
-                    <div className="p-6 space-y-6">
-                        <textarea 
-                            value={rawText}
-                            onChange={(e) => setRawText(e.target.value)}
-                            placeholder="O texto extraído do OCR aparecerá aqui..."
-                            className="w-full bg-[#020408] border border-slate-800 rounded-2xl p-6 text-slate-300 text-sm font-mono focus:border-amber-500 outline-none h-40 resize-none leading-relaxed shadow-inner"
-                        />
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <button 
-                                onClick={handleOrganizeRecords}
-                                disabled={!rawText.trim()}
-                                className="py-4 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-amber-500 font-black rounded-2xl uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-3 transition-all disabled:opacity-30"
-                            >
-                                <Wand2 size={16} /> ORGANIZAR REGISTROS (REGEX)
-                            </button>
-                            <button 
-                                onClick={() => {
-                                    setRawText('');
-                                    setOcrWarehouse('');
-                                    setOcrOperatorName('');
-                                    setOcrCompany('');
-                                }}
-                                disabled={!rawText.trim() && !ocrWarehouse && !ocrOperatorName && !ocrCompany}
-                                className="py-4 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-500 font-black rounded-2xl uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-3 transition-all disabled:opacity-30"
-                            >
-                                <X size={16} /> LIMPAR ÁREA
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* 3. LISTA DE REGISTROS */}
-            <div className="bg-[#0d1117] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-                <div className="px-8 py-5 border-b border-slate-800 bg-slate-900/20 flex flex-col sm:flex-row justify-between items-center gap-6">
-                    <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] flex items-center gap-3"><List size={22} className="text-amber-500" /> REGISTROS PROCESSADOS</h3>
-                    <div className="relative w-full sm:w-auto">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-                        <input 
-                            type="text" 
-                            value={listSearch} 
-                            onChange={e => setListSearch(e.target.value)} 
-                            placeholder="PESQUISAR CADASTROS..." 
-                            className="w-full sm:w-80 pl-12 pr-6 py-3 bg-slate-950 border border-slate-700 rounded-2xl text-white text-xs font-bold focus:outline-none focus:border-amber-500 transition-colors tracking-widest placeholder-slate-700" 
-                        />
-                    </div>
-                </div>
-                <div className="overflow-x-auto min-h-[300px]">
-                    {filteredPeople.length === 0 ? (
-                        <div className="p-20 text-center flex flex-col items-center gap-4">
-                            <div className="p-6 bg-slate-900/50 rounded-full border border-dashed border-slate-800">
-                                <Search size={48} className="text-slate-800" />
-                            </div>
-                            <p className="text-slate-600 text-xs font-black uppercase tracking-[0.3em]">NENHUM REGISTRO ENCONTRADO</p>
-                        </div>
-                    ) : (
-                        <table className="w-full text-left text-sm border-collapse">
-                            <thead className="bg-slate-900/80 text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] border-b border-slate-800">
-                                <tr>
-                                    <th className="p-6 w-20 text-center">STATUS</th>
-                                    <th className="p-6">NOME COMPLETO</th>
-                                    <th className="p-6">DOCUMENTO (CPF)</th>
-                                    <th className="p-6 w-12"></th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800/50">
-                                {filteredPeople.map(p => (
-                                    <tr key={p.id} className={`transition-all duration-300 ${p.done ? 'opacity-40 grayscale bg-slate-900/10' : 'hover:bg-slate-800/20 group'}`}>
-                                        <td className="p-6 text-center">
-                                            <button 
-                                                onClick={() => toggleDone(p.id, p.done)} 
-                                                className={`w-8 h-8 rounded-xl flex items-center justify-center border-2 transition-all transform active:scale-90 ${p.done ? 'bg-amber-500 border-amber-500 text-slate-950 shadow-lg shadow-amber-500/20' : 'bg-slate-950 border-slate-800 text-transparent hover:border-amber-500/50'}`}
-                                            >
-                                                <CheckSquare size={20}/>
-                                            </button>
-                                        </td>
-                                        <td className="p-6">
-                                            <div onClick={() => copyToClipboard(p.name)} className="cursor-pointer flex flex-col">
-                                                <span className={`font-black text-sm uppercase tracking-tight transition-colors ${p.done ? 'text-slate-500' : 'text-slate-100 group-hover:text-amber-500'}`}>{p.name}</span>
-                                            </div>
-                                        </td>
-                                        <td className="p-6">
-                                            <div onClick={() => copyToClipboard(p.cpf.replace(/\D/g, ''))} className="cursor-pointer inline-flex items-center gap-3">
-                                                <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-500 font-mono text-sm font-black shadow-sm group-hover:bg-emerald-500 group-hover:text-white transition-all">
-                                                    {p.cpf}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="p-6 text-center">
-                                            <button onClick={() => deleteRecord(p.id)} className="text-slate-700 hover:text-rose-500 p-2 transition-all hover:scale-110"><Trash2 size={20}/></button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-            </div>
-        </div>
-      ) : (
-        <div className="space-y-6">
-            {/* NOVO DOCUMENTO */}
-            <div className="bg-[#0d1117] border border-slate-800 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-blue-600"></div>
-                <div className="flex items-center gap-3 mb-8 text-blue-500">
-                    <ShieldAlert size={24} />
-                    <h3 className="text-sm font-black uppercase tracking-[0.3em]">CADASTRO DE DOCUMENTO</h3>
-                </div>
-                
-                <form onSubmit={handleAddDoc} className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">IDENTIFICAÇÃO DO DOC</label>
-                        <input 
-                            required
-                            placeholder="Ex: AVCB"
-                            value={docForm.name}
-                            onChange={e => setDocForm({...docForm, name: e.target.value})}
-                            className="w-full h-[54px] bg-[#05070a] border border-slate-800 rounded-2xl px-5 py-4 text-sm text-white font-bold focus:border-blue-500 outline-none transition-all placeholder-slate-800"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">ÓRGÃO EMISSOR</label>
-                        <input 
-                            required
-                            placeholder="Ex: BOMBEIROS"
-                            value={docForm.organ}
-                            onChange={e => setDocForm({...docForm, organ: e.target.value})}
-                            className="w-full h-[54px] bg-[#05070a] border border-slate-800 rounded-2xl px-5 py-4 text-sm text-white font-bold focus:border-blue-500 outline-none transition-all placeholder-slate-800"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">DATA DE VALIDADE</label>
-                        <input 
-                            required
-                            type="date"
-                            value={docForm.expirationDate}
-                            onChange={e => setDocForm({...docForm, expirationDate: e.target.value})}
-                            className="w-full bg-[#05070a] border border-slate-800 rounded-2xl px-5 py-4 text-sm text-white font-bold focus:border-blue-500 outline-none transition-all [color-scheme:dark]"
-                        />
-                    </div>
-                    <div className="flex items-end">
-                        <button 
-                            type="submit"
-                            disabled={isAddingDoc}
-                            className="w-full h-[54px] bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 transition-all shadow-xl shadow-blue-900/30 active:scale-95"
-                        >
-                            {isAddingDoc ? <Loader2 className="animate-spin" size={20} /> : <><Plus size={20} /> ADICIONAR</>}
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            {/* LISTA DE DOCUMENTOS MONITORADOS */}
-            <div className="bg-[#0d1117] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-                <div className="px-8 py-5 border-b border-slate-800 bg-slate-900/20">
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">DOCUMENTOS MONITORADOS</h3>
-                </div>
-                
-                <div className="overflow-x-auto min-h-[300px]">
-                    {documents.length === 0 ? (
-                        <div className="p-24 text-center flex flex-col items-center gap-4">
-                            <Building2 size={64} className="text-slate-800" />
-                            <p className="text-slate-600 text-xs font-black uppercase tracking-[0.3em]">NENHUM DOCUMENTO REGISTRADO</p>
-                        </div>
-                    ) : (
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-900/80 text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] border-b border-slate-800">
-                                <tr>
-                                    <th className="p-6">DOCUMENTO</th>
-                                    <th className="p-6">ÓRGÃO</th>
-                                    <th className="p-6">VENCIMENTO</th>
-                                    <th className="p-6">STATUS</th>
-                                    <th className="p-6 w-12"></th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800/50">
-                                {documents.map(doc => {
-                                    const status = getDocStatus(doc.expirationDate);
+                                {activeCompanies.map(company => {
+                                    const count = confirmedTodayRaw.filter(r => r.companyName.toUpperCase() === company).length;
                                     return (
-                                        <tr key={doc.uuid} className="hover:bg-slate-800/20 transition-all group">
-                                            <td className="p-6">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="p-3 bg-blue-500/10 rounded-xl text-blue-500 border border-blue-500/20">
-                                                        <FileText size={22} />
-                                                    </div>
-                                                    <span className="font-black text-slate-100 uppercase tracking-tight">{doc.name}</span>
-                                                </div>
-                                            </td>
-                                            <td className="p-6">
-                                                <div className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[11px] tracking-widest">
-                                                    <Building2 size={16} className="text-slate-600" />
-                                                    {doc.organ}
-                                                </div>
-                                            </td>
-                                            <td className="p-6">
-                                                <div className="flex flex-col">
-                                                    <span className="font-mono text-sm text-slate-300 font-black">{new Date(doc.expirationDate).toLocaleDateString('pt-BR')}</span>
-                                                    <div className="flex items-center gap-1 text-[9px] text-slate-600 uppercase mt-1">
-                                                        <Clock size={10} /> SISTEMA MONITORANDO
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="p-6">
-                                                <span className={`px-4 py-1.5 rounded-full text-[10px] font-black border-2 tracking-widest flex items-center justify-center w-32 ${status.color}`}>
-                                                    {status.label}
-                                                </span>
-                                            </td>
-                                            <td className="p-6 text-center">
-                                                <button onClick={() => handleDeleteDoc(doc.uuid)} className="text-slate-700 hover:text-rose-500 p-2 transition-all opacity-0 group-hover:opacity-100"><Trash2 size={22}/></button>
-                                            </td>
-                                        </tr>
+                                        <button 
+                                            key={company}
+                                            onClick={() => setSelectedCompanyFilter(company)}
+                                            className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap
+                                                ${selectedCompanyFilter === company 
+                                                    ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-xl' 
+                                                    : 'text-slate-600 hover:text-slate-400 border border-transparent'}
+                                            `}
+                                        >
+                                            {company} <span className="opacity-50 text-[9px] font-mono">({count})</span>
+                                        </button>
                                     );
                                 })}
-                            </tbody>
-                        </table>
+                            </div>
+                        </div>
                     )}
-                </div>
-            </div>
 
-            {/* INFO ALERT */}
-            <div className="bg-blue-600/5 border border-blue-600/20 p-8 rounded-3xl flex items-start gap-6 shadow-lg">
-                <div className="p-3 bg-blue-600/10 rounded-2xl">
-                    <AlertTriangle className="text-blue-500" size={32} />
+                    <div className="bg-slate-900 border border-slate-800 rounded-[24px] shadow-2xl overflow-hidden min-h-[400px]">
+                        <div className="p-4 border-b border-slate-800/40 flex justify-end gap-3">
+                            {isAdmin && (
+                                <button 
+                                    onClick={startBatchPhotoDownload}
+                                    className="bg-emerald-600/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-600 hover:text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg"
+                                >
+                                    <ImageIcon size={16} /> Baixar Fotos (JPG)
+                                </button>
+                            )}
+                            <button 
+                                onClick={handleCopyAllVisible}
+                                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border shadow-lg
+                                    ${copySuccess 
+                                        ? 'bg-blue-600 border-blue-400 text-white' 
+                                        : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white'}
+                                `}
+                            >
+                                {copySuccess ? <CheckCircle2 size={16} /> : <Copy size={16} />}
+                                {copySuccess ? 'Copiado!' : 'Copiar Lista (Nome/CPF)'}
+                            </button>
+                        </div>
+                        <div className="overflow-x-auto custom-scrollbar">
+                            <table className="w-full text-left">
+                                <thead className="bg-slate-950 text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] border-b border-slate-800">
+                                    <tr>
+                                        <th className="p-6">Identificação Colaborador</th>
+                                        <th className="p-6">Empresa Parceira</th>
+                                        <th className="p-6">Unidade Alvo</th>
+                                        <th className="p-6">Auditoria</th>
+                                        <th className="p-6 text-right">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800/40">
+                                    {confirmedTodayFiltered.map(roster => {
+                                        const worker = workers.find(w => w.id === roster.workerId);
+                                        const isApproved = worker?.status === 'approved';
+
+                                        return (
+                                            <tr key={roster.id} className={`transition-all group border-l-2 ${isApproved ? 'bg-emerald-500/[0.02] border-l-emerald-500' : 'hover:bg-slate-800/20 border-l-transparent'}`}>
+                                                <td className="p-6">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="relative">
+                                                            <img src={worker?.photoUrl || `https://ui-avatars.com/api/?name=${roster.workerName}&background=1e293b&color=475569`} className="w-12 h-12 rounded-xl object-cover border-2 border-slate-800 shadow-xl" alt="" />
+                                                            <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 shadow-lg ${isApproved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-black text-white block uppercase text-sm tracking-tight">
+                                                                {roster.workerName} 
+                                                            </span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[10px] font-mono text-slate-600 font-bold tracking-widest">{worker?.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}</span>
+                                                                {isApproved && (
+                                                                    <span className="text-[8px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-1 rounded font-black uppercase tracking-tighter">OK</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="p-6">
+                                                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600/10 text-blue-500 border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                                                        <Building2 size={12} /> {roster.companyName}
+                                                    </div>
+                                                </td>
+                                                <td className="p-6">
+                                                    <div className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[11px] tracking-tight">
+                                                        <Warehouse size={14} className="text-slate-700" /> {roster.unit}
+                                                    </div>
+                                                </td>
+                                                <td className="p-6">
+                                                    <button onClick={() => startDownloadProcess(roster.workerId)} className="flex items-center gap-2 text-slate-600 hover:text-amber-500 transition-all text-[10px] font-black uppercase tracking-widest group/btn">
+                                                        <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all">
+                                                            <Download size={16} />
+                                                        </div>
+                                                        Baixar Documentos
+                                                    </button>
+                                                </td>
+                                                <td className="p-6">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button 
+                                                            onClick={() => setDeleteConfig({ id: roster.id, type: 'roster', name: roster.workerName })}
+                                                            className="p-2.5 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white border border-rose-600/20 rounded-xl transition-all shadow-lg"
+                                                            title="Excluir Registro"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                        
+                                                        {isApproved ? (
+                                                            <div className="bg-emerald-500/10 border border-emerald-500/20 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase text-emerald-500 flex items-center gap-2 shadow-lg shadow-emerald-900/10 animate-fade-in">
+                                                                <CheckCircle2 size={16} className="text-emerald-400" /> Liberado para Acesso
+                                                            </div>
+                                                        ) : (
+                                                            isAdmin ? (
+                                                                <button 
+                                                                    onClick={() => handleApproveWorker(roster.workerId, roster.id)}
+                                                                    disabled={actionLoading === roster.id}
+                                                                    className="bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white border border-emerald-500/20 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-emerald-900/10 group/lib"
+                                                                >
+                                                                    {actionLoading === roster.id ? <LoaderIcon className="animate-spin" size={16} /> : <><CheckCircle2 size={16} className="group-hover:lib:scale-110 transition-transform" /> Liberar</>}
+                                                                </button>
+                                                            ) : (
+                                                                <div className="bg-amber-500/5 border border-amber-500/20 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase text-amber-500 flex items-center gap-2 italic">
+                                                                    Aguardando Auditoria
+                                                                </div>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* MODAL DE VERIFICAÇÃO DE SENHA PARA DOWNLOAD (LOTE OU ÚNICO) */}
+            {showVerifyModal && (
+                <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-fade-in">
+                    <div className="bg-[#0f172a] border border-slate-700 rounded-[32px] p-10 shadow-2xl max-w-sm w-full relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600"></div>
+                        
+                        <div className="flex flex-col items-center text-center mb-8">
+                            <div className="w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center border border-blue-600/20 mb-4">
+                                <Lock className="text-blue-500" size={32} />
+                            </div>
+                            <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">Verificar Identidade</h3>
+                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">
+                                {batchDownloadMode ? (
+                                    <>Confirme sua senha para baixar <br/><span className="text-emerald-500">{confirmedTodayFiltered.length} fotos de colaboradores</span></>
+                                ) : (
+                                    <>Digite sua senha para baixar o documento de <br/><span className="text-white">{targetWorker?.name}</span></>
+                                )}
+                            </p>
+                        </div>
+
+                        <form onSubmit={handleVerifyAndAction} className="space-y-6">
+                            <div className="relative group">
+                                <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 size={18} ${errorVerify ? 'text-rose-500' : 'text-slate-600 group-focus-within:text-blue-500'}`} />
+                                <input 
+                                    autoFocus
+                                    type={showPassword ? "text" : "password"}
+                                    value={verifyPassword}
+                                    onChange={e => setVerifyPassword(e.target.value)}
+                                    className={`w-full bg-slate-950 border rounded-2xl pl-12 pr-12 py-4 text-white outline-none transition-all font-bold tracking-widest
+                                        ${errorVerify ? 'border-rose-500' : 'border-slate-800 focus:border-blue-500'}
+                                    `}
+                                    placeholder="SENHA"
+                                />
+                                <button 
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white"
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
+
+                            {errorVerify && (
+                                <p className="text-rose-500 text-[10px] font-black uppercase text-center animate-pulse">{errorVerify}</p>
+                            )}
+
+                            <div className="flex gap-4">
+                                <button 
+                                    type="button" 
+                                    onClick={() => { setShowVerifyModal(false); setTargetWorker(null); setBatchDownloadMode(false); }}
+                                    className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    type="submit" 
+                                    disabled={verifying || !verifyPassword}
+                                    className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl shadow-blue-900/40 transition-all flex items-center justify-center gap-2"
+                                >
+                                    {verifying ? <LoaderIcon className="animate-spin" size={16} /> : <><Download size={16} /> Confirmar</>}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-                <div className="space-y-2">
-                    <h4 className="text-sm font-black text-blue-400 uppercase tracking-[0.2em]">SISTEMA DE ALERTA AUTOMÁTICO</h4>
-                    <p className="text-xs text-slate-500 leading-relaxed font-bold uppercase max-w-2xl">DOCUMENTOS COM MENOS DE 30 DIAS PARA VENCER ENTRAM AUTOMATICAMENTE NO STATUS DE ALERTA NO PAINEL PRINCIPAL DO SISTEMA, NOTIFICANDO TODA A EQUIPE DE SUPERVISÃO.</p>
+            )}
+
+            {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
+            {deleteConfig && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
+                    <div className="bg-slate-900 border border-slate-700 rounded-[32px] p-10 shadow-2xl max-sm w-full text-center relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-600"></div>
+                        <div className="w-20 h-20 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-600/20">
+                            <AlertTriangle className="text-rose-600" size={40} />
+                        </div>
+                        <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Confirmar Exclusão?</h3>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">
+                            Deseja realmente remover o registro de <br/>
+                            <span className="text-rose-500 font-black">{deleteConfig.name}</span>?
+                        </p>
+                        <div className="flex gap-4">
+                            <button onClick={() => setDeleteConfig(null)} className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">Cancelar</button>
+                            <button onClick={confirmDeleteAction} className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl shadow-rose-900/40 transition-all active:scale-95">Sim, Excluir</button>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            )}
+
+            {/* MODAL: NOVO CADASTRO */}
+            {showAddModal && (
+                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in overflow-y-auto">
+                    <div className="bg-[#0f172a] border border-slate-700 rounded-[32px] shadow-2xl w-full max-w-lg my-8 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600"></div>
+                        <div className="p-10">
+                            <div className="flex justify-between items-start mb-8">
+                                <div><h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Novo Registro</h3><p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-2">Empresa: {currentUser.companyName}</p></div>
+                                <button onClick={() => setShowAddModal(false)} className="p-2 bg-slate-800 hover:bg-rose-600 text-white rounded-full transition-all"><X size={20}/></button>
+                            </div>
+                            <form onSubmit={handleSaveWorker} className="space-y-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Foto Perfil</label>
+                                        <div className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-[32px] overflow-hidden flex items-center justify-center relative group">
+                                            {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover p-2 rounded-[28px]" alt="" /> : <CameraIcon size={32} className="text-slate-800" />}
+                                            <input type="file" accept="image/*" className="hidden" id="photo-up" onChange={e => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                    const r = new FileReader();
+                                                    r.onload = ev => setPhotoPreview(ev.target?.result as string);
+                                                    r.readAsDataURL(file);
+                                                }
+                                            }} />
+                                            <button type="button" onClick={() => document.getElementById('photo-up')?.click()} className="absolute bottom-3 right-3 p-2.5 bg-blue-600 text-white rounded-full shadow-xl hover:scale-110 transition-transform"><CameraIcon size={16} /></button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Documento (PDF/IMG)</label>
+                                        <div className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-[32px] overflow-hidden flex items-center justify-center relative group">
+                                            {documentData ? (
+                                                <div className="p-4 text-center">
+                                                    <div className="w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-2"><File className="text-blue-500" size={24} /></div>
+                                                    <p className="text-[9px] text-slate-400 font-bold uppercase truncate max-w-full px-2">{documentData.name}</p>
+                                                </div>
+                                            ) : <FileText size={32} className="text-slate-800" />}
+                                            <input type="file" accept=".pdf,image/*" className="hidden" id="doc-up" onChange={e => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                    const r = new FileReader();
+                                                    r.onload = ev => setDocumentData({ url: ev.target?.result as string, name: file.name });
+                                                    r.readAsDataURL(file);
+                                                }
+                                            }} />
+                                            <button type="button" onClick={() => document.getElementById('doc-up')?.click()} className="absolute bottom-3 right-3 p-2.5 bg-emerald-600 text-white rounded-full shadow-xl hover:scale-110 transition-transform"><Upload size={16} /></button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-black uppercase placeholder-slate-800 outline-none focus:border-blue-500" placeholder="NOME COMPLETO" />
+                                    <input required value={formData.cpf} onChange={e => setFormData({...formData, cpf: e.target.value.replace(/\D/g, '')})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-mono placeholder-slate-800 outline-none focus:border-blue-500" placeholder="CPF (SÓ NÚMEROS)" maxLength={11} />
+                                </div>
+                                <button type="submit" disabled={isSaving} className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase tracking-widest shadow-2xl active:scale-95 transition-all disabled:opacity-30">
+                                    {isSaving ? <LoaderIcon className="animate-spin mx-auto" /> : 'CONCLUIR E ENVIAR'}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 };
 
 export default Registration;

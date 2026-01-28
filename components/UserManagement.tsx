@@ -2,7 +2,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, UserRole, UserStatus, AppFeedback } from '../types';
 import { authService } from '../services/auth';
-import { Users, UserPlus, Trash2, Shield, Eye, Lock, Check, AlertCircle, Loader2, Ban, CheckCircle, AlertTriangle, X, Briefcase, Warehouse, MessageSquare, Clock, Megaphone, Bug, MessageSquareHeart, Send, CheckCircle2 } from 'lucide-react';
+import { 
+    Users, UserPlus, Trash2, Shield, Eye, Lock, Check, AlertCircle, 
+    Loader2, CheckCircle, AlertTriangle, X, Briefcase, Warehouse, 
+    MessageSquareHeart, Search, MoreVertical, ShieldCheck, Mail, ShieldAlert,
+    Building2, Filter, Key, ChevronDown
+} from 'lucide-react';
 import { WAREHOUSE_LIST } from '../constants';
 import { ref, onValue, update, off } from 'firebase/database';
 import { db } from '../services/firebase';
@@ -14,14 +19,16 @@ interface UserManagementProps {
 const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [allFeedbacks, setAllFeedbacks] = useState<AppFeedback[]>([]);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
   
   const [newUser, setNewUser] = useState<{ 
       name: string; 
       email: string; 
       password: string; 
       role: UserRole; 
-      allowedWarehouses: string[] 
-  }>({ name: '', email: '', password: '', role: 'viewer', allowedWarehouses: [] });
+      allowedWarehouses: string[];
+      companyName?: string;
+  }>({ name: '', email: '', password: '', role: 'viewer', allowedWarehouses: [], companyName: '' });
   
   const [loading, setLoading] = useState(false);
   const [listLoading, setListLoading] = useState(true);
@@ -29,16 +36,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Reply state
-  const [replyTexts, setReplyTexts] = useState<{[key: string]: string}>({});
-  const [replyingId, setReplyingId] = useState<string | null>(null);
-  const [completingId, setCompletingId] = useState<string | null>(null);
-
   // Editing Permissions State
   const [editingPermissionsId, setEditingPermissionsId] = useState<string | null>(null);
   const [tempPermissions, setTempPermissions] = useState<string[]>([]);
-
-  // State for Delete Confirmation Modal
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const isAdmin = currentUser.role === 'admin';
@@ -46,7 +46,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
   useEffect(() => {
     loadUsers();
     
-    // Real-time listener for feedbacks
     if (isAdmin) {
         const fbRef = ref(db, 'monitoramento/feedbacks');
         const unsubscribe = onValue(fbRef, (snapshot) => {
@@ -56,7 +55,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                     id: key,
                     ...data[key]
                 }));
-                // Sort by newest first
                 setAllFeedbacks(list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
             } else {
                 setAllFeedbacks([]);
@@ -78,42 +76,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
     }
   };
 
-  const handleSendReply = async (feedback: AppFeedback) => {
-    const text = replyTexts[feedback.id];
-    if (!text?.trim()) return;
-
-    setReplyingId(feedback.id);
-    try {
-      await update(ref(db, `monitoramento/feedbacks/${feedback.id}`), {
-        adminReply: text,
-        repliedAt: new Date().toISOString()
-      });
-      // Clear specific reply text
-      setReplyTexts(prev => {
-          const next = {...prev};
-          delete next[feedback.id];
-          return next;
-      });
-    } catch (err) {
-      alert("Erro ao responder.");
-    } finally {
-      setReplyingId(null);
-    }
-  };
-
   const handleCompleteFeedback = async (feedback: AppFeedback) => {
-    // Marcamos localmente como concluído IMEDIATAMENTE para sumir da tela
-    setAllFeedbacks(prev => prev.map(f => f.id === feedback.id ? { ...f, status: 'completed' } : f));
-    
     try {
       await update(ref(db, `monitoramento/feedbacks/${feedback.id}`), {
         status: 'completed'
       });
     } catch (err) {
-      console.error("Erro ao concluir no banco:", err);
-      // Reverte se der erro
       alert("Erro ao salvar no banco de dados.");
-      loadUsers(); 
     }
   };
 
@@ -124,7 +93,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
     setLoading(true);
 
     if (newUser.password.length < 6) {
-        setError('A senha deve ter pelo menos 6 caracteres (Exigência Firebase).');
+        setError('A senha deve ter pelo menos 6 caracteres.');
+        setLoading(false);
+        return;
+    }
+
+    if (newUser.role === 'provider' && !newUser.companyName) {
+        setError('Selecione a empresa parceira do fornecedor.');
         setLoading(false);
         return;
     }
@@ -133,14 +108,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
       await authService.addUser({
           ...newUser,
           allowedWarehouses: newUser.role === 'manager' ? newUser.allowedWarehouses : []
-      });
+      } as any);
       setSuccess('Usuário adicionado com sucesso!');
-      setNewUser({ name: '', email: '', password: '', role: 'viewer', allowedWarehouses: [] });
+      setNewUser({ name: '', email: '', password: '', role: 'viewer', allowedWarehouses: [], companyName: '' });
       await loadUsers();
     } catch (err: any) {
-      let msg = 'Erro ao adicionar usuário.';
-      if (err.code === 'auth/email-already-in-use') msg = 'Este email já está em uso.';
-      if (err.code === 'auth/weak-password') msg = 'A senha é muito fraca.';
+      let msg = err.message;
+      if (msg.includes('email-already-in-use')) msg = "Este e-mail já está sendo usado por outro usuário.";
       setError(msg);
     } finally {
       setLoading(false);
@@ -155,14 +129,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
       });
   };
 
-  const initiateDelete = (uid: string) => {
-      if (uid === currentUser.uid) {
-          alert("Você não pode excluir sua própria conta.");
-          return;
-      }
-      setConfirmDeleteId(uid);
-  };
-
   const handleConfirmDelete = async () => {
     if (!confirmDeleteId) return;
     const uid = confirmDeleteId;
@@ -172,10 +138,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
     try {
       await authService.removeUser(uid);
       setUsers(prev => prev.filter(u => u.uid !== uid));
-      setSuccess('Usuário excluído.');
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      alert("Erro ao excluir usuário: " + err.message);
+      alert("Erro ao excluir usuário.");
       await loadUsers();
     } finally {
       setDeletingId(null);
@@ -183,28 +147,19 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
   };
 
   const handleUpdateRole = async (uid: string, newRole: UserRole) => {
-      if (uid === currentUser.uid) {
-          if (!window.confirm("Alterar seu próprio cargo pode restringir seu acesso. Continuar?")) return;
-      }
-      setUsers(prev => prev.map(u => u.uid === uid ? { ...u, role: newRole } : u));
       try {
           await authService.updateUserProfile(uid, { role: newRole });
+          setUsers(prev => prev.map(u => u.uid === uid ? { ...u, role: newRole } : u));
       } catch (err) {
-          console.error(err);
           loadUsers();
       }
   };
 
   const handleUpdateStatus = async (uid: string, newStatus: UserStatus) => {
-      if (uid === currentUser.uid && newStatus === 'blocked') {
-          alert("Você não pode bloquear a si mesmo.");
-          return;
-      }
-      setUsers(prev => prev.map(u => u.uid === uid ? { ...u, status: newStatus } : u));
       try {
           await authService.updateUserProfile(uid, { status: newStatus });
+          setUsers(prev => prev.map(u => u.uid === uid ? { ...u, status: newStatus } : u));
       } catch (err) {
-          console.error(err);
           loadUsers();
       }
   };
@@ -225,11 +180,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
       }
   };
 
-  const toggleTempPermission = (wh: string) => {
-      setTempPermissions(prev => prev.includes(wh) ? prev.filter(w => w !== wh) : [...prev, wh]);
-  };
+  const filteredUsersList = useMemo(() => {
+    return users.filter(u => 
+        u.name.toLowerCase().includes(userSearchTerm.toLowerCase()) || 
+        u.email.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+        (u.companyName && u.companyName.toLowerCase().includes(userSearchTerm.toLowerCase()))
+    );
+  }, [users, userSearchTerm]);
 
-  // Filtrar apenas feedbacks que NÃO estão concluídos
   const pendingFeedbacks = useMemo(() => {
     return allFeedbacks.filter(fb => fb.status !== 'completed');
   }, [allFeedbacks]);
@@ -237,340 +195,319 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
   return (
     <div className="space-y-6 animate-fade-in pb-12">
        <div className="flex flex-col gap-2">
-            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                <Users className="text-amber-500" />
-                Gestão de Usuários
+            <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic flex items-center gap-3">
+                <Users className="text-amber-500" size={32} />
+                Gestão Estratégica de Usuários
             </h2>
-            <p className="text-slate-400 text-sm">Adicione membros à equipe, defina cargos e acompanhe feedbacks.</p>
+            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest ml-1">Controle administrativo e auditoria da plataforma</p>
        </div>
 
-       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Form + Feedback Column */}
-            <div className="lg:col-span-1 space-y-6">
-                {/* Form */}
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
-                    <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+            <div className="xl:col-span-4 space-y-8">
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-amber-600"></div>
+                    <h3 className="text-white font-black uppercase text-xs tracking-[0.2em] mb-8 flex items-center gap-3">
                         <UserPlus size={18} className="text-blue-500" />
-                        Novo Usuário
+                        Provisionar Novo Acesso
                     </h3>
                     
-                    <form onSubmit={handleAddUser} className="space-y-4">
-                        <div>
-                            <label className="block text-xs text-slate-400 mb-1">Nome Completo</label>
-                            <input 
-                                type="text" 
-                                required
-                                value={newUser.name}
-                                onChange={e => setNewUser({...newUser, name: e.target.value})}
-                                className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-                                placeholder="Ex: João Silva"
-                            />
+                    <form onSubmit={handleAddUser} className="space-y-5">
+                        <div className="space-y-1.5">
+                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Nome Completo</label>
+                            <input type="text" required value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-sm text-white focus:border-blue-500 outline-none transition-all placeholder-slate-800" placeholder="Ex: João da Silva" />
                         </div>
-                        <div>
-                            <label className="block text-xs text-slate-400 mb-1">Email</label>
-                            <input 
-                                type="email" 
-                                required
-                                value={newUser.email}
-                                onChange={e => setNewUser({...newUser, email: e.target.value})}
-                                className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-                                placeholder="usuario@ccos.com"
-                            />
+                        <div className="space-y-1.5">
+                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Email Profissional</label>
+                            <input type="email" required value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-sm text-white focus:border-blue-500 outline-none transition-all placeholder-slate-800" placeholder="nome@ccos.com.br" />
                         </div>
-                        <div>
-                            <label className="block text-xs text-slate-400 mb-1">Senha Inicial</label>
-                            <div className="relative">
-                                <input 
-                                    type="text" 
-                                    required
-                                    value={newUser.password}
-                                    onChange={e => setNewUser({...newUser, password: e.target.value})}
-                                    className="w-full bg-slate-950 border border-slate-700 rounded p-2 pl-8 text-sm text-white focus:border-blue-500 focus:outline-none"
-                                    placeholder="Mínimo 6 caracteres"
-                                />
-                                <Lock size={14} className="absolute left-2.5 top-2.5 text-slate-600" />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Senha Inicial</label>
+                                <input type="password" required value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-sm text-white focus:border-blue-500 outline-none transition-all" placeholder="******" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Cargo</label>
+                                <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value as UserRole})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-sm text-white focus:border-blue-500 outline-none transition-all appearance-none cursor-pointer">
+                                    <option value="viewer">OPERADOR</option>
+                                    <option value="manager">GESTOR</option>
+                                    <option value="provider">FORNECEDOR</option>
+                                    <option value="admin">ADMIN</option>
+                                </select>
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-xs text-slate-400 mb-1">Cargo Inicial</label>
-                            <select 
-                                value={newUser.role}
-                                onChange={e => setNewUser({...newUser, role: e.target.value as UserRole})}
-                                className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-                            >
-                                <option value="viewer">Visualizador (Operador)</option>
-                                <option value="manager">Gestor</option>
-                                <option value="admin">Administrador (Total)</option>
-                            </select>
-                        </div>
+
+                        {newUser.role === 'provider' && (
+                            <div className="space-y-1.5 animate-fade-in relative">
+                                <label className="block text-[10px] font-black text-amber-500 uppercase tracking-widest ml-1">Empresa Parceira</label>
+                                <div className="relative">
+                                    <select 
+                                        required 
+                                        value={newUser.companyName} 
+                                        onChange={e => setNewUser({...newUser, companyName: e.target.value})} 
+                                        className="w-full bg-slate-950 border border-amber-500/20 rounded-2xl px-5 py-3 text-sm text-white focus:border-amber-500 outline-none transition-all appearance-none cursor-pointer font-bold uppercase"
+                                    >
+                                        <option value="" disabled className="text-slate-700">SELECIONE A EMPRESA</option>
+                                        <option value="B11">B11</option>
+                                        <option value="MULT">MULT</option>
+                                        <option value="MJM">MJM</option>
+                                        <option value="PRIMUS">PRIMUS</option>
+                                        <option value="MPI">MPI</option>
+                                    </select>
+                                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-amber-500 pointer-events-none" size={18} />
+                                </div>
+                            </div>
+                        )}
 
                         {newUser.role === 'manager' && (
-                            <div className="bg-slate-950 border border-slate-800 rounded p-3">
-                                <label className="block text-xs text-amber-500 font-bold mb-2 uppercase">Galpões Permitidos</label>
-                                <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
+                            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-3 animate-fade-in">
+                                <label className="block text-[10px] font-black text-blue-500 uppercase tracking-widest ml-1">Galpões Permitidos</label>
+                                <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar pr-2">
                                     {WAREHOUSE_LIST.map(wh => (
-                                        <label key={wh} className="flex items-center gap-2 cursor-pointer hover:bg-slate-900 p-1 rounded">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={newUser.allowedWarehouses.includes(wh)}
-                                                onChange={() => toggleWarehouse(wh)}
-                                                className="rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-0"
-                                            />
-                                            <span className="text-xs text-slate-300">{wh}</span>
+                                        <label key={wh} className="flex items-center gap-3 cursor-pointer hover:bg-slate-900 p-2 rounded-xl transition-colors group">
+                                            <input type="checkbox" checked={newUser.allowedWarehouses.includes(wh)} onChange={() => toggleWarehouse(wh)} className="rounded-lg border-slate-700 bg-slate-900 text-blue-600 focus:ring-offset-0 focus:ring-0" />
+                                            <span className="text-[11px] font-bold text-slate-400 group-hover:text-white uppercase truncate">{wh}</span>
                                         </label>
                                     ))}
                                 </div>
                             </div>
                         )}
 
-                        {error && <div className="p-2 rounded bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2"><AlertCircle size={14} /> {error}</div>}
-                        {success && <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2"><Check size={14} /> {success}</div>}
+                        {error && (
+                            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-3 animate-pulse font-bold leading-relaxed">
+                                <AlertTriangle size={18} className="shrink-0" /> 
+                                {error}
+                            </div>
+                        )}
+                        
+                        {success && (
+                            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-3 font-bold">
+                                <CheckCircle size={18} className="shrink-0" /> 
+                                {success}
+                            </div>
+                        )}
 
-                        <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 rounded transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                            {loading ? <Loader2 className="animate-spin" size={16} /> : 'Cadastrar Usuário'}
+                        <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-blue-900/20 disabled:opacity-50 flex items-center justify-center gap-3 uppercase text-xs tracking-widest active:scale-95">
+                            {loading ? <Loader2 className="animate-spin" size={18} /> : <><ShieldCheck size={18} /> Cadastrar Membro</>}
                         </button>
                     </form>
                 </div>
 
-                {/* FEEDBACK SECTION BELOW FORM (ADMIN ONLY) */}
                 {isAdmin && (
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-white font-bold flex items-center gap-2 uppercase tracking-widest text-xs">
-                                <MessageSquareHeart size={18} className="text-rose-500" />
-                                Feedbacks Pendentes
-                            </h3>
-                        </div>
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl flex flex-col group">
+                        <h3 className="text-white font-black uppercase text-xs tracking-[0.2em] mb-8 flex items-center gap-3">
+                            <MessageSquareHeart size={18} className="text-rose-500" />
+                            Feedbacks da Operação
+                        </h3>
 
-                        <div className="space-y-6 max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
+                        <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                             {pendingFeedbacks.length === 0 ? (
-                                <div className="text-center py-10 text-slate-600 italic text-xs border border-dashed border-slate-800 rounded-xl">
-                                    Tudo resolvido por aqui!
+                                <div className="text-center py-12 text-slate-600 border border-dashed border-slate-800 rounded-3xl">
+                                    <p className="text-[10px] font-black uppercase tracking-widest">Nenhuma pendência</p>
                                 </div>
                             ) : (
                                 pendingFeedbacks.map(fb => (
-                                    <div key={fb.id} className="bg-slate-950 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-colors group relative overflow-hidden flex flex-col gap-3">
-                                        <div className={`absolute top-0 left-0 bottom-0 w-1 ${fb.type === 'bug' ? 'bg-rose-500' : fb.type === 'suggestion' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
-                                        
+                                    <div key={fb.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-5 flex flex-col gap-3 hover:border-rose-500/30 transition-all">
                                         <div className="flex justify-between items-start">
-                                            <div className="flex flex-col">
-                                                <span className="text-white text-xs font-black uppercase tracking-tighter truncate max-w-[150px]">
-                                                    {fb.userName}
-                                                </span>
-                                                <div className="flex items-center gap-1 text-[10px] text-slate-500 font-mono mt-0.5">
-                                                    <Clock size={10} /> {new Date(fb.timestamp).toLocaleDateString('pt-BR')} {new Date(fb.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                                </div>
+                                            <div>
+                                                <span className="text-white text-[11px] font-black uppercase block tracking-tight">{fb.userName}</span>
+                                                <span className="text-[9px] text-slate-600 font-mono font-bold uppercase">{new Date(fb.timestamp).toLocaleDateString()}</span>
                                             </div>
-                                            
-                                            <div className="flex items-center gap-2">
-                                                <button 
-                                                  onClick={() => handleCompleteFeedback(fb)}
-                                                  className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white rounded-lg border border-emerald-500/20 transition-all shadow-sm active:scale-90"
-                                                  title="Marcar como Concluído"
-                                                >
-                                                  <CheckCircle2 size={16} />
-                                                </button>
-                                                {fb.type === 'bug' ? (
-                                                    <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500 text-[9px] font-black uppercase tracking-widest border border-rose-500/20 flex items-center gap-1">
-                                                        <Bug size={8} /> Bug
-                                                    </span>
-                                                ) : fb.type === 'suggestion' ? (
-                                                    <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 text-[9px] font-black uppercase tracking-widest border border-blue-500/20 flex items-center gap-1">
-                                                        <Megaphone size={8} /> Sugestão
-                                                    </span>
-                                                ) : (
-                                                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">
-                                                        Elogio
-                                                    </span>
-                                                )}
-                                            </div>
+                                            <button onClick={() => handleCompleteFeedback(fb)} className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-xl border border-emerald-500/20 transition-all"><Check size={14}/></button>
                                         </div>
-                                        
-                                        <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800/50">
-                                            <p className="text-xs text-slate-300 leading-relaxed italic">
-                                                "{fb.content}"
-                                            </p>
-                                        </div>
-
-                                        {/* Reply area */}
-                                        <div className="space-y-2 mt-1">
-                                            <div className="relative group">
-                                              <textarea 
-                                                value={replyTexts[fb.id] !== undefined ? replyTexts[fb.id] : fb.adminReply || ''}
-                                                onChange={e => setReplyTexts({...replyTexts, [fb.id]: e.target.value})}
-                                                placeholder="Sua resposta para o usuário..."
-                                                className="w-full bg-[#0d1117] border border-slate-800 rounded-lg p-2 text-xs text-white focus:border-blue-500 outline-none h-16 resize-none"
-                                              />
-                                              <button 
-                                                onClick={() => handleSendReply(fb)}
-                                                disabled={replyingId === fb.id || !(replyTexts[fb.id] || fb.adminReply || '').trim()}
-                                                className="absolute bottom-2 right-2 p-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-md shadow-lg disabled:opacity-30 transition-all"
-                                              >
-                                                {replyingId === fb.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                                              </button>
-                                            </div>
-                                            {fb.adminReply && (
-                                              <div className="flex items-center gap-1 text-[9px] text-blue-400 font-bold uppercase">
-                                                <Check size={10} /> Já respondido
-                                              </div>
-                                            )}
-                                        </div>
+                                        <p className="text-xs text-slate-400 italic leading-relaxed">"{fb.content}"</p>
                                     </div>
                                 ))
                             )}
-                        </div>
-                        
-                        <div className="mt-4 p-3 bg-slate-950/50 border-t border-slate-800 rounded-b-xl">
-                            <p className="text-[9px] text-slate-500 text-center uppercase tracking-widest font-bold">Monitorando {pendingFeedbacks.length} interações pendentes</p>
                         </div>
                     </div>
                 )}
             </div>
 
-            {/* List Column */}
-            <div className="lg:col-span-2">
-                <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg min-h-[400px]">
-                    <div className="p-4 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
-                        <span className="text-sm font-semibold text-slate-200">Usuários Cadastrados</span>
-                        <button onClick={loadUsers} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"><Loader2 size={12} className={listLoading ? 'animate-spin' : 'hidden'} /> Atualizar</button>
-                    </div>
-                    {listLoading ? (
-                        <div className="flex items-center justify-center h-48"><Loader2 className="animate-spin text-blue-500" size={24} /></div>
-                    ) : (
-                        <div className="overflow-x-auto pb-4">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-slate-950 text-slate-400 text-xs uppercase">
-                                    <tr>
-                                        <th className="p-4">Usuário</th>
-                                        <th className="p-4">Cargo</th>
-                                        <th className="p-4">Status</th>
-                                        <th className="p-4 text-right">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-800/50 text-slate-300">
-                                    {users.map(user => {
-                                        return (
-                                            <tr key={user.uid} className={`hover:bg-slate-800/30 transition-colors ${deletingId === user.uid ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                <td className="p-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400 border border-slate-700">{(user.name || '?').charAt(0)}</div>
-                                                        <div>
-                                                            <div className="font-medium text-white">{user.name || 'Sem Nome'} {user.uid === currentUser.uid && <span className="text-[10px] text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded ml-1">(Você)</span>}</div>
-                                                            <div className="text-xs text-slate-500">{user.email}</div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                
-                                                <td className="p-4">
-                                                    <div className="flex flex-col gap-1">
-                                                        <div className="relative">
-                                                            <select 
-                                                                value={user.role}
-                                                                onChange={(e) => handleUpdateRole(user.uid, e.target.value as UserRole)}
-                                                                disabled={user.uid === currentUser.uid}
-                                                                className={`appearance-none w-full pl-8 pr-4 py-1.5 rounded text-xs font-bold border focus:outline-none cursor-pointer disabled:opacity-50 
-                                                                    ${user.role === 'admin' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 
-                                                                    user.role === 'manager' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 
-                                                                    'bg-blue-500/10 text-blue-400 border-blue-500/20'}
-                                                                `}
-                                                            >
-                                                                <option value="viewer">Visualizador</option>
-                                                                <option value="manager">Gestor</option>
-                                                                <option value="admin">Administrador</option>
-                                                            </select>
-                                                            <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                                                                {user.role === 'admin' ? <Shield size={12} className="text-amber-500"/> : user.role === 'manager' ? <Briefcase size={12} className="text-purple-400"/> : <Eye size={12} className="text-blue-400"/>}
-                                                            </div>
-                                                        </div>
-                                                        {user.role === 'manager' && (
-                                                            <button 
-                                                                onClick={() => openPermissionsModal(user)}
-                                                                className="text-[10px] text-slate-500 hover:text-purple-400 flex items-center gap-1 mt-1"
-                                                            >
-                                                                <Warehouse size={10} /> {user.allowedWarehouses?.length || 0} Galpões
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </td>
-
-                                                <td className="p-4">
-                                                    <div className="relative">
-                                                        <select 
-                                                            value={user.status || 'active'}
-                                                            onChange={(e) => handleUpdateStatus(user.uid, e.target.value as UserStatus)}
-                                                            disabled={user.uid === currentUser.uid}
-                                                            className={`appearance-none w-full pl-8 pr-4 py-1.5 rounded text-xs font-bold border focus:outline-none cursor-pointer disabled:opacity-50
-                                                                ${(user.status === 'blocked') ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'}
-                                                            `}
-                                                        >
-                                                            <option value="active">Ativo</option>
-                                                            <option value="blocked">Bloqueado</option>
-                                                        </select>
-                                                        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                                                            {(user.status === 'blocked') ? <Ban size={12} className="text-rose-500"/> : <CheckCircle size={12} className="text-emerald-500"/>}
-                                                        </div>
-                                                    </div>
-                                                </td>
-
-                                                <td className="p-4 text-right">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        <button onClick={() => initiateDelete(user.uid)} disabled={user.uid === currentUser.uid} className="p-2 bg-rose-500/10 hover:bg-rose-600 hover:text-white text-rose-500 border border-rose-500/20 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+            <div className="xl:col-span-8">
+                <div className="bg-slate-900 border border-slate-800 rounded-[40px] overflow-hidden shadow-2xl flex flex-col h-full">
+                    <div className="p-8 border-b border-slate-800 bg-slate-950/50 flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div className="flex items-center gap-4 w-full md:w-auto">
+                            <div className="relative flex-1 md:w-80">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                                <input 
+                                    type="text"
+                                    value={userSearchTerm}
+                                    onChange={e => setUserSearchTerm(e.target.value)}
+                                    placeholder="Procurar por nome, email ou empresa..."
+                                    className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-12 pr-6 py-3 text-sm text-slate-300 focus:border-blue-500 outline-none transition-all placeholder-slate-700"
+                                />
+                            </div>
                         </div>
-                    )}
+                        <div className="flex items-center gap-3 shrink-0">
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{filteredUsersList.length} Usuários Filtrados</span>
+                            <button onClick={loadUsers} className="p-3 bg-slate-800 hover:bg-slate-700 text-blue-400 rounded-2xl transition-all active:scale-90 shadow-lg">
+                                <Loader2 size={20} className={listLoading ? 'animate-spin' : ''} />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="overflow-x-auto flex-1 custom-scrollbar">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-slate-950 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-800 sticky top-0 z-10">
+                                <tr>
+                                    <th className="p-6">Identificação</th>
+                                    <th className="p-6">Acesso Master</th>
+                                    <th className="p-6">Situação</th>
+                                    <th className="p-6 text-center">Permissões</th>
+                                    <th className="p-6 text-right">Controle</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/40">
+                                {listLoading && users.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="p-20 text-center">
+                                            <Loader2 className="animate-spin text-blue-500 mx-auto mb-4" size={40} />
+                                            <span className="text-slate-600 font-bold uppercase tracking-widest text-[10px]">Sincronizando Banco de Dados...</span>
+                                        </td>
+                                    </tr>
+                                ) : filteredUsersList.map(user => {
+                                    const isSelf = user.uid === currentUser.uid;
+                                    return (
+                                        <tr key={user.uid} className={`hover:bg-slate-800/20 transition-colors group ${deletingId === user.uid ? 'opacity-30' : ''}`}>
+                                            <td className="p-6">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 flex items-center justify-center text-lg font-black text-blue-500 shadow-inner group-hover:scale-105 transition-transform">
+                                                        {user.name.charAt(0)}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="font-bold text-white uppercase text-sm truncate max-w-[180px]">{user.name} {isSelf && <span className="text-[10px] text-blue-500 ml-1">(VOCÊ)</span>}</div>
+                                                        <div className="text-[10px] text-slate-600 font-mono font-bold truncate">{user.email}</div>
+                                                        {user.companyName && <div className="text-[9px] text-amber-500 font-black uppercase tracking-tighter mt-1 flex items-center gap-1"><Building2 size={10} /> {user.companyName}</div>}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="p-6">
+                                                <div className="flex items-center gap-2">
+                                                    <select 
+                                                        value={user.role} 
+                                                        onChange={(e) => handleUpdateRole(user.uid, e.target.value as UserRole)} 
+                                                        disabled={isSelf} 
+                                                        className={`bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-widest outline-none transition-all cursor-pointer hover:border-blue-500 disabled:opacity-30 disabled:cursor-not-allowed
+                                                            ${user.role === 'admin' ? 'text-rose-500 border-rose-500/20' : 
+                                                              user.role === 'manager' ? 'text-blue-500 border-blue-500/20' : 
+                                                              user.role === 'provider' ? 'text-amber-500 border-amber-500/20' : 'text-slate-400 border-slate-700'}
+                                                        `}
+                                                    >
+                                                        <option value="viewer">OPERADOR</option>
+                                                        <option value="manager">GESTOR</option>
+                                                        <option value="provider">FORNECEDOR</option>
+                                                        <option value="admin">ADMIN</option>
+                                                    </select>
+                                                </div>
+                                            </td>
+                                            <td className="p-6">
+                                                <button 
+                                                    onClick={() => !isSelf && handleUpdateStatus(user.uid, user.status === 'blocked' ? 'active' : 'blocked')}
+                                                    disabled={isSelf}
+                                                    className={`px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all
+                                                        ${user.status === 'blocked' 
+                                                            ? 'bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500 hover:text-white' 
+                                                            : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500 hover:text-white'}
+                                                    `}
+                                                >
+                                                    {user.status === 'blocked' ? 'BLOQUEADO' : 'ATIVO'}
+                                                </button>
+                                            </td>
+                                            <td className="p-6 text-center">
+                                                {user.role === 'manager' ? (
+                                                    <button 
+                                                        onClick={() => openPermissionsModal(user)}
+                                                        className="p-3 bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white border border-blue-500/20 rounded-2xl transition-all shadow-lg shadow-blue-900/10"
+                                                        title="Configurar Galpões"
+                                                    >
+                                                        <Warehouse size={18} />
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-[10px] text-slate-700 font-black uppercase tracking-widest italic">-</span>
+                                                )}
+                                            </td>
+                                            <td className="p-6 text-right">
+                                                <button 
+                                                    onClick={() => !isSelf && setConfirmDeleteId(user.uid)} 
+                                                    disabled={isSelf} 
+                                                    className="p-3 bg-slate-950 border border-slate-800 text-slate-600 hover:text-rose-500 hover:bg-rose-500/10 hover:border-rose-500/30 rounded-2xl transition-all disabled:opacity-0"
+                                                >
+                                                    <Trash2 size={18}/>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                        {filteredUsersList.length === 0 && !listLoading && (
+                            <div className="p-20 text-center flex flex-col items-center gap-4">
+                                <Search size={48} className="text-slate-800" />
+                                <p className="text-slate-600 font-black uppercase tracking-widest">Nenhum usuário correspondente à pesquisa.</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
        </div>
 
-       {/* DELETE MODAL */}
-       {confirmDeleteId && (
-            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-                <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-sm p-6 relative">
-                    <button onClick={() => setConfirmDeleteId(null)} className="absolute top-4 right-4 text-slate-500 hover:text-white"><X size={20} /></button>
-                    <div className="flex flex-col items-center text-center space-y-4">
-                        <div className="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center border border-rose-500/20 mx-auto"><AlertTriangle className="text-rose-500 w-8 h-8" /></div>
-                        <div><h3 className="text-xl font-bold text-white mb-2">Excluir Usuário?</h3><p className="text-slate-400 text-sm">Ação irreversível.</p></div>
-                        <div className="flex gap-3 w-full pt-2">
-                            <button onClick={() => setConfirmDeleteId(null)} className="flex-1 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium">Cancelar</button>
-                            <button onClick={handleConfirmDelete} className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg shadow-lg">Sim, Excluir</button>
+       {/* MODAL: EDITAR PERMISSÕES DE GESTOR */}
+       {editingPermissionsId && (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
+                <div className="bg-slate-900 border border-slate-700 rounded-[40px] shadow-2xl w-full max-w-xl overflow-hidden relative">
+                    <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600"></div>
+                    
+                    <div className="p-10">
+                        <div className="flex justify-between items-start mb-10">
+                            <div>
+                                <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">CONFIGURAR UNIDADES</h3>
+                                <p className="text-slate-500 text-sm font-bold uppercase tracking-widest mt-2">Defina quais galpões este gestor pode monitorar</p>
+                            </div>
+                            <button onClick={() => setEditingPermissionsId(null)} className="p-3 bg-slate-800 hover:bg-rose-600 text-white rounded-full transition-all"><X size={24}/></button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 mb-10">
+                            {WAREHOUSE_LIST.map(wh => (
+                                <label key={wh} className={`flex items-center justify-between p-4 rounded-3xl border transition-all cursor-pointer group
+                                    ${tempPermissions.includes(wh) ? 'bg-blue-600/10 border-blue-500 shadow-lg' : 'bg-slate-950 border-slate-800 hover:border-slate-700'}
+                                `} onClick={() => {
+                                    setTempPermissions(prev => prev.includes(wh) ? prev.filter(w => w !== wh) : [...prev, wh]);
+                                }}>
+                                    <div className="flex items-center gap-3">
+                                        <Warehouse size={16} className={tempPermissions.includes(wh) ? 'text-blue-400' : 'text-slate-600'} />
+                                        <span className={`text-xs font-bold uppercase tracking-tight ${tempPermissions.includes(wh) ? 'text-white' : 'text-slate-400'}`}>{wh}</span>
+                                    </div>
+                                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${tempPermissions.includes(wh) ? 'bg-blue-500 border-blue-500 text-white' : 'border-slate-800 text-transparent'}`}>
+                                        <Check size={14} strokeWidth={4} />
+                                    </div>
+                                </label>
+                            ))}
+                        </div>
+
+                        <div className="flex gap-4">
+                            <button onClick={() => setEditingPermissionsId(null)} className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-3xl font-black uppercase text-xs tracking-widest transition-all">Cancelar</button>
+                            <button onClick={savePermissions} className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-2xl shadow-blue-900/40 transition-all flex items-center justify-center gap-3">
+                                <ShieldCheck size={20} /> ATUALIZAR ACESSOS
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
-        )}
+       )}
 
-        {/* PERMISSIONS MODAL */}
-        {editingPermissionsId && (
-            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-                <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-sm p-6 relative">
-                    <div className="mb-4">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2"><Warehouse size={18} className="text-purple-500" /> Permissões de Acesso</h3>
-                        <p className="text-xs text-slate-400">Selecione os galpões que este gestor pode visualizar.</p>
+       {/* MODAL: EXCLUIR USUÁRIO */}
+       {confirmDeleteId && (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-fade-in">
+                <div className="bg-slate-900 border border-slate-700 rounded-[40px] p-10 shadow-2xl max-w-sm w-full text-center relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-600"></div>
+                    <div className="w-20 h-20 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-600/20">
+                        <ShieldAlert className="text-rose-600" size={40} />
                     </div>
-                    <div className="space-y-1 max-h-60 overflow-y-auto custom-scrollbar bg-slate-950 p-2 rounded border border-slate-800 mb-4">
-                        {WAREHOUSE_LIST.map(wh => (
-                            <label key={wh} className="flex items-center gap-2 cursor-pointer hover:bg-slate-900 p-2 rounded transition-colors">
-                                <input 
-                                    type="checkbox" 
-                                    checked={tempPermissions.includes(wh)}
-                                    onChange={() => toggleTempPermission(wh)}
-                                    className="rounded border-slate-700 bg-slate-900 text-purple-600 focus:ring-0"
-                                />
-                                <span className={`text-sm ${tempPermissions.includes(wh) ? 'text-white font-medium' : 'text-slate-400'}`}>{wh}</span>
-                            </label>
-                        ))}
-                    </div>
-                    <div className="flex gap-3 w-full">
-                        <button onClick={() => setEditingPermissionsId(null)} className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm">Cancelar</button>
-                        <button onClick={savePermissions} className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg shadow-lg text-sm">Salvar Permissões</button>
+                    <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Revogar Acesso?</h3>
+                    <p className="text-slate-500 text-sm mb-10 font-bold uppercase tracking-widest leading-relaxed">Esta ação removerá o acesso permanentemente e apagará logs vinculados.</p>
+                    <div className="flex gap-4">
+                        <button onClick={() => setConfirmDeleteId(null)} className="flex-1 py-4 bg-slate-800 text-white rounded-3xl font-black uppercase text-[10px] tracking-widest transition-all">Manter</button>
+                        <button onClick={handleConfirmDelete} className="flex-1 py-4 bg-rose-600 text-white rounded-3xl font-black uppercase text-[10px] tracking-widest shadow-2xl shadow-rose-900/40 transition-all active:scale-95">Sim, Excluir</button>
                     </div>
                 </div>
             </div>
