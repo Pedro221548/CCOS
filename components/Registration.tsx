@@ -15,8 +15,21 @@ interface RegistrationProps {
   currentUser: User;
 }
 
+// Utilitário de checagem de permissão
+const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehouse: string) => {
+    if (!allowedList || allowedList.length === 0) return false;
+    const normalizedTarget = (targetWarehouse || '').toUpperCase();
+    return allowedList.some(allowed => {
+        const normalizedAllowed = allowed.toUpperCase();
+        if (normalizedAllowed === normalizedTarget) return true;
+        if (normalizedAllowed.includes(normalizedTarget) || normalizedTarget.includes(normalizedAllowed)) return true;
+        return false;
+    });
+};
+
 const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
-    const isAdmin = currentUser.role === 'admin' || currentUser.role === 'manager';
+    const isManager = currentUser.role === 'manager';
+    const isAdmin = currentUser.role === 'admin' || isManager;
     const isProvider = currentUser.role === 'provider';
 
     const [activeTab, setActiveTab] = useState<'roster' | 'team' | 'admin_view'>(isProvider ? 'roster' : 'admin_view');
@@ -72,6 +85,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         const unsubRoster = onValue(rosterRef, (snap) => {
             if (snap.exists()) {
                 const data = snap.val();
+                // Fix error: Changed 'key' to 'k' to match the map function argument
                 let list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
                 
                 // PRIVACIDADE: Fornecedor só vê a escala da sua empresa
@@ -263,8 +277,16 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     };
 
     const confirmedTodayRaw = useMemo(() => {
-        return dailyRoster.filter(r => r.date === selectedDate);
-    }, [dailyRoster, selectedDate]);
+        // Filtragem por data
+        let list = dailyRoster.filter(r => r.date === selectedDate);
+        
+        // SEGURANÇA: Gestor só vê escalas das suas unidades permitidas
+        if (isManager) {
+            list = list.filter(r => hasWarehousePermission(currentUser.allowedWarehouses, r.unit));
+        }
+        
+        return list;
+    }, [dailyRoster, selectedDate, isManager, currentUser.allowedWarehouses]);
 
     const activeCompanies = useMemo(() => {
         const companies = new Set<string>();
@@ -302,7 +324,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                     <div>
                         <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Controle de Acesso</h2>
                         <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
-                             <Lock size={12} className="text-slate-600" /> {isProvider ? `Gestão: ${currentUser.companyName}` : 'Gestão Centralizada de Terceirizados'}
+                             <Lock size={12} className="text-slate-600" /> {isProvider ? `Gestão: ${currentUser.companyName}` : isManager ? 'Módulo de Gestão de Unidade' : 'Gestão Centralizada de Terceirizados'}
                         </p>
                     </div>
                 </div>
@@ -319,7 +341,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                     )}
                     <div className="px-6 py-3 bg-slate-950/50 border border-slate-800 rounded-xl text-amber-500 font-black text-[10px] uppercase tracking-[0.2em] flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
-                        {isProvider ? 'Módulo Fornecedor' : 'Painel Administrativo'}
+                        {isProvider ? 'Módulo Fornecedor' : isManager ? 'Visão Gestor' : 'Painel Administrativo'}
                     </div>
                 </div>
             </div>
@@ -430,7 +452,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                 <span className="block text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Escalados Hoje</span>
                                 <span className="block text-4xl font-black text-amber-500 tabular-nums">{confirmedTodayRaw.length}</span>
                             </div>
-                            {!isProvider && (
+                            {!isProvider && !isManager && (
                                 <>
                                     <div className="h-10 w-px bg-slate-800"></div>
                                     <div className="text-center md:text-right">
@@ -510,7 +532,13 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800/40">
-                                    {confirmedTodayFiltered.map(roster => {
+                                    {confirmedTodayFiltered.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} className="p-20 text-center text-slate-600 italic">
+                                                Nenhum registro escalado para as unidades visíveis nesta data.
+                                            </td>
+                                        </tr>
+                                    ) : confirmedTodayFiltered.map(roster => {
                                         const worker = workers.find(w => w.id === roster.workerId);
                                         const isApproved = worker?.status === 'approved';
 
@@ -597,7 +625,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
             {/* MODAL DE VERIFICAÇÃO DE SENHA PARA DOWNLOAD (LOTE OU ÚNICO) */}
             {showVerifyModal && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-fade-in">
-                    <div className="bg-[#0f172a] border border-slate-700 rounded-[32px] p-10 shadow-2xl max-w-sm w-full relative overflow-hidden">
+                    <div className="bg-[#0f172a] border border-slate-700 rounded-[32px] p-10 shadow-2xl max-sm w-full relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600"></div>
                         
                         <div className="flex flex-col items-center text-center mb-8">
@@ -666,7 +694,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
                     <div className="bg-slate-900 border border-slate-700 rounded-[32px] p-10 shadow-2xl max-sm w-full text-center relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-600"></div>
-                        <div className="w-20 h-20 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-600/20">
+                        <div className="w-20 h-20 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-500/20">
                             <AlertTriangle className="text-rose-600" size={40} />
                         </div>
                         <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Confirmar Exclusão?</h3>
@@ -736,7 +764,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                     <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-black uppercase placeholder-slate-800 outline-none focus:border-blue-500" placeholder="NOME COMPLETO" />
                                     <input required value={formData.cpf} onChange={e => setFormData({...formData, cpf: e.target.value.replace(/\D/g, '')})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-mono placeholder-slate-800 outline-none focus:border-blue-500" placeholder="CPF (SÓ NÚMEROS)" maxLength={11} />
                                 </div>
-                                <button type="submit" disabled={isSaving} className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase tracking-widest shadow-2xl active:scale-95 transition-all disabled:opacity-30">
+                                <button type="submit" disabled={isSaving} className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase tracking-widest shadow-2xl active:scale-[0.98] transition-all disabled:opacity-30">
                                     {isSaving ? <LoaderIcon className="animate-spin mx-auto" /> : 'CONCLUIR E ENVIAR'}
                                 </button>
                             </form>
