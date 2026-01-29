@@ -4,7 +4,7 @@ import { User, ServiceWorker, AttendanceRoster } from '../types';
 import { 
     Users, UserPlus, Calendar, ShieldCheck, FileText, Camera as CameraIcon, 
     Upload, X, CheckCircle2, AlertTriangle, Shield, Smartphone, 
-    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2 as LoaderIcon, Copy, ImageIcon, Check
+    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2 as LoaderIcon, Copy, ImageIcon, Check, Briefcase
 } from 'lucide-react';
 import { ref, push, onValue, set, remove, update } from 'firebase/database';
 import { auth, db } from '../services/firebase';
@@ -93,7 +93,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
             if (snap.exists()) {
                 const data = snap.val();
                 let list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
-                // O filtro real para Gestores e Fornecedores é feito no useMemo confirmadoTodayRaw
                 setDailyRoster(list);
             } else setDailyRoster([]);
         });
@@ -114,7 +113,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         
         setIsSaving(true);
         try {
-            const finalCompanyName = currentUser.companyName || "NÃO IDENTIFICADO";
+            const finalCompanyName = currentUser.companyName || "B11";
             const newWorkerRef = push(ref(db, 'monitoramento/service_workers'));
             await set(newWorkerRef, {
                 name: formData.name.toUpperCase(),
@@ -186,21 +185,25 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         }
     };
 
-    // LÓGICA CRÍTICA DE VISIBILIDADE:
     const confirmedTodayRaw = useMemo(() => {
         let list = dailyRoster.filter(r => r.date === selectedDate);
         
         if (isProvider) {
-            // Fornecedor vê apenas registros da sua própria empresa
-            list = list.filter(r => r.companyName === currentUser.companyName);
+            // Comparação robusta para fornecedor
+            const providerCompany = (currentUser.companyName || '').trim().toUpperCase();
+            // Identifica ids dos colaboradores que pertencem a este fornecedor como backup
+            const myWorkerIds = new Set(workers.map(w => w.id));
+
+            list = list.filter(r => {
+                const entryCompany = (r.companyName || '').trim().toUpperCase();
+                // Mostra se a empresa bater OU se o colaborador escalar pertencer ao pool do fornecedor
+                return entryCompany === providerCompany || myWorkerIds.has(r.workerId);
+            });
         } else if (isManager) {
-            // Gestor vê registros apenas das unidades que ele tem permissão
             list = list.filter(r => hasWarehousePermission(currentUser.allowedWarehouses, r.unit));
         }
-        // Admin vê tudo
-        
         return list;
-    }, [dailyRoster, selectedDate, isProvider, isManager, currentUser.companyName, currentUser.allowedWarehouses]);
+    }, [dailyRoster, selectedDate, isProvider, isManager, currentUser.companyName, currentUser.allowedWarehouses, workers]);
 
     const activeCompanies = useMemo(() => {
         const companies = new Set<string>();
@@ -303,98 +306,98 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 
     return (
         <div className="max-w-[1400px] mx-auto space-y-6 animate-fade-in pb-20 px-4 sm:px-0">
-            <div className="bg-[#0f172a] border border-slate-800 rounded-[24px] p-8 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-6">
-                <div className="flex items-center gap-6 z-10">
-                    <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl shadow-inner">
-                        <Shield className="text-amber-500" size={36} strokeWidth={1.5} />
+            {/* Header Proeminente - Estilo Mockup */}
+            <div className="bg-[#1a1f2e] border border-slate-800 rounded-[28px] p-10 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-6">
+                <div className="flex items-center gap-8 z-10">
+                    <div className="p-6 bg-slate-900 border border-slate-700 rounded-3xl shadow-inner group transition-transform hover:scale-105">
+                        <Shield className="text-amber-500 fill-amber-500/10" size={44} strokeWidth={1.2} />
                     </div>
                     <div>
-                        <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Controle de Acesso</h2>
-                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
-                             <Lock size={12} className="text-slate-600" /> {isProvider ? `Empresa: ${currentUser.companyName || 'N/A'}` : isManager ? 'Gestão de Unidades Permitidas' : 'Gestão Centralizada Global'}
-                        </p>
+                        <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic leading-none mb-3">CONTROLE DE ACESSO</h2>
+                        <div className="flex items-center gap-2 text-slate-500 text-sm font-bold uppercase tracking-widest">
+                             <Briefcase size={14} className="text-slate-600" /> 
+                             EMPRESA: <span className="text-slate-300">{isProvider ? (currentUser.companyName || 'N/A') : 'N/A'}</span>
+                        </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-4 z-10">
                     {isProvider && (
-                        <div className="flex gap-2">
-                            <button onClick={() => setActiveTab(activeTab === 'team' ? 'roster' : 'team')} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all">
-                                {activeTab === 'team' ? 'Ver Escala Diária' : 'Minha Equipe (Cadastros)'}
+                        <div className="flex gap-3">
+                            <button onClick={() => setActiveTab(activeTab === 'team' ? 'roster' : 'team')} className="px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-all border border-slate-700">
+                                {activeTab === 'team' ? 'VER ESCALA DIÁRIA' : 'MINHA EQUIPE (CADASTROS)'}
                             </button>
-                            <button onClick={() => setShowAddModal(true)} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-xl shadow-blue-900/40 flex items-center gap-2">
-                                <UserPlus size={18} /> Novo Cadastro
+                            <button onClick={() => setShowAddModal(true)} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-all shadow-xl shadow-blue-900/40 flex items-center gap-2">
+                                <UserPlus size={18} /> NOVO CADASTRO
                             </button>
                         </div>
                     )}
-                    <div className="px-6 py-3 bg-slate-950/50 border border-slate-800 rounded-xl text-amber-500 font-black text-[10px] uppercase tracking-[0.2em] flex items-center gap-3">
+                    <div className="px-6 py-3 bg-[#eab308]/10 border border-[#eab308]/20 rounded-2xl text-[#eab308] font-black text-[10px] uppercase tracking-[0.3em] flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
-                        {isProvider ? 'Módulo Fornecedor' : isManager ? 'Visão Gestor' : 'Painel Administrativo'}
+                        MÓDULO FORNECEDOR
                     </div>
                 </div>
             </div>
 
             {activeTab === 'team' && isProvider ? (
                 <div className="space-y-6 animate-fade-in">
-                    <div className="bg-slate-900 border border-slate-800 rounded-[24px] p-6 shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-blue-500/10 rounded-xl text-blue-500">
-                                <Users size={24} />
+                    {/* Painel de Escala Operacional */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-[32px] p-8 shadow-2xl flex flex-col md:flex-row justify-between items-center gap-8">
+                        <div className="flex items-center gap-5">
+                            <div className="p-4 bg-blue-500/10 rounded-2xl text-blue-500 border border-blue-500/20">
+                                <Users size={28} />
                             </div>
                             <div>
-                                <h3 className="text-white font-black uppercase text-sm">Escala Operacional</h3>
-                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{selectedWorkerIds.size} colaboradores selecionados</p>
+                                <h3 className="text-white font-black uppercase text-base tracking-widest">ESCALA OPERACIONAL</h3>
+                                <p className="text-[11px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">{selectedWorkerIds.size} COLABORADORES SELECIONADOS</p>
                             </div>
                         </div>
                         <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-                            <div className="relative w-full sm:w-64">
+                            <div className="relative w-full sm:w-72">
                                 <select 
                                     value={targetUnit}
                                     onChange={(e) => setTargetUnit(e.target.value)}
-                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white font-bold uppercase outline-none focus:border-blue-500 appearance-none cursor-pointer"
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-xs text-white font-bold uppercase outline-none focus:border-blue-500 appearance-none cursor-pointer"
                                 >
                                     {WAREHOUSE_LIST.map(u => <option key={u} value={u}>{u}</option>)}
                                 </select>
-                                <Warehouse className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" size={16} />
+                                <Warehouse className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" size={18} />
                             </div>
                             <button 
                                 onClick={handleBatchAddToRoster}
                                 disabled={selectedWorkerIds.size === 0}
-                                className="w-full sm:w-auto px-8 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 disabled:grayscale text-white font-black rounded-xl uppercase text-xs tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-xl shadow-emerald-900/20"
+                                className="w-full sm:w-auto px-10 py-4 bg-[#10b981] hover:bg-[#059669] disabled:opacity-30 disabled:grayscale text-white font-black rounded-2xl uppercase text-xs tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-xl shadow-emerald-900/30"
                             >
-                                <ClipboardCheck size={20} /> Confirmar Escala Hoje
+                                <ClipboardCheck size={22} /> CONFIRMAR ESCALA HOJE
                             </button>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {workers.map(w => {
                             const isSelected = selectedWorkerIds.has(w.id);
                             return (
-                                <div key={w.id} onClick={() => toggleWorkerSelection(w.id)} className={`relative cursor-pointer bg-slate-950 border rounded-[28px] p-5 transition-all group overflow-hidden ${isSelected ? 'border-blue-500 bg-blue-500/5 shadow-xl shadow-blue-900/20' : 'border-slate-800 hover:border-slate-700'}`}>
-                                    <div className="flex items-center gap-4 relative z-10">
-                                        <div className="relative">
-                                            <img src={w.photoUrl} className="w-14 h-14 rounded-2xl object-cover border-2 border-slate-800" />
-                                            <div className={`absolute -top-2 -left-2 p-1 rounded-lg border shadow-lg transition-all ${isSelected ? 'bg-blue-600 border-blue-400 scale-110' : 'bg-slate-800 border-slate-700'}`}>
-                                                {isSelected ? <CheckSquare size={16} className="text-white" /> : <Square size={16} className="text-slate-600" />}
+                                <div key={w.id} onClick={() => toggleWorkerSelection(w.id)} className={`relative cursor-pointer bg-slate-950 border rounded-[32px] p-6 transition-all group overflow-hidden ${isSelected ? 'border-blue-500 bg-blue-500/5 shadow-2xl shadow-blue-900/20' : 'border-slate-800 hover:border-slate-700'}`}>
+                                    <div className="flex items-center gap-5 relative z-10">
+                                        <div className="relative shrink-0">
+                                            <img src={w.photoUrl} className="w-16 h-16 rounded-[20px] object-cover border-2 border-slate-800" />
+                                            <div className={`absolute -top-2 -left-2 p-1.5 rounded-xl border shadow-lg transition-all ${isSelected ? 'bg-blue-600 border-blue-400 scale-110' : 'bg-slate-800 border-slate-700'}`}>
+                                                {isSelected ? <CheckSquare size={18} className="text-white" /> : <Square size={18} className="text-slate-600" />}
                                             </div>
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex flex-col gap-1">
-                                                <p className="text-white font-black uppercase text-xs truncate leading-tight">{w.name}</p>
-                                                <div className="flex items-center gap-2">
-                                                    <p className="text-[9px] text-slate-600 font-mono font-bold">{w.cpf}</p>
-                                                    <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase border tracking-widest ${w.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
-                                                        {w.status === 'approved' ? 'CADASTRADO' : 'PENDENTE'}
-                                                    </span>
+                                            <p className="text-white font-black uppercase text-xs truncate leading-tight tracking-tight">{w.name}</p>
+                                            <div className="flex flex-col gap-1 mt-2">
+                                                <p className="text-[10px] text-slate-600 font-mono font-bold tracking-widest">{w.cpf}</p>
+                                                <div className={`inline-block w-fit px-2 py-0.5 rounded text-[8px] font-black uppercase border tracking-widest ${w.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                                                    {w.status === 'approved' ? 'CADASTRADO' : 'PENDENTE'}
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="flex gap-1">
-                                            <button onClick={(e) => { e.stopPropagation(); startDownloadProcess(w.id); }} className="p-2 text-slate-800 hover:text-blue-500 transition-all"><Download size={18} /></button>
-                                            <button onClick={(e) => { e.stopPropagation(); setDeleteConfig({ id: w.id, type: 'worker', name: w.name }); }} className="p-2 text-slate-800 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); startDownloadProcess(w.id); }} className="p-2 text-slate-800 hover:text-blue-500 transition-all"><Download size={20} /></button>
                                         </div>
                                     </div>
-                                    {isSelected && <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 blur-3xl rounded-full"></div>}
+                                    {isSelected && <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-3xl rounded-full"></div>}
                                 </div>
                             );
                         })}
@@ -402,29 +405,30 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 </div>
             ) : (
                 <>
-                    <div className="bg-slate-900 border border-slate-800 rounded-[20px] p-5 shadow-xl flex flex-col md:flex-row items-center gap-6 animate-fade-in">
-                        <div className="bg-slate-950 p-2 rounded-2xl border border-slate-800 flex items-center gap-4 flex-1 w-full md:w-auto pr-6">
-                            <div className="p-3 bg-amber-500/10 rounded-xl text-amber-500">
-                                <Calendar size={22} />
+                    {/* Filtros e Stats da Roster */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-[28px] p-6 shadow-xl flex flex-col md:flex-row items-center gap-8 animate-fade-in">
+                        <div className="bg-slate-950 p-2 rounded-2xl border border-slate-800 flex items-center gap-5 flex-1 w-full md:w-auto pr-8">
+                            <div className="p-4 bg-amber-500/10 rounded-xl text-amber-500">
+                                <Calendar size={26} />
                             </div>
                             <input 
                                 type="date" 
                                 value={selectedDate}
                                 onChange={(e) => setSelectedDate(e.target.value)}
-                                className="bg-transparent border-none text-white font-black text-sm uppercase outline-none flex-1 [color-scheme:dark] cursor-pointer font-bold" 
+                                className="bg-transparent border-none text-white font-black text-base uppercase outline-none flex-1 [color-scheme:dark] cursor-pointer" 
                             />
                         </div>
-                        <div className="flex items-center gap-12 px-4">
+                        <div className="flex items-center gap-16 px-6">
                             <div className="text-center md:text-right">
-                                <span className="block text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Escalados Hoje</span>
-                                <span className="block text-4xl font-black text-amber-500 tabular-nums">{confirmedTodayRaw.length}</span>
+                                <span className="block text-[11px] text-slate-500 font-black uppercase tracking-[0.2em] mb-2">ESCALADOS HOJE</span>
+                                <span className="block text-5xl font-black text-amber-500 tabular-nums leading-none">{confirmedTodayRaw.length}</span>
                             </div>
                             {!isProvider && !isManager && (
                                 <>
-                                    <div className="h-10 w-px bg-slate-800"></div>
+                                    <div className="h-12 w-px bg-slate-800"></div>
                                     <div className="text-center md:text-right">
-                                        <span className="block text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Empresas Ativas</span>
-                                        <span className="block text-4xl font-black text-blue-500 tabular-nums">{activeCompanies.length}</span>
+                                        <span className="block text-[11px] text-slate-500 font-black uppercase tracking-[0.2em] mb-2">EMPRESAS ATIVAS</span>
+                                        <span className="block text-5xl font-black text-blue-500 tabular-nums leading-none">{activeCompanies.length}</span>
                                     </div>
                                 </>
                             )}
@@ -433,29 +437,29 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 
                     {!isProvider && (
                         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
-                            <div className="flex items-center gap-2 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800 shadow-inner">
+                            <div className="flex items-center gap-2 bg-slate-900/50 p-2 rounded-2xl border border-slate-800 shadow-inner">
                                 <button 
                                     onClick={() => setSelectedCompanyFilter('TODOS')}
-                                    className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2
+                                    className={`px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2
                                         ${selectedCompanyFilter === 'TODOS' ? 'bg-slate-800 text-white shadow-lg border border-slate-700' : 'text-slate-600 hover:text-slate-400'}
                                     `}
                                 >
-                                    <LayoutGrid size={14} /> TODOS
+                                    <LayoutGrid size={16} /> TODOS
                                 </button>
-                                <div className="w-px h-4 bg-slate-800 mx-2"></div>
+                                <div className="w-px h-5 bg-slate-800 mx-3"></div>
                                 {activeCompanies.map(company => {
                                     const count = confirmedTodayRaw.filter(r => r.companyName.toUpperCase() === company).length;
                                     return (
                                         <button 
                                             key={company}
                                             onClick={() => setSelectedCompanyFilter(company)}
-                                            className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap
+                                            className={`px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap
                                                 ${selectedCompanyFilter === company 
                                                     ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-xl' 
                                                     : 'text-slate-600 hover:text-slate-400 border border-transparent'}
                                             `}
                                         >
-                                            {company} <span className="opacity-50 text-[9px] font-mono">({count})</span>
+                                            {company} <span className="opacity-50 text-[10px] font-mono">({count})</span>
                                         </button>
                                     );
                                 })}
@@ -463,60 +467,61 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                         </div>
                     )}
 
-                    <div className="bg-slate-900 border border-slate-800 rounded-[24px] shadow-2xl overflow-hidden min-h-[400px]">
-                        <div className="p-4 border-b border-slate-800/40 flex justify-end gap-3">
+                    {/* Tabela Principal - Estética "ControlVision" */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-[32px] shadow-2xl overflow-hidden min-h-[500px]">
+                        <div className="p-6 border-b border-slate-800/40 flex justify-end gap-4 bg-slate-950/20">
                             {(isAdmin || isManager) && (
-                                <button onClick={startBatchPhotoDownload} className="bg-emerald-600/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-600 hover:text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg"><ImageIcon size={16} /> Baixar Fotos (JPG)</button>
+                                <button onClick={startBatchPhotoDownload} className="bg-emerald-600/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-600 hover:text-white px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-3 shadow-lg"><ImageIcon size={18} /> BAIXAR FOTOS (JPG)</button>
                             )}
-                            <button onClick={handleCopyAllVisible} className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border shadow-lg ${copySuccess ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white'}`}>{copySuccess ? <CheckCircle2 size={16} /> : <Copy size={16} />} {copySuccess ? 'Copiado!' : 'Copiar Lista (Nome/CPF)'}</button>
+                            <button onClick={handleCopyAllVisible} className={`px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-3 border shadow-lg ${copySuccess ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white'}`}>{copySuccess ? <CheckCircle2 size={18} /> : <Copy size={18} />} {copySuccess ? 'COPIADO!' : 'COPIAR LISTA (NOME/CPF)'}</button>
                         </div>
                         <div className="overflow-x-auto custom-scrollbar">
                             <table className="w-full text-left">
-                                <thead className="bg-slate-950 text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] border-b border-slate-800">
+                                <thead className="bg-[#05070a] text-slate-500 text-[11px] font-black uppercase tracking-[0.25em] border-b border-slate-800">
                                     <tr>
-                                        <th className="p-6">Identificação Colaborador</th>
-                                        <th className="p-6">Empresa Parceira</th>
-                                        <th className="p-6">Unidade Alvo</th>
-                                        <th className="p-6">Auditoria</th>
-                                        <th className="p-6 text-right">Ações</th>
+                                        <th className="p-8">IDENTIFICAÇÃO COLABORADOR</th>
+                                        <th className="p-8">EMPRESA PARCEIRA</th>
+                                        <th className="p-8">UNIDADE ALVO</th>
+                                        <th className="p-8">AUDITORIA</th>
+                                        <th className="p-8 text-right">AÇÕES</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800/40">
                                     {confirmedTodayFiltered.length === 0 ? (
-                                        <tr><td colSpan={5} className="p-20 text-center text-slate-600 italic">Nenhum registro escalado nesta data.</td></tr>
+                                        <tr><td colSpan={5} className="p-32 text-center text-slate-600 font-bold uppercase tracking-widest text-sm">Nenhum registro escalado nesta data.</td></tr>
                                     ) : confirmedTodayFiltered.map(roster => {
                                         const worker = workers.find(w => w.id === roster.workerId);
                                         const isApproved = worker?.status === 'approved';
                                         return (
-                                            <tr key={roster.id} className={`transition-all group border-l-2 ${isApproved ? 'bg-emerald-500/[0.02] border-l-emerald-500' : 'hover:bg-slate-800/20 border-l-transparent'}`}>
-                                                <td className="p-6">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="relative">
-                                                            <img src={worker?.photoUrl || `https://ui-avatars.com/api/?name=${roster.workerName}&background=1e293b&color=475569`} className="w-12 h-12 rounded-xl object-cover border-2 border-slate-800 shadow-xl" alt="" />
-                                                            <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 shadow-lg ${isApproved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
+                                            <tr key={roster.id} className={`transition-all group border-l-4 ${isApproved ? 'bg-emerald-500/[0.01] border-l-emerald-500' : 'hover:bg-slate-800/20 border-l-transparent'}`}>
+                                                <td className="p-8">
+                                                    <div className="flex items-center gap-5">
+                                                        <div className="relative shrink-0">
+                                                            <img src={worker?.photoUrl || `https://ui-avatars.com/api/?name=${roster.workerName}&background=1e293b&color=475569`} className="w-14 h-14 rounded-2xl object-cover border-2 border-slate-800 shadow-2xl" alt="" />
+                                                            <div className={`absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full border-4 border-[#0d1117] shadow-lg ${isApproved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
                                                         </div>
                                                         <div className="flex flex-col">
-                                                            <span className="font-black text-white block uppercase text-sm tracking-tight">{roster.workerName}</span>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-[10px] font-mono text-slate-600 font-bold tracking-widest">{worker?.cpf ? worker.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : '-'}</span>
-                                                                {isApproved && <span className="text-[8px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-1 rounded font-black uppercase tracking-tighter">OK</span>}
+                                                            <span className="font-black text-white block uppercase text-base tracking-tight leading-none mb-1.5">{roster.workerName}</span>
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="text-[11px] font-mono text-slate-500 font-bold tracking-[0.2em]">{worker?.cpf ? worker.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : '-'}</span>
+                                                                {isApproved && <span className="text-[9px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded font-black uppercase tracking-tighter shadow-sm">LIBERADO</span>}
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="p-6"><div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600/10 text-blue-500 border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest"><Building2 size={12} /> {roster.companyName}</div></td>
-                                                <td className="p-6"><div className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[11px] tracking-tight"><Warehouse size={14} className="text-slate-700" /> {roster.unit}</div></td>
-                                                <td className="p-6"><button onClick={() => startDownloadProcess(roster.workerId)} className="flex items-center gap-2 text-slate-600 hover:text-amber-500 transition-all text-[10px] font-black uppercase tracking-widest group/btn"><div className="p-2 rounded-lg bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all"><Download size={16} /></div>Baixar Documentos</button></td>
-                                                <td className="p-6">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        <button onClick={() => setDeleteConfig({ id: roster.id, type: 'roster', name: roster.workerName })} className="p-2.5 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white border border-rose-600/20 rounded-xl transition-all shadow-lg"><Trash2 size={16} /></button>
+                                                <td className="p-8"><div className="inline-flex items-center gap-3 px-4 py-2 bg-blue-600/10 text-blue-500 border border-blue-500/20 rounded-2xl text-[11px] font-black uppercase tracking-widest"><Building2 size={14} /> {roster.companyName}</div></td>
+                                                <td className="p-8"><div className="flex items-center gap-3 text-slate-400 font-black uppercase text-xs tracking-widest"><Warehouse size={16} className="text-slate-700" /> {roster.unit}</div></td>
+                                                <td className="p-8"><button onClick={() => startDownloadProcess(roster.workerId)} className="flex items-center gap-3 text-slate-500 hover:text-amber-500 transition-all text-[11px] font-black uppercase tracking-[0.15em] group/btn"><div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all shadow-inner"><Download size={18} /></div>BAIXAR DOCUMENTOS</button></td>
+                                                <td className="p-8">
+                                                    <div className="flex items-center justify-end gap-3">
+                                                        <button onClick={() => setDeleteConfig({ id: roster.id, type: 'roster', name: roster.workerName })} className="p-3 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white border border-rose-600/20 rounded-2xl transition-all shadow-lg" title="Remover da escala"><Trash2 size={18} /></button>
                                                         {isApproved ? (
-                                                            <div className="bg-emerald-500/10 border border-emerald-500/20 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase text-emerald-500 flex items-center gap-2 shadow-lg shadow-emerald-900/10 animate-fade-in"><CheckCircle2 size={16} className="text-emerald-400" /> Liberado para Acesso</div>
+                                                            <div className="bg-emerald-500/10 border border-emerald-500/20 px-8 py-3 rounded-2xl text-[11px] font-black uppercase text-emerald-500 flex items-center gap-3 shadow-xl shadow-emerald-900/10 animate-fade-in"><CheckCircle2 size={18} className="text-emerald-400" /> LIBERADO PARA ACESSO</div>
                                                         ) : (
                                                             (isAdmin || isManager) ? (
-                                                                <button onClick={() => handleApproveWorker(roster.workerId, roster.id)} disabled={actionLoading === roster.id} className="bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white border border-emerald-500/20 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-emerald-900/10 group/lib">{actionLoading === roster.id ? <LoaderIcon className="animate-spin" size={16} /> : <><CheckCircle2 size={16} className="group-hover:lib:scale-110 transition-transform" /> Liberar</>}</button>
+                                                                <button onClick={() => handleApproveWorker(roster.workerId, roster.id)} disabled={actionLoading === roster.id} className="bg-[#10b981]/10 hover:bg-[#10b981] text-[#10b981] hover:text-white border border-[#10b981]/20 px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-emerald-900/10 group/lib">{actionLoading === roster.id ? <LoaderIcon className="animate-spin" size={18} /> : <><CheckCircle2 size={18} className="group-hover:lib:scale-110 transition-transform" /> LIBERAR</>}</button>
                                                             ) : (
-                                                                <div className="bg-amber-500/5 border border-amber-500/20 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase text-amber-500 flex items-center gap-2 italic">Aguardando Auditoria</div>
+                                                                <div className="bg-amber-500/5 border border-amber-500/20 px-8 py-3 rounded-2xl text-[11px] font-black uppercase text-amber-500 flex items-center gap-3 italic tracking-widest opacity-70">AGUARDANDO AUDITORIA</div>
                                                             )
                                                         )}
                                                     </div>
@@ -531,24 +536,24 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 </>
             )}
 
-            {/* MODALS (Sem alterações lógicas) */}
+            {/* MODALS */}
             {showVerifyModal && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-fade-in">
-                    <div className="bg-[#0f172a] border border-slate-700 rounded-[32px] p-10 shadow-2xl max-sm w-full relative overflow-hidden">
+                    <div className="bg-[#0f172a] border border-slate-700 rounded-[40px] p-12 shadow-2xl max-w-sm w-full relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600"></div>
-                        <div className="flex flex-col items-center text-center mb-8">
-                            <div className="w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center border border-blue-600/20 mb-4"><Lock className="text-blue-500" size={32} /></div>
-                            <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">Verificar Identidade</h3>
-                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">{batchDownloadMode ? <>Confirme sua senha para baixar <br/><span className="text-emerald-500">{confirmedTodayFiltered.length} fotos de colaboradores</span></> : <>Digite sua senha para baixar o documento de <br/><span className="text-white">{targetWorker?.name}</span></>}</p>
+                        <div className="flex flex-col items-center text-center mb-10">
+                            <div className="w-20 h-20 bg-blue-600/10 rounded-full flex items-center justify-center border border-blue-600/20 mb-6 shadow-inner"><Lock className="text-blue-500" size={36} /></div>
+                            <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Verificar Identidade</h3>
+                            <p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest mt-3 leading-relaxed">{batchDownloadMode ? <>Confirme sua senha para baixar <br/><span className="text-emerald-500">{confirmedTodayFiltered.length} fotos de colaboradores</span></> : <>Digite sua senha para baixar o documento de <br/><span className="text-white">{targetWorker?.name}</span></>}</p>
                         </div>
-                        <form onSubmit={handleVerifyAndAction} className="space-y-6">
+                        <form onSubmit={handleVerifyAndAction} className="space-y-8">
                             <div className="relative group">
-                                <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 size={18} ${errorVerify ? 'text-rose-500' : 'text-slate-600 group-focus-within:text-blue-500'}`} />
-                                <input autoFocus type={showPassword ? "text" : "password"} value={verifyPassword} onChange={e => setVerifyPassword(e.target.value)} className={`w-full bg-slate-950 border rounded-2xl pl-12 pr-12 py-4 text-white outline-none transition-all font-bold tracking-widest ${errorVerify ? 'border-rose-500' : 'border-slate-800 focus:border-blue-500'}`} placeholder="SENHA" />
-                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+                                <Lock className={`absolute left-5 top-1/2 -translate-y-1/2 size={20} ${errorVerify ? 'text-rose-500' : 'text-slate-600 group-focus-within:text-blue-500'}`} />
+                                <input autoFocus type={showPassword ? "text" : "password"} value={verifyPassword} onChange={e => setVerifyPassword(e.target.value)} className={`w-full bg-slate-950 border rounded-3xl pl-14 pr-14 py-5 text-white outline-none transition-all font-black tracking-[0.3em] text-center text-sm ${errorVerify ? 'border-rose-500' : 'border-slate-800 focus:border-blue-500'}`} placeholder="SENHA" />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors">{showPassword ? <EyeOff size={20} /> : <Eye size={20} />}</button>
                             </div>
-                            {errorVerify && <p className="text-rose-500 text-[10px] font-black uppercase text-center animate-pulse">{errorVerify}</p>}
-                            <div className="flex gap-4"><button type="button" onClick={() => { setShowVerifyModal(false); setTargetWorker(null); setBatchDownloadMode(false); }} className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">Cancelar</button><button type="submit" disabled={verifying || !verifyPassword} className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl shadow-blue-900/40 transition-all flex items-center justify-center gap-2">{verifying ? <LoaderIcon className="animate-spin" size={16} /> : <><Download size={16} /> Confirmar</>}</button></div>
+                            {errorVerify && <p className="text-rose-500 text-[11px] font-black uppercase text-center animate-pulse tracking-widest">{errorVerify}</p>}
+                            <div className="flex gap-4"><button type="button" onClick={() => { setShowVerifyModal(false); setTargetWorker(null); setBatchDownloadMode(false); }} className="flex-1 py-5 bg-slate-800 text-white rounded-3xl font-black uppercase text-xs tracking-widest transition-all border border-slate-700">CANCELAR</button><button type="submit" disabled={verifying || !verifyPassword} className="flex-1 py-5 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-2xl shadow-blue-900/40 transition-all flex items-center justify-center gap-3">{verifying ? <LoaderIcon className="animate-spin" size={18} /> : <><Download size={18} /> CONFIRMAR</>}</button></div>
                         </form>
                     </div>
                 </div>
@@ -556,31 +561,31 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 
             {deleteConfig && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
-                    <div className="bg-slate-900 border border-slate-700 rounded-[32px] p-10 shadow-2xl max-sm w-full text-center relative overflow-hidden">
+                    <div className="bg-slate-900 border border-slate-700 rounded-[40px] p-12 shadow-2xl max-w-sm w-full text-center relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-600"></div>
-                        <div className="w-20 h-20 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-500/20"><AlertTriangle className="text-rose-600" size={40} /></div>
-                        <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Confirmar Exclusão?</h3>
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">Deseja realmente remover o registro de <br/><span className="text-rose-500 font-black">{deleteConfig.name}</span>?</p>
-                        <div className="flex gap-4"><button onClick={() => setDeleteConfig(null)} className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">Cancelar</button><button onClick={confirmDeleteAction} className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl shadow-rose-900/40 transition-all active:scale-95">Sim, Excluir</button></div>
+                        <div className="w-24 h-24 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-rose-600/20 shadow-inner"><AlertTriangle className="text-rose-600" size={48} /></div>
+                        <h3 className="text-2xl font-black text-white mb-3 uppercase tracking-tighter italic">Confirmar Exclusão?</h3>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-10">Deseja realmente remover o registro de <br/><span className="text-rose-500 font-black">{deleteConfig.name}</span>?</p>
+                        <div className="flex gap-4"><button onClick={() => setDeleteConfig(null)} className="flex-1 py-5 bg-slate-800 text-white rounded-3xl font-black uppercase text-[11px] tracking-widest transition-all border border-slate-700">CANCELAR</button><button onClick={confirmDeleteAction} className="flex-1 py-5 bg-rose-600 text-white rounded-3xl font-black uppercase text-[11px] tracking-widest shadow-2xl shadow-rose-900/40 transition-all active:scale-95">SIM, EXCLUIR</button></div>
                     </div>
                 </div>
             )}
 
             {showAddModal && (
-                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in overflow-y-auto">
-                    <div className="bg-[#0f172a] border border-slate-700 rounded-[32px] shadow-2xl w-full max-w-lg my-8 relative overflow-hidden">
+                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in overflow-y-auto">
+                    <div className="bg-[#0f172a] border border-slate-700 rounded-[40px] shadow-2xl w-full max-w-xl my-8 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600"></div>
-                        <div className="p-10">
-                            <div className="flex justify-between items-start mb-8">
-                                <div><h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Novo Registro</h3><p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-2">Empresa: {currentUser.companyName}</p></div>
-                                <button onClick={() => setShowAddModal(false)} className="p-2 bg-slate-800 hover:bg-rose-600 text-white rounded-full transition-all"><X size={20}/></button>
+                        <div className="p-12">
+                            <div className="flex justify-between items-start mb-10">
+                                <div><h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">NOVO REGISTRO</h3><p className="text-slate-500 text-[11px] font-bold uppercase tracking-widest mt-3">EMPRESA: {currentUser.companyName}</p></div>
+                                <button onClick={() => setShowAddModal(false)} className="p-3 bg-slate-800 hover:bg-rose-600 text-white rounded-full transition-all border border-slate-700 shadow-lg"><X size={24}/></button>
                             </div>
-                            <form onSubmit={handleSaveWorker} className="space-y-6">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Foto Perfil</label>
-                                        <div className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-[32px] overflow-hidden flex items-center justify-center relative group">
-                                            {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover p-2 rounded-[28px]" alt="" /> : <CameraIcon size={32} className="text-slate-800" />}
+                            <form onSubmit={handleSaveWorker} className="space-y-8">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">FOTO PERFIL</label>
+                                        <div className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-[40px] overflow-hidden flex items-center justify-center relative group shadow-inner">
+                                            {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover p-3 rounded-[36px]" alt="" /> : <CameraIcon size={44} className="text-slate-800" />}
                                             <input type="file" accept="image/*" className="hidden" id="photo-up" onChange={e => {
                                                 const file = e.target.files?.[0];
                                                 if (file) {
@@ -589,18 +594,18 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                     r.readAsDataURL(file);
                                                 }
                                             }} />
-                                            <button type="button" onClick={() => document.getElementById('photo-up')?.click()} className="absolute bottom-3 right-3 p-2.5 bg-blue-600 text-white rounded-full shadow-xl hover:scale-110 transition-transform"><CameraIcon size={16} /></button>
+                                            <button type="button" onClick={() => document.getElementById('photo-up')?.click()} className="absolute bottom-5 right-5 p-4 bg-blue-600 text-white rounded-3xl shadow-2xl hover:scale-110 transition-transform"><CameraIcon size={20} /></button>
                                         </div>
                                     </div>
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Documento (PDF/IMG)</label>
-                                        <div className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-[32px] overflow-hidden flex items-center justify-center relative group">
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">DOCUMENTO (PDF/IMG)</label>
+                                        <div className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-[40px] overflow-hidden flex items-center justify-center relative group shadow-inner">
                                             {documentData ? (
-                                                <div className="p-4 text-center">
-                                                    <div className="w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-2"><File className="text-blue-500" size={24} /></div>
-                                                    <p className="text-[9px] text-slate-400 font-bold uppercase truncate max-w-full px-2">{documentData.name}</p>
+                                                <div className="p-6 text-center">
+                                                    <div className="w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/20"><File className="text-blue-500" size={32} /></div>
+                                                    <p className="text-[10px] text-slate-400 font-bold uppercase truncate max-w-full px-4">{documentData.name}</p>
                                                 </div>
-                                            ) : <FileText size={32} className="text-slate-800" />}
+                                            ) : <FileText size={44} className="text-slate-800" />}
                                             <input type="file" accept=".pdf,image/*" className="hidden" id="doc-up" onChange={e => {
                                                 const file = e.target.files?.[0];
                                                 if (file) {
@@ -609,16 +614,22 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                     r.readAsDataURL(file);
                                                 }
                                             }} />
-                                            <button type="button" onClick={() => document.getElementById('doc-up')?.click()} className="absolute bottom-3 right-3 p-2.5 bg-emerald-600 text-white rounded-full shadow-xl hover:scale-110 transition-transform"><Upload size={16} /></button>
+                                            <button type="button" onClick={() => document.getElementById('doc-up')?.click()} className="absolute bottom-5 right-5 p-4 bg-emerald-600 text-white rounded-3xl shadow-2xl hover:scale-110 transition-transform"><Upload size={20} /></button>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="space-y-4">
-                                    <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-black uppercase placeholder-slate-800 outline-none focus:border-blue-500" placeholder="NOME COMPLETO" />
-                                    <input required value={formData.cpf} onChange={e => setFormData({...formData, cpf: e.target.value.replace(/\D/g, '')})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-mono placeholder-slate-800 outline-none focus:border-blue-500" placeholder="CPF (SÓ NÚMEROS)" maxLength={11} />
+                                <div className="space-y-5">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">NOME COMPLETO</label>
+                                        <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-3xl px-8 py-5 text-white font-black uppercase placeholder-slate-900 outline-none focus:border-blue-500 shadow-inner" placeholder="DIGITE O NOME..." />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">CPF (SÓ NÚMEROS)</label>
+                                        <input required value={formData.cpf} onChange={e => setFormData({...formData, cpf: e.target.value.replace(/\D/g, '')})} className="w-full bg-slate-950 border border-slate-800 rounded-3xl px-8 py-5 text-white font-mono placeholder-slate-900 outline-none focus:border-blue-500 shadow-inner" placeholder="000.000.000-00" maxLength={11} />
+                                    </div>
                                 </div>
-                                <button type="submit" disabled={isSaving} className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase tracking-widest shadow-2xl active:scale-[0.98] transition-all disabled:opacity-30">
-                                    {isSaving ? <LoaderIcon className="animate-spin mx-auto" /> : 'CONCLUIR E ENVIAR'}
+                                <button type="submit" disabled={isSaving} className="w-full py-6 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-3xl uppercase tracking-[0.3em] text-xs shadow-2xl active:scale-[0.98] transition-all disabled:opacity-30">
+                                    {isSaving ? <LoaderIcon className="animate-spin mx-auto" size={24} /> : 'CONCLUIR E ENVIAR'}
                                 </button>
                             </form>
                         </div>

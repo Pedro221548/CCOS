@@ -255,7 +255,7 @@ const Importer: React.FC<ImporterProps> = ({
                    else if (fullSearchString.includes('GMILL')) company = 'GMILL';
                    else if (fullSearchString.includes('BSB')) company = 'BSB';
                 }
-                if (!company) company = 'NÃO IDENTIFICADO';
+                if (!company) company = 'B11';
                 const dateNormalized = parseRowDate(row);
                 let timeStr = row['Hora'] || '-';
                 if (typeof timeStr === 'string' && timeStr.includes(' ')) timeStr = timeStr.split(' ')[1]; 
