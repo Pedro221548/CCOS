@@ -4,7 +4,7 @@ import { User, TeamWorker, AttendanceRoster } from '../types';
 import { 
     Users, UserPlus, Calendar, ShieldCheck, FileText, Camera as CameraIcon, 
     Upload, X, CheckCircle2, AlertTriangle, Shield, Smartphone, 
-    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2 as LoaderIcon, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser, Image, Clock
+    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2 as LoaderIcon, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser, Image, Clock, Mail
 } from 'lucide-react';
 import { ref, push, onValue, set, remove, update, get, query, orderByChild, equalTo } from 'firebase/database';
 import { auth, db } from '../services/firebase';
@@ -75,6 +75,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     const [requestedDownloadType, setRequestedDownloadType] = useState<'photo' | 'document' | 'batch_photo' | null>(null);
     const [errorVerify, setErrorVerify] = useState('');
     const [copySuccess, setCopySuccess] = useState(false);
+    const [copyEmailSuccess, setCopyEmailSuccess] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
     const [deleteConfig, setDeleteConfig] = useState<{ id: string | string[], type: 'roster' | 'worker', name: string } | null>(null);
@@ -331,6 +332,28 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         navigator.clipboard.writeText(textToCopy);
         setCopySuccess(true);
         setTimeout(() => setCopySuccess(false), 2000);
+    };
+
+    const handleCopyEmailTemplate = () => {
+        if (confirmedTodayFiltered.length === 0) {
+            alert("Nenhum colaborador escalado para copiar.");
+            return;
+        }
+
+        const company = (currentUser.companyName || currentUser.name || 'EMPRESA').trim().toUpperCase();
+        const formattedDate = selectedDate.split('-').reverse().join('/');
+
+        const header = `Segue dados dos funcionários ${company} para liberação, com entrada no período diurno em ${formattedDate}:\n\n`;
+
+        const list = confirmedTodayFiltered.map(roster => {
+            const worker = workers.find(w => w.id === roster.workerId);
+            const cpfFormatted = worker?.cpf ? worker.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : 'CPF NÃO LOCALIZADO';
+            return `${roster.workerName} - ${cpfFormatted}`;
+        }).join('\n');
+
+        navigator.clipboard.writeText(header + list);
+        setCopyEmailSuccess(true);
+        setTimeout(() => setCopyEmailSuccess(false), 2000);
     };
 
     const startDownloadProcess = (workerId: string, type: 'photo' | 'document') => {
@@ -606,6 +629,18 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                     <Trash2 size={18} /> APAGAR SELECIONADOS ({selectedRosterIds.size})
                                 </button>
                             )}
+                            
+                            {/* BOTÃO COPIAR PARA E-MAIL (APENAS PRESTADORES) */}
+                            {isProvider && (
+                                <button 
+                                    onClick={handleCopyEmailTemplate} 
+                                    className={`px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-3 border shadow-lg ${copyEmailSuccess ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-slate-800 border-slate-700 text-emerald-500 hover:text-white hover:bg-emerald-600'}`}
+                                >
+                                    {copyEmailSuccess ? <CheckCircle2 size={18} /> : <Mail size={18} />}
+                                    {copyEmailSuccess ? 'COPIADO PARA O E-MAIL!' : 'COPIAR PARA E-MAIL'}
+                                </button>
+                            )}
+
                             <button 
                                 onClick={startBatchPhotoDownload} 
                                 disabled={isBatchProcessing || confirmedTodayFiltered.length === 0}
@@ -851,5 +886,15 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         </div>
     );
 };
+
+// Componente Loader auxiliar (interno)
+const LoaderIcon = ({ className, size }: { className?: string, size?: number }) => (
+    <div className={className} style={{ width: size, height: size }}>
+        <svg className="animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+    </div>
+);
 
 export default Registration;
