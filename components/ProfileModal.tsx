@@ -1,6 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
-// Added missing MessageSquareHeart and Shield imports from lucide-react
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Camera, Lock, Save, User as UserIcon, Briefcase, MessageSquare, Loader2, Sparkles, Clock, Megaphone, Bug, CheckCircle2, MessageSquareHeart, Shield } from 'lucide-react';
 import { User, AppFeedback } from '../types';
 import { authService } from '../services/auth';
@@ -26,6 +25,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [userFeedbacks, setUserFeedbacks] = useState<AppFeedback[]>([]);
   const [loadingFeedbacks, setLoadingFeedbacks] = useState(true);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchMyFeedbacks = async () => {
@@ -48,6 +49,27 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose }) => {
     };
     fetchMyFeedbacks();
   }, [user.uid]);
+
+  const handlePhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert("A imagem é muito grande. Escolha uma foto de até 2MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setFormData(prev => ({ ...prev, photoURL: event.target?.result as string }));
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +110,17 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose }) => {
             </button>
 
             <div className="relative z-10">
-                <div className="w-24 h-24 rounded-full border-4 border-[#0d1117] bg-slate-800 overflow-hidden shadow-2xl group cursor-pointer">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  accept="image/*" 
+                  className="hidden" 
+                />
+                <div 
+                  onClick={handlePhotoClick}
+                  className="w-24 h-24 rounded-full border-4 border-[#0d1117] bg-slate-800 overflow-hidden shadow-2xl group cursor-pointer relative"
+                >
                     <img 
                         src={formData.photoURL || `https://ui-avatars.com/api/?name=${user.name}&background=f59e0b&color=fff&size=256`} 
                         alt="Avatar" 
@@ -98,6 +130,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose }) => {
                          <Camera size={24} className="text-white" />
                     </div>
                 </div>
+                <button 
+                  onClick={handlePhotoClick}
+                  className="absolute bottom-0 right-0 p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg border-2 border-[#0d1117] transition-all hover:scale-110"
+                  title="Alterar Foto"
+                >
+                  <Camera size={14} />
+                </button>
             </div>
             
             <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
