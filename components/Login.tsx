@@ -23,7 +23,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     try {
       await authService.login(email, password);
     } catch (err: any) {
-      setError(err.message || 'Erro ao entrar.');
+      // Simplifica a mensagem de erro para o usuário final conforme solicitado
+      setError('Senha/E-mail incorreto');
       setLoading(false);
     }
   };
