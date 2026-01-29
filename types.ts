@@ -19,16 +19,16 @@ export interface User {
   companyName?: string; // Para o perfil de Prestador
 }
 
-export interface ServiceWorker {
+export interface TeamWorker {
   id: string;
   name: string;
   cpf: string;
   companyId: string;
   companyName: string;
   photoUrl: string;
-  docFrontUrl?: string; // Tornando opcional
-  docBackUrl?: string;  // Tornando opcional
-  documentUrl?: string; // Novo campo para PDF ou imagem única
+  docFrontUrl?: string; 
+  docBackUrl?: string;  
+  documentUrl?: string; 
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
 }

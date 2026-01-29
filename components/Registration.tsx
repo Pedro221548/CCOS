@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { User, ServiceWorker, AttendanceRoster } from '../types';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { User, TeamWorker, AttendanceRoster } from '../types';
 import { 
     Users, UserPlus, Calendar, ShieldCheck, FileText, Camera as CameraIcon, 
     Upload, X, CheckCircle2, AlertTriangle, Shield, Smartphone, 
-    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2 as LoaderIcon, Copy, ImageIcon, Check, Briefcase
+    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2 as LoaderIcon, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser
 } from 'lucide-react';
-import { ref, push, onValue, set, remove, update } from 'firebase/database';
+import { ref, push, onValue, set, remove, update, get } from 'firebase/database';
 import { auth, db } from '../services/firebase';
 import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { WAREHOUSE_LIST } from '../constants';
@@ -47,7 +47,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     const isProvider = currentUser.role === 'provider';
 
     const [activeTab, setActiveTab] = useState<'roster' | 'team' | 'admin_view'>(isProvider ? 'roster' : 'admin_view');
-    const [workers, setWorkers] = useState<ServiceWorker[]>([]);
+    const [workers, setWorkers] = useState<TeamWorker[]>([]);
     const [dailyRoster, setDailyRoster] = useState<AttendanceRoster[]>([]);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('TODOS');
@@ -58,15 +58,19 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 
     const [showAddModal, setShowAddModal] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [isPurging, setIsPurging] = useState(false);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [documentData, setDocumentData] = useState<{ url: string, name: string } | null>(null);
     const [formData, setFormData] = useState({ name: '', cpf: '' });
+
+    const photoInputRef = useRef<HTMLInputElement>(null);
+    const docInputRef = useRef<HTMLInputElement>(null);
 
     const [showVerifyModal, setShowVerifyModal] = useState(false);
     const [verifyPassword, setVerifyPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [verifying, setVerifying] = useState(false);
-    const [targetWorker, setTargetWorker] = useState<ServiceWorker | null>(null);
+    const [targetWorker, setTargetWorker] = useState<TeamWorker | null>(null);
     const [batchDownloadMode, setBatchDownloadMode] = useState(false);
     const [errorVerify, setErrorVerify] = useState('');
     const [copySuccess, setCopySuccess] = useState(false);
@@ -97,7 +101,50 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         });
 
         return () => { unsubWorkers(); unsubRoster(); };
-    }, [currentUser.uid, currentUser.companyName, isProvider]);
+    }, [currentUser.uid, isProvider]);
+
+    // Função para excluir permanentemente registros sem empresa identificada
+    const handlePurgeInvalidRecords = async () => {
+        if (!window.confirm("ATENÇÃO: Esta ação irá excluir permanentemente do banco de dados todos os cadastros e escalas que estão sem empresa parceira identificada. Deseja continuar?")) {
+            return;
+        }
+
+        setIsPurging(true);
+        try {
+            const updates: any = {};
+            let count = 0;
+
+            // 1. Verificar Coleção de Escalas
+            dailyRoster.forEach(r => {
+                const name = (r.companyName || '').trim().toUpperCase();
+                if (!name || name === 'NÃO IDENTIFICADO' || name === 'UNDEFINED') {
+                    updates[`monitoramento/attendance_roster/${r.id}`] = null;
+                    count++;
+                }
+            });
+
+            // 2. Verificar Coleção de Trabalhadores
+            workers.forEach(w => {
+                const name = (w.companyName || '').trim().toUpperCase();
+                if (!name || name === 'NÃO IDENTIFICADO' || name === 'UNDEFINED') {
+                    updates[`monitoramento/service_workers/${w.id}`] = null;
+                    count++;
+                }
+            });
+
+            if (count > 0) {
+                await update(ref(db), updates);
+                alert(`Sucesso! ${count} registros inválidos foram excluídos permanentemente.`);
+            } else {
+                alert("Nenhum registro inválido foi encontrado para exclusão.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Erro ao realizar a limpeza do banco de dados.");
+        } finally {
+            setIsPurging(false);
+        }
+    };
 
     const handleSaveWorker = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -106,13 +153,14 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         if (!documentData) { alert("O documento (PDF ou Imagem) é obrigatório."); return; }
         
         if (!validateCPF(formData.cpf)) {
-            alert("O CPF informado é inválido. Por favor, verifique os números digitados.");
+            alert("O CPF informado é inválido.");
             return;
         }
         
         setIsSaving(true);
         try {
-            const finalCompanyName = (currentUser.companyName || "B11").trim().toUpperCase();
+            const finalCompanyName = (currentUser.companyName || currentUser.name || "PRESTADOR").trim().toUpperCase();
+            
             const newWorkerRef = push(ref(db, 'monitoramento/service_workers'));
             await set(newWorkerRef, {
                 name: formData.name.toUpperCase(),
@@ -176,7 +224,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 date: selectedDate,
                 workerId: worker.id,
                 workerName: worker.name,
-                companyName: (worker.companyName || "B11").trim().toUpperCase(),
+                companyName: (worker.companyName || currentUser.companyName || currentUser.name || "EMPRESA").trim().toUpperCase(),
                 unit: targetUnit,
                 checkedIn: false
             });
@@ -195,27 +243,26 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         let list = dailyRoster.filter(r => r.date === selectedDate);
         
         if (isProvider) {
-            const providerCompany = (currentUser.companyName || 'B11').trim().toUpperCase();
+            const providerCompany = (currentUser.companyName || currentUser.name || 'EMPRESA').trim().toUpperCase();
             const myWorkerIds = new Set(workers.map(w => w.id));
 
             list = list.filter(r => {
-                const entryCompany = (r.companyName || 'B11').trim().toUpperCase();
+                const entryCompany = (r.companyName || '').trim().toUpperCase();
                 return entryCompany === providerCompany || myWorkerIds.has(r.workerId);
             });
         } else if (isManager) {
             list = list.filter(r => hasWarehousePermission(currentUser.allowedWarehouses, r.unit));
         }
         return list;
-    }, [dailyRoster, selectedDate, isProvider, isManager, currentUser.companyName, currentUser.allowedWarehouses, workers]);
+    }, [dailyRoster, selectedDate, isProvider, isManager, currentUser, workers]);
 
-    // Lógica Ajustada: Unifica registros sem empresa ou N/A sob a marca 'B11'
     const companyStats = useMemo(() => {
         const stats: { [key: string]: number } = {};
 
         confirmedTodayRaw.forEach(r => {
-            let name = (r.companyName || '').trim().toUpperCase();
-            if (!name || name === 'N/A' || name === 'NÃO IDENTIFICADO') {
-                name = 'B11';
+            let name = (r.companyName || 'NÃO IDENTIFICADO').trim().toUpperCase();
+            if (name === 'NÃO IDENTIFICADO' && isProvider) {
+                name = (currentUser.companyName || currentUser.name || 'N/A').toUpperCase();
             }
             stats[name] = (stats[name] || 0) + 1;
         });
@@ -224,18 +271,25 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
             name,
             count: stats[name]
         }));
-    }, [confirmedTodayRaw]);
+    }, [confirmedTodayRaw, isProvider, currentUser]);
 
     const confirmedTodayFiltered = useMemo(() => {
         if (selectedCompanyFilter === 'TODOS') return confirmedTodayRaw;
         return confirmedTodayRaw.filter(r => {
-            let name = (r.companyName || '').trim().toUpperCase();
-            if (!name || name === 'N/A' || name === 'NÃO IDENTIFICADO') {
-                name = 'B11';
+            let name = (r.companyName || 'NÃO IDENTIFICADO').trim().toUpperCase();
+            if (name === 'NÃO IDENTIFICADO' && isProvider) {
+                name = (currentUser.companyName || currentUser.name || 'N/A').toUpperCase();
             }
             return name === selectedCompanyFilter;
         });
-    }, [confirmedTodayRaw, selectedCompanyFilter]);
+    }, [confirmedTodayRaw, selectedCompanyFilter, isProvider, currentUser]);
+
+    // Verifica se existem registros "Não Identificados" no contexto atual para exibir o botão de limpeza
+    const hasInvalidRecords = useMemo(() => {
+        if (!isAdmin && !isManager) return false;
+        return dailyRoster.some(r => !r.companyName || r.companyName.trim().toUpperCase() === 'NÃO IDENTIFICADO') ||
+               workers.some(w => !w.companyName || w.companyName.trim().toUpperCase() === 'NÃO IDENTIFICADO');
+    }, [dailyRoster, workers, isAdmin, isManager]);
 
     const handleSelectAllRoster = () => {
         if (selectedRosterIds.size === confirmedTodayFiltered.length) {
@@ -360,7 +414,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                         <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic leading-none mb-3">CONTROLE DE ACESSO</h2>
                         <div className="flex items-center gap-2 text-slate-500 text-sm font-bold uppercase tracking-widest">
                              <Briefcase size={14} className="text-slate-600" /> 
-                             EMPRESA: <span className="text-slate-300">{isProvider ? (currentUser.companyName || 'B11') : 'CCOS MASTER'}</span>
+                             EMPRESA: <span className="text-slate-300">{isProvider ? (currentUser.companyName || currentUser.name || 'N/A') : 'CCOS MASTER'}</span>
                         </div>
                     </div>
                 </div>
@@ -374,6 +428,17 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                 <UserPlus size={18} /> NOVO CADASTRO
                             </button>
                         </div>
+                    )}
+                    {/* Botão de Limpeza para Administradores */}
+                    {hasInvalidRecords && (
+                        <button 
+                            onClick={handlePurgeInvalidRecords}
+                            disabled={isPurging}
+                            className="px-6 py-4 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all border border-rose-600/30 flex items-center gap-3 shadow-lg shadow-rose-900/10"
+                        >
+                            {isPurging ? <LoaderIcon className="animate-spin" size={16} /> : <Eraser size={16} />}
+                            LIMPAR DADOS INVÁLIDOS
+                        </button>
                     )}
                     <div className="px-6 py-3 bg-[#eab308]/10 border border-[#eab308]/20 rounded-2xl text-[#eab308] font-black text-[10px] uppercase tracking-[0.3em] flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
@@ -548,11 +613,12 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                         const isApproved = worker?.status === 'approved';
                                         const isSelected = selectedRosterIds.has(roster.id);
                                         
-                                        // Correção: Se a empresa não estiver definida, assume B11
-                                        let displayCompany = (roster.companyName || '').trim().toUpperCase();
-                                        if (!displayCompany || displayCompany === 'N/A' || displayCompany === 'NÃO IDENTIFICADO') {
-                                            displayCompany = 'B11';
-                                        }
+                                        const displayCompany = (
+                                            roster.companyName || 
+                                            worker?.companyName || 
+                                            (isProvider ? (currentUser.companyName || currentUser.name) : null) || 
+                                            'NÃO IDENTIFICADO'
+                                        ).trim().toUpperCase();
 
                                         return (
                                             <tr key={roster.id} className={`transition-all group border-l-4 ${isSelected ? 'bg-blue-600/[0.03] border-l-blue-500' : isApproved ? 'bg-emerald-500/[0.01] border-l-emerald-500' : 'hover:bg-slate-800/20 border-l-transparent'}`}>
@@ -581,7 +647,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                     </div>
                                                 </td>
                                                 <td className="p-8">
-                                                    <div className="inline-flex items-center gap-3 px-4 py-2 border rounded-2xl text-[11px] font-black uppercase tracking-widest bg-blue-600/10 text-blue-500 border-blue-500/20">
+                                                    <div className={`inline-flex items-center gap-3 px-4 py-2 border rounded-2xl text-[11px] font-black uppercase tracking-widest ${displayCompany === 'NÃO IDENTIFICADO' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20 animate-pulse' : 'bg-blue-600/10 text-blue-500 border-blue-500/20'}`}>
                                                         <Building2 size={14} /> {displayCompany}
                                                     </div>
                                                 </td>
@@ -636,7 +702,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 
             {deleteConfig && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
-                    <div className="bg-slate-900 border border-slate-700 rounded-[40px] p-12 shadow-2xl max-w-sm w-full text-center relative overflow-hidden">
+                    <div className="bg-slate-900 border border-slate-700 rounded-[40px] p-12 shadow-2xl max-sm w-full text-center relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-600"></div>
                         <div className="w-24 h-24 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-rose-600/20 shadow-inner"><AlertTriangle className="text-rose-600" size={48} /></div>
                         <h3 className="text-2xl font-black text-white mb-3 uppercase tracking-tighter italic">Confirmar Exclusão?</h3>
@@ -647,12 +713,12 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
             )}
 
             {showAddModal && (
-                <div className="fixed inset-0 z-150 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in overflow-y-auto">
+                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in overflow-y-auto">
                     <div className="bg-[#0f172a] border border-slate-700 rounded-[40px] shadow-2xl w-full max-w-xl my-8 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600"></div>
                         <div className="p-12">
                             <div className="flex justify-between items-start mb-10">
-                                <div><h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">NOVO REGISTRO</h3><p className="text-slate-500 text-[11px] font-bold uppercase tracking-widest mt-3">EMPRESA: {currentUser.companyName || 'B11'}</p></div>
+                                <div><h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">NOVO REGISTRO</h3><p className="text-slate-500 text-[11px] font-bold uppercase tracking-widest mt-3">EMPRESA: {currentUser.companyName || currentUser.name || 'N/A'}</p></div>
                                 <button onClick={() => setShowAddModal(false)} className="p-3 bg-slate-800 hover:bg-rose-600 text-white rounded-full transition-all border border-slate-700 shadow-lg"><X size={24}/></button>
                             </div>
                             <form onSubmit={handleSaveWorker} className="space-y-8">
@@ -661,15 +727,21 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">FOTO PERFIL</label>
                                         <div className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-[40px] overflow-hidden flex items-center justify-center relative group shadow-inner">
                                             {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover p-3 rounded-[36px]" alt="" /> : <CameraIcon size={44} className="text-slate-800" />}
-                                            <input type="file" accept="image/*" className="hidden" id="photo-up" onChange={e => {
+                                            <input 
+                                              type="file" 
+                                              accept="image/*" 
+                                              className="hidden" 
+                                              ref={photoInputRef}
+                                              onChange={e => {
                                                 const file = e.target.files?.[0];
                                                 if (file) {
                                                     const r = new FileReader();
                                                     r.onload = ev => setPhotoPreview(ev.target?.result as string);
                                                     r.readAsDataURL(file);
                                                 }
-                                            }} />
-                                            <button type="button" onClick={() => document.getElementById('photo-up')?.click()} className="absolute bottom-5 right-5 p-4 bg-blue-600 text-white rounded-3xl shadow-2xl hover:scale-110 transition-transform"><CameraIcon size={20} /></button>
+                                              }} 
+                                            />
+                                            <button type="button" onClick={() => photoInputRef.current?.click()} className="absolute bottom-5 right-5 p-4 bg-blue-600 text-white rounded-3xl shadow-2xl hover:scale-110 transition-transform"><CameraIcon size={20} /></button>
                                         </div>
                                     </div>
                                     <div className="space-y-4">
@@ -681,15 +753,21 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                     <p className="text-[10px] text-slate-400 font-bold uppercase truncate max-w-full px-4">{documentData.name}</p>
                                                 </div>
                                             ) : <FileText size={44} className="text-slate-800" />}
-                                            <input type="file" accept=".pdf,image/*" className="hidden" id="doc-up" onChange={e => {
+                                            <input 
+                                              type="file" 
+                                              accept=".pdf,image/*" 
+                                              className="hidden" 
+                                              ref={docInputRef}
+                                              onChange={e => {
                                                 const file = e.target.files?.[0];
                                                 if (file) {
                                                     const r = new FileReader();
                                                     r.onload = ev => setDocumentData({ url: ev.target?.result as string, name: file.name });
                                                     r.readAsDataURL(file);
                                                 }
-                                            }} />
-                                            <button type="button" onClick={() => document.getElementById('doc-up')?.click()} className="absolute bottom-5 right-5 p-4 bg-emerald-600 text-white rounded-3xl shadow-2xl hover:scale-110 transition-transform"><Upload size={20} /></button>
+                                              }} 
+                                            />
+                                            <button type="button" onClick={() => docInputRef.current?.click()} className="absolute bottom-5 right-5 p-4 bg-emerald-600 text-white rounded-3xl shadow-2xl hover:scale-110 transition-transform"><Upload size={20} /></button>
                                         </div>
                                     </div>
                                 </div>
