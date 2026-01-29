@@ -15,7 +15,23 @@ interface RegistrationProps {
   currentUser: User;
 }
 
-// Utilitário de checagem de permissão
+// Função de Validação de CPF (Algoritmo Oficial)
+const validateCPF = (cpf: string) => {
+    const cleanCPF = cpf.replace(/[^\d]+/g, '');
+    if (cleanCPF.length !== 11 || !!cleanCPF.match(/(\d)\1{10}/)) return false;
+    let add = 0;
+    for (let i = 0; i < 9; i++) add += parseInt(cleanCPF.charAt(i)) * (10 - i);
+    let rev = 11 - (add % 11);
+    if (rev === 10 || rev === 11) rev = 0;
+    if (rev !== parseInt(cleanCPF.charAt(9))) return false;
+    add = 0;
+    for (let i = 0; i < 10; i++) add += parseInt(cleanCPF.charAt(i)) * (11 - i);
+    rev = 11 - (add % 11);
+    if (rev === 10 || rev === 11) rev = 0;
+    if (rev !== parseInt(cleanCPF.charAt(10))) return false;
+    return true;
+};
+
 const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehouse: string) => {
     if (!allowedList || allowedList.length === 0) return false;
     const normalizedTarget = (targetWarehouse || '').toUpperCase();
@@ -38,18 +54,15 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('TODOS');
     
-    // Multi-seleção para Escala
     const [selectedWorkerIds, setSelectedWorkerIds] = useState<Set<string>>(new Set());
     const [targetUnit, setTargetUnit] = useState<string>(WAREHOUSE_LIST[0]);
 
-    // Form States
     const [showAddModal, setShowAddModal] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [documentData, setDocumentData] = useState<{ url: string, name: string } | null>(null);
     const [formData, setFormData] = useState({ name: '', cpf: '' });
 
-    // Segurança e Download
     const [showVerifyModal, setShowVerifyModal] = useState(false);
     const [verifyPassword, setVerifyPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -60,39 +73,29 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     const [copySuccess, setCopySuccess] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-    // Exclusão Segura
     const [deleteConfig, setDeleteConfig] = useState<{ id: string, type: 'roster' | 'worker', name: string } | null>(null);
 
     useEffect(() => {
-        // Listener de Colaboradores
         const workersRef = ref(db, 'monitoramento/service_workers');
         const unsubWorkers = onValue(workersRef, (snap) => {
             if (snap.exists()) {
                 const data = snap.val();
                 let list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
-                
-                // PRIVACIDADE: Fornecedor só vê quem ele cadastrou
                 if (isProvider) {
                     list = list.filter(w => w.companyId === currentUser.uid);
                 }
-                
                 setWorkers(list);
             } else setWorkers([]);
         });
 
-        // Listener de Escala (Attendance)
         const rosterRef = ref(db, 'monitoramento/attendance_roster');
         const unsubRoster = onValue(rosterRef, (snap) => {
             if (snap.exists()) {
                 const data = snap.val();
-                // Fix error: Changed 'key' to 'k' to match the map function argument
                 let list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
-                
-                // PRIVACIDADE: Fornecedor só vê a escala da sua empresa
                 if (isProvider) {
                     list = list.filter(r => r.companyName === currentUser.companyName);
                 }
-
                 setDailyRoster(list);
             } else setDailyRoster([]);
         });
@@ -102,17 +105,24 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 
     const handleSaveWorker = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // 1. Validação de Foto e Documento
         if (!photoPreview) { alert("A foto de perfil é obrigatória."); return; }
         if (!documentData) { alert("O documento (PDF ou Imagem) é obrigatório."); return; }
         
+        // 2. Validação RIGOROSA de CPF
+        if (!validateCPF(formData.cpf)) {
+            alert("O CPF informado é inválido. Por favor, verifique os números digitados.");
+            return;
+        }
+        
         setIsSaving(true);
         try {
-            // Garante que o cadastro seja vinculado à empresa do fornecedor logado
             const finalCompanyName = currentUser.companyName || "NÃO IDENTIFICADO";
             const newWorkerRef = push(ref(db, 'monitoramento/service_workers'));
             await set(newWorkerRef, {
                 name: formData.name.toUpperCase(),
-                cpf: formData.cpf,
+                cpf: formData.cpf.replace(/[^\d]+/g, ''), // Salva apenas números
                 companyId: currentUser.uid,
                 companyName: finalCompanyName.toUpperCase(),
                 photoUrl: photoPreview,
@@ -277,14 +287,10 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     };
 
     const confirmedTodayRaw = useMemo(() => {
-        // Filtragem por data
         let list = dailyRoster.filter(r => r.date === selectedDate);
-        
-        // SEGURANÇA: Gestor só vê escalas das suas unidades permitidas
         if (isManager) {
             list = list.filter(r => hasWarehousePermission(currentUser.allowedWarehouses, r.unit));
         }
-        
         return list;
     }, [dailyRoster, selectedDate, isManager, currentUser.allowedWarehouses]);
 
@@ -301,13 +307,11 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 
     const handleCopyAllVisible = () => {
         if (confirmedTodayFiltered.length === 0) return;
-        
         const textToCopy = confirmedTodayFiltered.map(roster => {
             const worker = workers.find(w => w.id === roster.workerId);
             const cpfFormatted = worker?.cpf ? worker.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : 'CPF NÃO LOCALIZADO';
             return `${roster.workerName} - ${cpfFormatted}`;
         }).join('\n');
-
         navigator.clipboard.writeText(textToCopy);
         setCopySuccess(true);
         setTimeout(() => setCopySuccess(false), 2000);
@@ -315,7 +319,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 
     return (
         <div className="max-w-[1400px] mx-auto space-y-6 animate-fade-in pb-20 px-4 sm:px-0">
-            
             <div className="bg-[#0f172a] border border-slate-800 rounded-[24px] p-8 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex items-center gap-6 z-10">
                     <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl shadow-inner">
@@ -358,7 +361,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{selectedWorkerIds.size} colaboradores selecionados</p>
                             </div>
                         </div>
-
                         <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
                             <div className="relative w-full sm:w-64">
                                 <select 
@@ -370,7 +372,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                 </select>
                                 <Warehouse className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" size={16} />
                             </div>
-
                             <button 
                                 onClick={handleBatchAddToRoster}
                                 disabled={selectedWorkerIds.size === 0}
@@ -446,7 +447,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                 className="bg-transparent border-none text-white font-black text-sm uppercase outline-none flex-1 [color-scheme:dark] cursor-pointer font-bold" 
                             />
                         </div>
-
                         <div className="flex items-center gap-12 px-4">
                             <div className="text-center md:text-right">
                                 <span className="block text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Escalados Hoje</span>
@@ -475,9 +475,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                 >
                                     <LayoutGrid size={14} /> TODOS
                                 </button>
-                                
                                 <div className="w-px h-4 bg-slate-800 mx-2"></div>
-
                                 {activeCompanies.map(company => {
                                     const count = confirmedTodayRaw.filter(r => r.companyName.toUpperCase() === company).length;
                                     return (
@@ -541,7 +539,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                     ) : confirmedTodayFiltered.map(roster => {
                                         const worker = workers.find(w => w.id === roster.workerId);
                                         const isApproved = worker?.status === 'approved';
-
                                         return (
                                             <tr key={roster.id} className={`transition-all group border-l-2 ${isApproved ? 'bg-emerald-500/[0.02] border-l-emerald-500' : 'hover:bg-slate-800/20 border-l-transparent'}`}>
                                                 <td className="p-6">
@@ -551,14 +548,10 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                             <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 shadow-lg ${isApproved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
                                                         </div>
                                                         <div className="flex flex-col">
-                                                            <span className="font-black text-white block uppercase text-sm tracking-tight">
-                                                                {roster.workerName} 
-                                                            </span>
+                                                            <span className="font-black text-white block uppercase text-sm tracking-tight">{roster.workerName}</span>
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-[10px] font-mono text-slate-600 font-bold tracking-widest">{worker?.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}</span>
-                                                                {isApproved && (
-                                                                    <span className="text-[8px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-1 rounded font-black uppercase tracking-tighter">OK</span>
-                                                                )}
+                                                                <span className="text-[10px] font-mono text-slate-600 font-bold tracking-widest">{worker?.cpf ? worker.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : '-'}</span>
+                                                                {isApproved && <span className="text-[8px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-1 rounded font-black uppercase tracking-tighter">OK</span>}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -590,7 +583,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                         >
                                                             <Trash2 size={16} />
                                                         </button>
-                                                        
                                                         {isApproved ? (
                                                             <div className="bg-emerald-500/10 border border-emerald-500/20 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase text-emerald-500 flex items-center gap-2 shadow-lg shadow-emerald-900/10 animate-fade-in">
                                                                 <CheckCircle2 size={16} className="text-emerald-400" /> Liberado para Acesso
@@ -622,12 +614,10 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 </>
             )}
 
-            {/* MODAL DE VERIFICAÇÃO DE SENHA PARA DOWNLOAD (LOTE OU ÚNICO) */}
             {showVerifyModal && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-fade-in">
                     <div className="bg-[#0f172a] border border-slate-700 rounded-[32px] p-10 shadow-2xl max-sm w-full relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600"></div>
-                        
                         <div className="flex flex-col items-center text-center mb-8">
                             <div className="w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center border border-blue-600/20 mb-4">
                                 <Lock className="text-blue-500" size={32} />
@@ -641,7 +631,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                 )}
                             </p>
                         </div>
-
                         <form onSubmit={handleVerifyAndAction} className="space-y-6">
                             <div className="relative group">
                                 <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 size={18} ${errorVerify ? 'text-rose-500' : 'text-slate-600 group-focus-within:text-blue-500'}`} />
@@ -663,24 +652,10 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
-
-                            {errorVerify && (
-                                <p className="text-rose-500 text-[10px] font-black uppercase text-center animate-pulse">{errorVerify}</p>
-                            )}
-
+                            {errorVerify && <p className="text-rose-500 text-[10px] font-black uppercase text-center animate-pulse">{errorVerify}</p>}
                             <div className="flex gap-4">
-                                <button 
-                                    type="button" 
-                                    onClick={() => { setShowVerifyModal(false); setTargetWorker(null); setBatchDownloadMode(false); }}
-                                    className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all"
-                                >
-                                    Cancelar
-                                </button>
-                                <button 
-                                    type="submit" 
-                                    disabled={verifying || !verifyPassword}
-                                    className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl shadow-blue-900/40 transition-all flex items-center justify-center gap-2"
-                                >
+                                <button type="button" onClick={() => { setShowVerifyModal(false); setTargetWorker(null); setBatchDownloadMode(false); }} className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">Cancelar</button>
+                                <button type="submit" disabled={verifying || !verifyPassword} className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl shadow-blue-900/40 transition-all flex items-center justify-center gap-2">
                                     {verifying ? <LoaderIcon className="animate-spin" size={16} /> : <><Download size={16} /> Confirmar</>}
                                 </button>
                             </div>
@@ -689,7 +664,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 </div>
             )}
 
-            {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
             {deleteConfig && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
                     <div className="bg-slate-900 border border-slate-700 rounded-[32px] p-10 shadow-2xl max-sm w-full text-center relative overflow-hidden">
@@ -710,7 +684,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 </div>
             )}
 
-            {/* MODAL: NOVO CADASTRO */}
             {showAddModal && (
                 <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in overflow-y-auto">
                     <div className="bg-[#0f172a] border border-slate-700 rounded-[32px] shadow-2xl w-full max-w-lg my-8 relative overflow-hidden">
@@ -737,7 +710,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                             <button type="button" onClick={() => document.getElementById('photo-up')?.click()} className="absolute bottom-3 right-3 p-2.5 bg-blue-600 text-white rounded-full shadow-xl hover:scale-110 transition-transform"><CameraIcon size={16} /></button>
                                         </div>
                                     </div>
-
                                     <div className="space-y-3">
                                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Documento (PDF/IMG)</label>
                                         <div className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-[32px] overflow-hidden flex items-center justify-center relative group">
@@ -759,7 +731,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                         </div>
                                     </div>
                                 </div>
-
                                 <div className="space-y-4">
                                     <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-black uppercase placeholder-slate-800 outline-none focus:border-blue-500" placeholder="NOME COMPLETO" />
                                     <input required value={formData.cpf} onChange={e => setFormData({...formData, cpf: e.target.value.replace(/\D/g, '')})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-mono placeholder-slate-800 outline-none focus:border-blue-500" placeholder="CPF (SÓ NÚMEROS)" maxLength={11} />
