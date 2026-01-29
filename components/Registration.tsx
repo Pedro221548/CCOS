@@ -4,7 +4,7 @@ import { User, TeamWorker, AttendanceRoster } from '../types';
 import { 
     Users, UserPlus, Calendar, ShieldCheck, FileText, Camera as CameraIcon, 
     Upload, X, CheckCircle2, AlertTriangle, Shield, Smartphone, 
-    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2 as LoaderIcon, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser, Image
+    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2 as LoaderIcon, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser, Image, Clock
 } from 'lucide-react';
 import { ref, push, onValue, set, remove, update, get, query, orderByChild, equalTo } from 'firebase/database';
 import { auth, db } from '../services/firebase';
@@ -224,6 +224,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     const handleBatchAddToRoster = async () => {
         if (selectedWorkerIds.size === 0) return;
         
+        const now = new Date().toISOString();
         const promises = Array.from(selectedWorkerIds).map(workerId => {
             const worker = workers.find(w => w.id === workerId);
             if (!worker) return Promise.resolve();
@@ -238,7 +239,8 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 workerName: worker.name,
                 companyName: (worker.companyName || currentUser.companyName || currentUser.name || "EMPRESA").trim().toUpperCase(),
                 unit: targetUnit,
-                checkedIn: false
+                checkedIn: false,
+                confirmedAt: now // GRAVA DATA E HORA DO CLIQUE
             });
         });
 
@@ -367,7 +369,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                     const worker = workers.find(w => w.id === roster.workerId);
                     if (worker?.photoUrl) {
                         await triggerFileDownload(worker.photoUrl, `FOTO_${worker.name.replace(/\s+/g, '_')}.jpg`);
-                        await new Promise(r => setTimeout(r, 600)); // Delay para não travar o navegador
+                        await new Promise(r => setTimeout(r, 600)); 
                     }
                 }
                 setIsBatchProcessing(false);
@@ -684,15 +686,26 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                 </td>
                                                 <td className="p-8"><div className="flex items-center gap-3 text-slate-400 font-black uppercase text-xs tracking-widest"><Warehouse size={16} className="text-slate-700" /> {roster.unit}</div></td>
                                                 <td className="p-8">
-                                                    <div className="flex flex-col gap-2">
-                                                        <button onClick={() => startDownloadProcess(roster.workerId, 'photo')} className="flex items-center gap-3 text-slate-500 hover:text-amber-500 transition-all text-[10px] font-black uppercase tracking-[0.1em] group/btn">
-                                                            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all shadow-inner"><Image size={14} /></div>
-                                                            Baixar Foto
-                                                        </button>
-                                                        <button onClick={() => startDownloadProcess(roster.workerId, 'document')} className="flex items-center gap-3 text-slate-500 hover:text-amber-500 transition-all text-[10px] font-black uppercase tracking-[0.1em] group/btn">
-                                                            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all shadow-inner"><Download size={14} /></div>
-                                                            Baixar Documentos
-                                                        </button>
+                                                    <div className="flex flex-col gap-3">
+                                                        {/* EXIBIÇÃO DA DATA E HORA DE CONFIRMAÇÃO (ONDE A SETA APONTAVA) */}
+                                                        {roster.confirmedAt && (
+                                                            <div className="flex items-center gap-2 text-slate-500 bg-slate-950/50 p-2 rounded-xl border border-slate-800/50 w-fit mb-1">
+                                                                <Clock size={12} className="text-amber-500" />
+                                                                <span className="text-[10px] font-mono font-bold uppercase tracking-tighter">
+                                                                    Escalado em: {new Date(roster.confirmedAt).toLocaleDateString('pt-BR')} {new Date(roster.confirmedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        <div className="flex flex-col gap-2">
+                                                            <button onClick={() => startDownloadProcess(roster.workerId, 'photo')} className="flex items-center gap-3 text-slate-500 hover:text-amber-500 transition-all text-[10px] font-black uppercase tracking-[0.1em] group/btn">
+                                                                <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all shadow-inner"><Image size={14} /></div>
+                                                                Baixar Foto
+                                                            </button>
+                                                            <button onClick={() => startDownloadProcess(roster.workerId, 'document')} className="flex items-center gap-3 text-slate-500 hover:text-amber-500 transition-all text-[10px] font-black uppercase tracking-[0.1em] group/btn">
+                                                                <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all shadow-inner"><Download size={14} /></div>
+                                                                Baixar Documentos
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </td>
                                                 <td className="p-8">
