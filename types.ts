@@ -41,6 +41,7 @@ export interface AttendanceRoster {
   companyName: string;
   unit: string;
   checkedIn?: boolean;
+  confirmedAt?: string;
 }
 
 export interface AppNotification {

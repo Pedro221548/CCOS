@@ -4,7 +4,7 @@ import { User, TeamWorker, AttendanceRoster } from '../types';
 import { 
     History, Calendar, Search, Building2, User as UserIcon, 
     ChevronDown, ChevronUp, Download, FileSpreadsheet, 
-    Filter, Clock, CheckCircle2, Warehouse, Shield
+    Filter, Clock, CheckCircle2, Warehouse, Shield, Loader2
 } from 'lucide-react';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../services/firebase';
@@ -151,7 +151,7 @@ const RegistrationHistory: React.FC<RegistrationHistoryProps> = ({ currentUser }
 
             {loading ? (
                 <div className="py-32 flex flex-col items-center gap-4">
-                    <LoaderIcon className="animate-spin text-amber-500" size={48} />
+                    <Loader2 className="animate-spin text-amber-500" size={48} />
                     <span className="text-slate-500 font-black uppercase text-[10px] tracking-[0.3em]">Sincronizando Histórico...</span>
                 </div>
             ) : sortedDates.length === 0 ? (
@@ -245,8 +245,8 @@ const RegistrationHistory: React.FC<RegistrationHistoryProps> = ({ currentUser }
     );
 };
 
-// Componente Loader auxiliar (interno)
-const LoaderIcon = ({ className, size }: { className?: string, size?: number }) => (
+// Componente Loader auxiliar (interno) - Renomeado para evitar conflitos
+const HistLoaderIcon = ({ className, size }: { className?: string, size?: number }) => (
     <div className={className} style={{ width: size, height: size }}>
         <svg className="animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

@@ -4,7 +4,7 @@ import { User, TeamWorker, AttendanceRoster } from '../types';
 import { 
     Users, UserPlus, Calendar, ShieldCheck, FileText, Camera as CameraIcon, 
     Upload, X, CheckCircle2, AlertTriangle, Shield, Smartphone, 
-    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2 as LoaderIcon, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser, Image, Clock, Mail
+    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser, Image, Clock, Mail
 } from 'lucide-react';
 import { ref, push, onValue, set, remove, update, get, query, orderByChild, equalTo } from 'firebase/database';
 import { auth, db } from '../services/firebase';
@@ -484,7 +484,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                             disabled={isPurging}
                             className="px-6 py-4 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all border border-rose-600/30 flex items-center gap-3 shadow-lg shadow-rose-900/10"
                         >
-                            {isPurging ? <LoaderIcon className="animate-spin" size={16} /> : <Eraser size={16} />}
+                            {isPurging ? <Loader2 className="animate-spin" size={16} /> : <Eraser size={16} />}
                             LIMPAR DADOS INVÁLIDOS
                         </button>
                     )}
@@ -648,7 +648,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                     ${isBatchProcessing ? 'bg-amber-600/20 text-amber-500 border-amber-500/40 opacity-70 cursor-not-allowed' : 'bg-[#eab308] hover:bg-[#ca8a04] text-slate-950 border-[#ca8a04]'}
                                 `}
                             >
-                                {isBatchProcessing ? <LoaderIcon className="animate-spin" size={18} /> : <ImageIcon size={18} />}
+                                {isBatchProcessing ? <Loader2 className="animate-spin" size={18} /> : <ImageIcon size={18} />}
                                 {isBatchProcessing ? 'PROCESSANDO DOWNLOADS...' : 'BAIXAR TODAS AS FOTOS (JPG)'}
                             </button>
                             <button onClick={handleCopyAllVisible} className={`px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-3 border shadow-lg ${copySuccess ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white'}`}>{copySuccess ? <CheckCircle2 size={18} /> : <Copy size={18} />} {copySuccess ? 'COPIADO!' : 'COPIAR LISTA (NOME/CPF)'}</button>
@@ -750,7 +750,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                             <div className="bg-emerald-500/10 border border-emerald-500/20 px-8 py-3 rounded-2xl text-[11px] font-black uppercase text-emerald-500 flex items-center gap-3 shadow-xl shadow-emerald-900/10 animate-fade-in"><CheckCircle2 size={18} className="text-emerald-400" /> LIBERADO PARA ACESSO</div>
                                                         ) : (
                                                             (isAdmin || isManager) ? (
-                                                                <button onClick={() => handleApproveWorker(roster.workerId, roster.id)} disabled={actionLoading === roster.id} className="bg-[#10b981]/10 hover:bg-[#10b981] text-[#10b981] hover:text-white border border-[#10b981]/20 px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-emerald-900/10 group/lib">{actionLoading === roster.id ? <LoaderIcon className="animate-spin" size={18} /> : <><CheckCircle2 size={18} className="group-hover:lib:scale-110 transition-transform" /> LIBERAR</>}</button>
+                                                                <button onClick={() => handleApproveWorker(roster.workerId, roster.id)} disabled={actionLoading === roster.id} className="bg-[#10b981]/10 hover:bg-[#10b981] text-[#10b981] hover:text-white border border-[#10b981]/20 px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-emerald-900/10 group/lib">{actionLoading === roster.id ? <Loader2 className="animate-spin" size={18} /> : <><CheckCircle2 size={18} className="group-hover:lib:scale-110 transition-transform" /> LIBERAR</>}</button>
                                                             ) : (
                                                                 <div className="bg-amber-500/5 border border-amber-500/20 px-8 py-3 rounded-2xl text-[11px] font-black uppercase text-amber-500 flex items-center gap-3 italic tracking-widest opacity-70">AGUARDANDO AUDITORIA</div>
                                                             )
@@ -788,7 +788,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors">{showPassword ? <EyeOff size={20} /> : <Eye size={20} />}</button>
                             </div>
                             {errorVerify && <p className="text-rose-500 text-[11px] font-black uppercase text-center animate-pulse tracking-widest">{errorVerify}</p>}
-                            <div className="flex gap-4"><button type="button" onClick={() => { setShowVerifyModal(false); setTargetWorker(null); setRequestedDownloadType(null); }} className="flex-1 py-5 bg-slate-800 text-white rounded-3xl font-black uppercase text-xs tracking-widest transition-all border border-slate-700">CANCELAR</button><button type="submit" disabled={verifying || !verifyPassword} className="flex-1 py-5 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-2xl shadow-blue-900/40 transition-all flex items-center justify-center gap-3">{verifying ? <LoaderIcon className="animate-spin" size={18} /> : <><Download size={18} /> CONFIRMAR</>}</button></div>
+                            <div className="flex gap-4"><button type="button" onClick={() => { setShowVerifyModal(false); setTargetWorker(null); setRequestedDownloadType(null); }} className="flex-1 py-5 bg-slate-800 text-white rounded-3xl font-black uppercase text-xs tracking-widest transition-all border border-slate-700">CANCELAR</button><button type="submit" disabled={verifying || !verifyPassword} className="flex-1 py-5 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-2xl shadow-blue-900/40 transition-all flex items-center justify-center gap-3">{verifying ? <Loader2 className="animate-spin" size={18} /> : <><Download size={18} /> CONFIRMAR</>}</button></div>
                         </form>
                     </div>
                 </div>
@@ -876,7 +876,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                     </div>
                                 </div>
                                 <button type="submit" disabled={isSaving} className="w-full py-6 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-3xl uppercase tracking-[0.3em] text-xs shadow-2xl active:scale-[0.98] transition-all disabled:opacity-30">
-                                    {isSaving ? <LoaderIcon className="animate-spin mx-auto" size={24} /> : 'CONCLUIR E ENVIAR'}
+                                    {isSaving ? <Loader2 className="animate-spin mx-auto" size={24} /> : 'CONCLUIR E ENVIAR'}
                                 </button>
                             </form>
                         </div>
@@ -888,7 +888,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 };
 
 // Componente Loader auxiliar (interno)
-const LoaderIcon = ({ className, size }: { className?: string, size?: number }) => (
+const MyLoaderIcon = ({ className, size }: { className?: string, size?: number }) => (
     <div className={className} style={{ width: size, height: size }}>
         <svg className="animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
