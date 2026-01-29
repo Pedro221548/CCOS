@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef, useMemo } from 'react';
-import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar, Clock, RefreshCw, BookOpen, DollarSign, UserPlus } from 'lucide-react';
+import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar, Clock, RefreshCw, BookOpen, DollarSign, UserPlus, History } from 'lucide-react';
 import { Camera, AccessPoint, User, ProcessedWorker, AppNotification, ThirdPartyImport, Note, ShiftNote, ThirdPartyPayment, PaymentImport, Status } from './types';
 import { authService } from './services/auth';
 import { monitoringService } from './services/monitoring';
@@ -32,6 +32,7 @@ const Heatmap = lazy(() => import('./components/Heatmap'));
 const Manual = lazy(() => import('./components/Manual'));
 const Payments = lazy(() => import('./components/Payments'));
 const Registration = lazy(() => import('./components/Registration'));
+const RegistrationHistory = lazy(() => import('./components/RegistrationHistory'));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center h-full w-full bg-[#020408]">
@@ -62,7 +63,7 @@ const App: React.FC = () => {
   const [authLoading, setAuthLoading] = useState(true);
   
   // Inicialização segura
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'registration' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'registration' | 'registration-history' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users'>('dashboard');
   const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'alarms' | 'access'>('cameras');
   const [thirdPartySubTab, setThirdPartySubTab] = useState<'status' | 'access-mgmt' | 'heatmap'>('status');
 
@@ -83,9 +84,9 @@ const App: React.FC = () => {
 
   const isAdmin = user?.role === 'admin';
 
-  // Sincronização de persistência apenas se não for fornecedor
+  // Sincronização de persistência
   useEffect(() => { 
-    if (user && user.role !== 'provider') {
+    if (user) {
       localStorage.setItem('cv_active_tab', activeTab); 
     }
   }, [activeTab, user]);
@@ -120,26 +121,22 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const unsubscribe = authService.subscribeToAuthChanges((currentUser) => {
-      // 1. Atualiza o usuário
       setUser(currentUser);
       
-      // 2. Lógica de redirecionamento e limpeza de estado para evitar tela branca
       if (currentUser) {
+          const savedTab = localStorage.getItem('cv_active_tab') as any;
+          const savedMon = localStorage.getItem('cv_mon_tab') as any;
+          const savedTp = localStorage.getItem('cv_tp_tab') as any;
+          
           if (currentUser.role === 'provider') {
-              setActiveTab('registration');
+              setActiveTab(savedTab === 'registration' || savedTab === 'registration-history' ? savedTab : 'registration');
           } else {
-              // Recupera estado salvo apenas para usuários internos
-              const savedTab = localStorage.getItem('cv_active_tab') as any;
-              const savedMon = localStorage.getItem('cv_mon_tab') as any;
-              const savedTp = localStorage.getItem('cv_tp_tab') as any;
-              
-              setActiveTab(savedTab && savedTab !== 'registration' ? savedTab : 'dashboard');
+              setActiveTab(savedTab || 'dashboard');
               if (savedMon) setMonitoringSubTab(savedMon);
               if (savedTp) setThirdPartySubTab(savedTp);
           }
       }
       
-      // 3. Finaliza o loading após os estados estarem sincronizados
       setAuthLoading(false);
     });
     return () => unsubscribe();
@@ -159,7 +156,7 @@ const App: React.FC = () => {
   }, [user]);
 
   const handleTabChange = useCallback((tab: typeof activeTab) => {
-    if (user?.role === 'provider' && tab !== 'registration') return;
+    if (user?.role === 'provider' && !['registration', 'registration-history'].includes(tab)) return;
     if (['data', 'users'].includes(tab) && !isAdmin) return;
     setActiveTab(tab);
     if (window.innerWidth < 1024) setSidebarOpen(false);
@@ -167,7 +164,6 @@ const App: React.FC = () => {
 
   const handleLogout = useCallback(() => { 
     authService.logout(); 
-    // Reset de estados locais ao deslogar
     setActiveTab('dashboard');
     setUser(null);
   }, []);
@@ -321,7 +317,9 @@ const App: React.FC = () => {
               </>
           )}
           
+          {/* BOTÕES COMUNS PARA TODOS OS PERFIS (CADASTRO E HISTÓRICO) */}
           <button onClick={() => handleTabChange('registration')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'registration' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><UserPlus size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Cadastro</span></button>
+          <button onClick={() => handleTabChange('registration-history')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'registration-history' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><History size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Histórico</span></button>
           
           {user.role !== 'provider' && (
               <>
@@ -387,6 +385,7 @@ const App: React.FC = () => {
                 {activeTab === 'dashboard' && <Dashboard data={data} thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
                 {activeTab === 'finance' && <Payments payments={paymentRecords} currentUser={user} />}
                 {activeTab === 'registration' && <Registration currentUser={user} />}
+                {activeTab === 'registration-history' && <RegistrationHistory currentUser={user} />}
                 {activeTab === 'monitoring' && (
                   <div className="space-y-8 animate-fade-in">
                     <div className="bg-slate-900/50 p-1 rounded-2xl border border-slate-800/50 shadow-sm">
