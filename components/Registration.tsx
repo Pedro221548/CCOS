@@ -4,9 +4,9 @@ import { User, TeamWorker, AttendanceRoster } from '../types';
 import { 
     Users, UserPlus, Calendar, ShieldCheck, FileText, Camera as CameraIcon, 
     Upload, X, CheckCircle2, AlertTriangle, Shield, Smartphone, 
-    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2 as LoaderIcon, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser
+    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2 as LoaderIcon, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser, Image
 } from 'lucide-react';
-import { ref, push, onValue, set, remove, update, get } from 'firebase/database';
+import { ref, push, onValue, set, remove, update, get, query, orderByChild, equalTo } from 'firebase/database';
 import { auth, db } from '../services/firebase';
 import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { WAREHOUSE_LIST } from '../constants';
@@ -59,6 +59,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isPurging, setIsPurging] = useState(false);
+    const [isBatchProcessing, setIsBatchProcessing] = useState(false);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [documentData, setDocumentData] = useState<{ url: string, name: string } | null>(null);
     const [formData, setFormData] = useState({ name: '', cpf: '' });
@@ -71,7 +72,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [verifying, setVerifying] = useState(false);
     const [targetWorker, setTargetWorker] = useState<TeamWorker | null>(null);
-    const [batchDownloadMode, setBatchDownloadMode] = useState(false);
+    const [requestedDownloadType, setRequestedDownloadType] = useState<'photo' | 'document' | 'batch_photo' | null>(null);
     const [errorVerify, setErrorVerify] = useState('');
     const [copySuccess, setCopySuccess] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -103,7 +104,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         return () => { unsubWorkers(); unsubRoster(); };
     }, [currentUser.uid, isProvider]);
 
-    // Função para excluir permanentemente registros sem empresa identificada
     const handlePurgeInvalidRecords = async () => {
         if (!window.confirm("ATENÇÃO: Esta ação irá excluir permanentemente do banco de dados todos os cadastros e escalas que estão sem empresa parceira identificada. Deseja continuar?")) {
             return;
@@ -114,7 +114,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
             const updates: any = {};
             let count = 0;
 
-            // 1. Verificar Coleção de Escalas
             dailyRoster.forEach(r => {
                 const name = (r.companyName || '').trim().toUpperCase();
                 if (!name || name === 'NÃO IDENTIFICADO' || name === 'UNDEFINED') {
@@ -123,7 +122,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 }
             });
 
-            // 2. Verificar Coleção de Trabalhadores
             workers.forEach(w => {
                 const name = (w.companyName || '').trim().toUpperCase();
                 if (!name || name === 'NÃO IDENTIFICADO' || name === 'UNDEFINED') {
@@ -152,19 +150,29 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         if (!photoPreview) { alert("A foto de perfil é obrigatória."); return; }
         if (!documentData) { alert("O documento (PDF ou Imagem) é obrigatório."); return; }
         
-        if (!validateCPF(formData.cpf)) {
+        const cleanCPF = formData.cpf.replace(/[^\d]+/g, '');
+        if (!validateCPF(cleanCPF)) {
             alert("O CPF informado é inválido.");
             return;
         }
         
         setIsSaving(true);
         try {
+            const workersQuery = query(ref(db, 'monitoramento/service_workers'), orderByChild('cpf'), equalTo(cleanCPF));
+            const snapshot = await get(workersQuery);
+            
+            if (snapshot.exists()) {
+                alert("ERRO: Este CPF já está cadastrado no sistema. Não é permitido duplicidade de colaboradores.");
+                setIsSaving(false);
+                return;
+            }
+
             const finalCompanyName = (currentUser.companyName || currentUser.name || "PRESTADOR").trim().toUpperCase();
             
             const newWorkerRef = push(ref(db, 'monitoramento/service_workers'));
             await set(newWorkerRef, {
                 name: formData.name.toUpperCase(),
-                cpf: formData.cpf.replace(/[^\d]+/g, ''), 
+                cpf: cleanCPF, 
                 companyId: currentUser.uid,
                 companyName: finalCompanyName,
                 photoUrl: photoPreview,
@@ -176,7 +184,11 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
             setPhotoPreview(null);
             setDocumentData(null);
             setFormData({ name: '', cpf: '' });
-        } catch (e) { alert("Erro ao salvar."); } finally { setIsSaving(false); }
+        } catch (e) { 
+            alert("Erro ao salvar cadastro."); 
+        } finally { 
+            setIsSaving(false); 
+        }
     };
 
     const handleApproveWorker = async (workerId: string, rosterId: string) => {
@@ -284,7 +296,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         });
     }, [confirmedTodayRaw, selectedCompanyFilter, isProvider, currentUser]);
 
-    // Verifica se existem registros "Não Identificados" no contexto atual para exibir o botão de limpeza
     const hasInvalidRecords = useMemo(() => {
         if (!isAdmin && !isManager) return false;
         return dailyRoster.some(r => !r.companyName || r.companyName.trim().toUpperCase() === 'NÃO IDENTIFICADO') ||
@@ -320,11 +331,11 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         setTimeout(() => setCopySuccess(false), 2000);
     };
 
-    const startDownloadProcess = (workerId: string) => {
+    const startDownloadProcess = (workerId: string, type: 'photo' | 'document') => {
         const worker = workers.find(w => w.id === workerId);
         if (worker) {
             setTargetWorker(worker);
-            setBatchDownloadMode(false);
+            setRequestedDownloadType(type);
             setShowVerifyModal(true);
             setVerifyPassword('');
             setErrorVerify('');
@@ -333,7 +344,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 
     const startBatchPhotoDownload = () => {
         if (confirmedTodayFiltered.length === 0) return;
-        setBatchDownloadMode(true);
+        setRequestedDownloadType('batch_photo');
         setTargetWorker(null);
         setShowVerifyModal(true);
         setVerifyPassword('');
@@ -348,26 +359,39 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         try {
             const credential = EmailAuthProvider.credential(auth.currentUser.email!, verifyPassword);
             await reauthenticateWithCredential(auth.currentUser, credential);
-            if (batchDownloadMode) {
+            
+            if (requestedDownloadType === 'batch_photo') {
+                setIsBatchProcessing(true);
+                setShowVerifyModal(false);
                 for (const roster of confirmedTodayFiltered) {
                     const worker = workers.find(w => w.id === roster.workerId);
                     if (worker?.photoUrl) {
                         await triggerFileDownload(worker.photoUrl, `FOTO_${worker.name.replace(/\s+/g, '_')}.jpg`);
-                        await new Promise(r => setTimeout(r, 400));
+                        await new Promise(r => setTimeout(r, 600)); // Delay para não travar o navegador
                     }
                 }
+                setIsBatchProcessing(false);
             } else if (targetWorker) {
-                const fileUrl = targetWorker.documentUrl;
-                if (!fileUrl) throw new Error("Documento não encontrado.");
-                let ext = 'pdf';
-                if (fileUrl.includes('data:image/png')) ext = 'png';
-                else if (fileUrl.includes('data:image/jpeg')) ext = 'jpg';
-                await triggerFileDownload(fileUrl, `DOCUMENTO_${targetWorker.name.replace(/\s+/g, '_')}.${ext}`);
+                if (requestedDownloadType === 'photo') {
+                    if (!targetWorker.photoUrl) throw new Error("Foto não encontrada.");
+                    await triggerFileDownload(targetWorker.photoUrl, `FOTO_${targetWorker.name.replace(/\s+/g, '_')}.jpg`);
+                } else if (requestedDownloadType === 'document') {
+                    const fileUrl = targetWorker.documentUrl;
+                    if (!fileUrl) throw new Error("Documento não encontrado.");
+                    let ext = 'pdf';
+                    if (fileUrl.includes('data:image/png')) ext = 'png';
+                    else if (fileUrl.includes('data:image/jpeg')) ext = 'jpg';
+                    await triggerFileDownload(fileUrl, `DOCUMENTO_${targetWorker.name.replace(/\s+/g, '_')}.${ext}`);
+                }
+                setShowVerifyModal(false);
             }
-            setShowVerifyModal(false);
             setTargetWorker(null);
-            setBatchDownloadMode(false);
-        } catch (err: any) { setErrorVerify("Senha incorreta."); } finally { setVerifying(false); }
+            setRequestedDownloadType(null);
+        } catch (err: any) { 
+            setErrorVerify("Senha incorreta."); 
+        } finally { 
+            setVerifying(false); 
+        }
     };
 
     const triggerFileDownload = async (url: string, filename: string) => {
@@ -429,7 +453,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                             </button>
                         </div>
                     )}
-                    {/* Botão de Limpeza para Administradores */}
                     {hasInvalidRecords && (
                         <button 
                             onClick={handlePurgeInvalidRecords}
@@ -501,8 +524,9 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex gap-1">
-                                            <button onClick={(e) => { e.stopPropagation(); startDownloadProcess(w.id); }} className="p-2 text-slate-800 hover:text-blue-500 transition-all"><Download size={20} /></button>
+                                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={(e) => { e.stopPropagation(); startDownloadProcess(w.id, 'document'); }} className="p-2 text-slate-500 hover:text-blue-500 transition-all"><Download size={20} /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); setDeleteConfig({ id: w.id, type: 'worker', name: w.name }); }} className="p-2 text-slate-500 hover:text-rose-500 transition-all"><Trash2 size={18} /></button>
                                         </div>
                                     </div>
                                     {isSelected && <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-3xl rounded-full"></div>}
@@ -580,9 +604,16 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                     <Trash2 size={18} /> APAGAR SELECIONADOS ({selectedRosterIds.size})
                                 </button>
                             )}
-                            {(isAdmin || isManager) && (
-                                <button onClick={startBatchPhotoDownload} className="bg-emerald-600/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-600 hover:text-white px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-3 shadow-lg"><ImageIcon size={18} /> BAIXAR FOTOS (JPG)</button>
-                            )}
+                            <button 
+                                onClick={startBatchPhotoDownload} 
+                                disabled={isBatchProcessing || confirmedTodayFiltered.length === 0}
+                                className={`px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-3 shadow-xl border
+                                    ${isBatchProcessing ? 'bg-amber-600/20 text-amber-500 border-amber-500/40 opacity-70 cursor-not-allowed' : 'bg-[#eab308] hover:bg-[#ca8a04] text-slate-950 border-[#ca8a04]'}
+                                `}
+                            >
+                                {isBatchProcessing ? <LoaderIcon className="animate-spin" size={18} /> : <ImageIcon size={18} />}
+                                {isBatchProcessing ? 'PROCESSANDO DOWNLOADS...' : 'BAIXAR TODAS AS FOTOS (JPG)'}
+                            </button>
                             <button onClick={handleCopyAllVisible} className={`px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-3 border shadow-lg ${copySuccess ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white'}`}>{copySuccess ? <CheckCircle2 size={18} /> : <Copy size={18} />} {copySuccess ? 'COPIADO!' : 'COPIAR LISTA (NOME/CPF)'}</button>
                         </div>
                         <div className="overflow-x-auto custom-scrollbar">
@@ -652,7 +683,18 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                     </div>
                                                 </td>
                                                 <td className="p-8"><div className="flex items-center gap-3 text-slate-400 font-black uppercase text-xs tracking-widest"><Warehouse size={16} className="text-slate-700" /> {roster.unit}</div></td>
-                                                <td className="p-8"><button onClick={() => startDownloadProcess(roster.workerId)} className="flex items-center gap-3 text-slate-500 hover:text-amber-500 transition-all text-[11px] font-black uppercase tracking-[0.15em] group/btn"><div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all shadow-inner"><Download size={18} /></div>BAIXAR DOCUMENTOS</button></td>
+                                                <td className="p-8">
+                                                    <div className="flex flex-col gap-2">
+                                                        <button onClick={() => startDownloadProcess(roster.workerId, 'photo')} className="flex items-center gap-3 text-slate-500 hover:text-amber-500 transition-all text-[10px] font-black uppercase tracking-[0.1em] group/btn">
+                                                            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all shadow-inner"><Image size={14} /></div>
+                                                            Baixar Foto
+                                                        </button>
+                                                        <button onClick={() => startDownloadProcess(roster.workerId, 'document')} className="flex items-center gap-3 text-slate-500 hover:text-amber-500 transition-all text-[10px] font-black uppercase tracking-[0.1em] group/btn">
+                                                            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all shadow-inner"><Download size={14} /></div>
+                                                            Baixar Documentos
+                                                        </button>
+                                                    </div>
+                                                </td>
                                                 <td className="p-8">
                                                     <div className="flex items-center justify-end gap-3">
                                                         <button onClick={() => setDeleteConfig({ id: roster.id, type: 'roster', name: roster.workerName })} className="p-3 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white border border-rose-600/20 rounded-2xl transition-all shadow-lg" title="Remover da escala"><Trash2 size={18} /></button>
@@ -685,7 +727,11 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                         <div className="flex flex-col items-center text-center mb-10">
                             <div className="w-20 h-20 bg-blue-600/10 rounded-full flex items-center justify-center border border-blue-600/20 mb-6 shadow-inner"><Lock className="text-blue-500" size={36} /></div>
                             <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Verificar Identidade</h3>
-                            <p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest mt-3 leading-relaxed">{batchDownloadMode ? <>Confirme sua senha para baixar <br/><span className="text-emerald-500">{confirmedTodayFiltered.length} fotos de colaboradores</span></> : <>Digite sua senha para baixar o documento de <br/><span className="text-white">{targetWorker?.name}</span></>}</p>
+                            <p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest mt-3 leading-relaxed">
+                                {requestedDownloadType === 'batch_photo' ? 
+                                    <>Confirme sua senha para baixar <br/><span className="text-emerald-500">{confirmedTodayFiltered.length} fotos de colaboradores</span></> : 
+                                    <>Digite sua senha para baixar {requestedDownloadType === 'photo' ? 'a foto' : 'o documento'} de <br/><span className="text-white">{targetWorker?.name}</span></>}
+                            </p>
                         </div>
                         <form onSubmit={handleVerifyAndAction} className="space-y-8">
                             <div className="relative group">
@@ -694,7 +740,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors">{showPassword ? <EyeOff size={20} /> : <Eye size={20} />}</button>
                             </div>
                             {errorVerify && <p className="text-rose-500 text-[11px] font-black uppercase text-center animate-pulse tracking-widest">{errorVerify}</p>}
-                            <div className="flex gap-4"><button type="button" onClick={() => { setShowVerifyModal(false); setTargetWorker(null); setBatchDownloadMode(false); }} className="flex-1 py-5 bg-slate-800 text-white rounded-3xl font-black uppercase text-xs tracking-widest transition-all border border-slate-700">CANCELAR</button><button type="submit" disabled={verifying || !verifyPassword} className="flex-1 py-5 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-2xl shadow-blue-900/40 transition-all flex items-center justify-center gap-3">{verifying ? <LoaderIcon className="animate-spin" size={18} /> : <><Download size={18} /> CONFIRMAR</>}</button></div>
+                            <div className="flex gap-4"><button type="button" onClick={() => { setShowVerifyModal(false); setTargetWorker(null); setRequestedDownloadType(null); }} className="flex-1 py-5 bg-slate-800 text-white rounded-3xl font-black uppercase text-xs tracking-widest transition-all border border-slate-700">CANCELAR</button><button type="submit" disabled={verifying || !verifyPassword} className="flex-1 py-5 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-2xl shadow-blue-900/40 transition-all flex items-center justify-center gap-3">{verifying ? <LoaderIcon className="animate-spin" size={18} /> : <><Download size={18} /> CONFIRMAR</>}</button></div>
                         </form>
                     </div>
                 </div>
