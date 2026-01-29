@@ -45,7 +45,7 @@ const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehou
 
 const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     const isManager = currentUser.role === 'manager';
-    const isAdmin = currentUser.role === 'admin' || isManager;
+    const isAdmin = currentUser.role === 'admin';
     const isProvider = currentUser.role === 'provider';
 
     const [activeTab, setActiveTab] = useState<'roster' | 'team' | 'admin_view'>(isProvider ? 'roster' : 'admin_view');
@@ -93,9 +93,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
             if (snap.exists()) {
                 const data = snap.val();
                 let list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
-                if (isProvider) {
-                    list = list.filter(r => r.companyName === currentUser.companyName);
-                }
+                // O filtro real para Gestores e Fornecedores é feito no useMemo confirmadoTodayRaw
                 setDailyRoster(list);
             } else setDailyRoster([]);
         });
@@ -106,11 +104,9 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     const handleSaveWorker = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        // 1. Validação de Foto e Documento
         if (!photoPreview) { alert("A foto de perfil é obrigatória."); return; }
         if (!documentData) { alert("O documento (PDF ou Imagem) é obrigatório."); return; }
         
-        // 2. Validação RIGOROSA de CPF
         if (!validateCPF(formData.cpf)) {
             alert("O CPF informado é inválido. Por favor, verifique os números digitados.");
             return;
@@ -122,7 +118,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
             const newWorkerRef = push(ref(db, 'monitoramento/service_workers'));
             await set(newWorkerRef, {
                 name: formData.name.toUpperCase(),
-                cpf: formData.cpf.replace(/[^\d]+/g, ''), // Salva apenas números
+                cpf: formData.cpf.replace(/[^\d]+/g, ''), 
                 companyId: currentUser.uid,
                 companyName: finalCompanyName.toUpperCase(),
                 photoUrl: photoPreview,
@@ -135,89 +131,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
             setDocumentData(null);
             setFormData({ name: '', cpf: '' });
         } catch (e) { alert("Erro ao salvar."); } finally { setIsSaving(false); }
-    };
-
-    const startDownloadProcess = (workerId: string) => {
-        const worker = workers.find(w => w.id === workerId);
-        if (worker) {
-            setTargetWorker(worker);
-            setBatchDownloadMode(false);
-            setShowVerifyModal(true);
-            setVerifyPassword('');
-            setErrorVerify('');
-        }
-    };
-
-    const startBatchPhotoDownload = () => {
-        if (confirmedTodayFiltered.length === 0) return;
-        setBatchDownloadMode(true);
-        setTargetWorker(null);
-        setShowVerifyModal(true);
-        setVerifyPassword('');
-        setErrorVerify('');
-    };
-
-    const triggerFileDownload = async (url: string, filename: string) => {
-        try {
-            const response = await fetch(url);
-            const blob = await response.blob();
-            const blobUrl = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(blobUrl);
-            document.body.removeChild(a);
-        } catch (e) {
-            console.error("Erro no download de " + filename);
-        }
-    };
-
-    const handleVerifyAndAction = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!auth.currentUser) return;
-
-        setVerifying(true);
-        setErrorVerify('');
-
-        try {
-            const credential = EmailAuthProvider.credential(auth.currentUser.email!, verifyPassword);
-            await reauthenticateWithCredential(auth.currentUser, credential);
-            
-            if (batchDownloadMode) {
-                for (const roster of confirmedTodayFiltered) {
-                    const worker = workers.find(w => w.id === roster.workerId);
-                    if (worker?.photoUrl) {
-                        await triggerFileDownload(
-                            worker.photoUrl, 
-                            `FOTO_${worker.name.replace(/\s+/g, '_')}.jpg`
-                        );
-                        await new Promise(r => setTimeout(r, 400));
-                    }
-                }
-            } else if (targetWorker) {
-                const fileUrl = targetWorker.documentUrl;
-                if (!fileUrl) throw new Error("Documento não encontrado.");
-
-                let ext = 'pdf';
-                if (fileUrl.includes('data:image/png')) ext = 'png';
-                else if (fileUrl.includes('data:image/jpeg')) ext = 'jpg';
-                
-                await triggerFileDownload(
-                    fileUrl, 
-                    `DOCUMENTO_${targetWorker.name.replace(/\s+/g, '_')}.${ext}`
-                );
-            }
-
-            setShowVerifyModal(false);
-            setTargetWorker(null);
-            setBatchDownloadMode(false);
-        } catch (err: any) {
-            setErrorVerify("Senha incorreta ou erro na reautenticação.");
-        } finally {
-            setVerifying(false);
-        }
     };
 
     const handleApproveWorker = async (workerId: string, rosterId: string) => {
@@ -273,26 +186,21 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         }
     };
 
-    const confirmDeleteAction = async () => {
-        if (!deleteConfig) return;
-        try {
-            const path = deleteConfig.type === 'roster' 
-                ? `monitoramento/attendance_roster/${deleteConfig.id}` 
-                : `monitoramento/service_workers/${deleteConfig.id}`;
-            await remove(ref(db, path));
-            setDeleteConfig(null);
-        } catch (e) {
-            alert("Erro ao excluir.");
-        }
-    };
-
+    // LÓGICA CRÍTICA DE VISIBILIDADE:
     const confirmedTodayRaw = useMemo(() => {
         let list = dailyRoster.filter(r => r.date === selectedDate);
-        if (isManager) {
+        
+        if (isProvider) {
+            // Fornecedor vê apenas registros da sua própria empresa
+            list = list.filter(r => r.companyName === currentUser.companyName);
+        } else if (isManager) {
+            // Gestor vê registros apenas das unidades que ele tem permissão
             list = list.filter(r => hasWarehousePermission(currentUser.allowedWarehouses, r.unit));
         }
+        // Admin vê tudo
+        
         return list;
-    }, [dailyRoster, selectedDate, isManager, currentUser.allowedWarehouses]);
+    }, [dailyRoster, selectedDate, isProvider, isManager, currentUser.companyName, currentUser.allowedWarehouses]);
 
     const activeCompanies = useMemo(() => {
         const companies = new Set<string>();
@@ -317,6 +225,82 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         setTimeout(() => setCopySuccess(false), 2000);
     };
 
+    const startDownloadProcess = (workerId: string) => {
+        const worker = workers.find(w => w.id === workerId);
+        if (worker) {
+            setTargetWorker(worker);
+            setBatchDownloadMode(false);
+            setShowVerifyModal(true);
+            setVerifyPassword('');
+            setErrorVerify('');
+        }
+    };
+
+    const startBatchPhotoDownload = () => {
+        if (confirmedTodayFiltered.length === 0) return;
+        setBatchDownloadMode(true);
+        setTargetWorker(null);
+        setShowVerifyModal(true);
+        setVerifyPassword('');
+        setErrorVerify('');
+    };
+
+    const handleVerifyAndAction = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!auth.currentUser) return;
+        setVerifying(true);
+        setErrorVerify('');
+        try {
+            const credential = EmailAuthProvider.credential(auth.currentUser.email!, verifyPassword);
+            await reauthenticateWithCredential(auth.currentUser, credential);
+            if (batchDownloadMode) {
+                for (const roster of confirmedTodayFiltered) {
+                    const worker = workers.find(w => w.id === roster.workerId);
+                    if (worker?.photoUrl) {
+                        await triggerFileDownload(worker.photoUrl, `FOTO_${worker.name.replace(/\s+/g, '_')}.jpg`);
+                        await new Promise(r => setTimeout(r, 400));
+                    }
+                }
+            } else if (targetWorker) {
+                const fileUrl = targetWorker.documentUrl;
+                if (!fileUrl) throw new Error("Documento não encontrado.");
+                let ext = 'pdf';
+                if (fileUrl.includes('data:image/png')) ext = 'png';
+                else if (fileUrl.includes('data:image/jpeg')) ext = 'jpg';
+                await triggerFileDownload(fileUrl, `DOCUMENTO_${targetWorker.name.replace(/\s+/g, '_')}.${ext}`);
+            }
+            setShowVerifyModal(false);
+            setTargetWorker(null);
+            setBatchDownloadMode(false);
+        } catch (err: any) { setErrorVerify("Senha incorreta."); } finally { setVerifying(false); }
+    };
+
+    const triggerFileDownload = async (url: string, filename: string) => {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(blobUrl);
+            document.body.removeChild(a);
+        } catch (e) { console.error("Erro no download"); }
+    };
+
+    const confirmDeleteAction = async () => {
+        if (!deleteConfig) return;
+        try {
+            const path = deleteConfig.type === 'roster' 
+                ? `monitoramento/attendance_roster/${deleteConfig.id}` 
+                : `monitoramento/service_workers/${deleteConfig.id}`;
+            await remove(ref(db, path));
+            setDeleteConfig(null);
+        } catch (e) { alert("Erro ao excluir."); }
+    };
+
     return (
         <div className="max-w-[1400px] mx-auto space-y-6 animate-fade-in pb-20 px-4 sm:px-0">
             <div className="bg-[#0f172a] border border-slate-800 rounded-[24px] p-8 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-6">
@@ -327,7 +311,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                     <div>
                         <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Controle de Acesso</h2>
                         <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
-                             <Lock size={12} className="text-slate-600" /> {isProvider ? `Gestão: ${currentUser.companyName}` : isManager ? 'Módulo de Gestão de Unidade' : 'Gestão Centralizada de Terceirizados'}
+                             <Lock size={12} className="text-slate-600" /> {isProvider ? `Empresa: ${currentUser.companyName || 'N/A'}` : isManager ? 'Gestão de Unidades Permitidas' : 'Gestão Centralizada Global'}
                         </p>
                     </div>
                 </div>
@@ -386,13 +370,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                         {workers.map(w => {
                             const isSelected = selectedWorkerIds.has(w.id);
                             return (
-                                <div 
-                                    key={w.id} 
-                                    onClick={() => toggleWorkerSelection(w.id)}
-                                    className={`relative cursor-pointer bg-slate-950 border rounded-[28px] p-5 transition-all group overflow-hidden
-                                        ${isSelected ? 'border-blue-500 bg-blue-500/5 shadow-xl shadow-blue-900/20' : 'border-slate-800 hover:border-slate-700'}
-                                    `}
-                                >
+                                <div key={w.id} onClick={() => toggleWorkerSelection(w.id)} className={`relative cursor-pointer bg-slate-950 border rounded-[28px] p-5 transition-all group overflow-hidden ${isSelected ? 'border-blue-500 bg-blue-500/5 shadow-xl shadow-blue-900/20' : 'border-slate-800 hover:border-slate-700'}`}>
                                     <div className="flex items-center gap-4 relative z-10">
                                         <div className="relative">
                                             <img src={w.photoUrl} className="w-14 h-14 rounded-2xl object-cover border-2 border-slate-800" />
@@ -412,19 +390,8 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                             </div>
                                         </div>
                                         <div className="flex gap-1">
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); startDownloadProcess(w.id); }}
-                                                className="p-2 text-slate-800 hover:text-blue-500 transition-all"
-                                                title="Baixar Documentos"
-                                            >
-                                                <Download size={18} />
-                                            </button>
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); setDeleteConfig({ id: w.id, type: 'worker', name: w.name }); }}
-                                                className="p-2 text-slate-800 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
+                                            <button onClick={(e) => { e.stopPropagation(); startDownloadProcess(w.id); }} className="p-2 text-slate-800 hover:text-blue-500 transition-all"><Download size={18} /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); setDeleteConfig({ id: w.id, type: 'worker', name: w.name }); }} className="p-2 text-slate-800 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
                                         </div>
                                     </div>
                                     {isSelected && <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 blur-3xl rounded-full"></div>}
@@ -498,25 +465,10 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 
                     <div className="bg-slate-900 border border-slate-800 rounded-[24px] shadow-2xl overflow-hidden min-h-[400px]">
                         <div className="p-4 border-b border-slate-800/40 flex justify-end gap-3">
-                            {isAdmin && (
-                                <button 
-                                    onClick={startBatchPhotoDownload}
-                                    className="bg-emerald-600/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-600 hover:text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg"
-                                >
-                                    <ImageIcon size={16} /> Baixar Fotos (JPG)
-                                </button>
+                            {(isAdmin || isManager) && (
+                                <button onClick={startBatchPhotoDownload} className="bg-emerald-600/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-600 hover:text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg"><ImageIcon size={16} /> Baixar Fotos (JPG)</button>
                             )}
-                            <button 
-                                onClick={handleCopyAllVisible}
-                                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border shadow-lg
-                                    ${copySuccess 
-                                        ? 'bg-blue-600 border-blue-400 text-white' 
-                                        : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white'}
-                                `}
-                            >
-                                {copySuccess ? <CheckCircle2 size={16} /> : <Copy size={16} />}
-                                {copySuccess ? 'Copiado!' : 'Copiar Lista (Nome/CPF)'}
-                            </button>
+                            <button onClick={handleCopyAllVisible} className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border shadow-lg ${copySuccess ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white'}`}>{copySuccess ? <CheckCircle2 size={16} /> : <Copy size={16} />} {copySuccess ? 'Copiado!' : 'Copiar Lista (Nome/CPF)'}</button>
                         </div>
                         <div className="overflow-x-auto custom-scrollbar">
                             <table className="w-full text-left">
@@ -531,11 +483,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                 </thead>
                                 <tbody className="divide-y divide-slate-800/40">
                                     {confirmedTodayFiltered.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={5} className="p-20 text-center text-slate-600 italic">
-                                                Nenhum registro escalado para as unidades visíveis nesta data.
-                                            </td>
-                                        </tr>
+                                        <tr><td colSpan={5} className="p-20 text-center text-slate-600 italic">Nenhum registro escalado nesta data.</td></tr>
                                     ) : confirmedTodayFiltered.map(roster => {
                                         const worker = workers.find(w => w.id === roster.workerId);
                                         const isApproved = worker?.status === 'approved';
@@ -556,50 +504,19 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="p-6">
-                                                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600/10 text-blue-500 border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest">
-                                                        <Building2 size={12} /> {roster.companyName}
-                                                    </div>
-                                                </td>
-                                                <td className="p-6">
-                                                    <div className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[11px] tracking-tight">
-                                                        <Warehouse size={14} className="text-slate-700" /> {roster.unit}
-                                                    </div>
-                                                </td>
-                                                <td className="p-6">
-                                                    <button onClick={() => startDownloadProcess(roster.workerId)} className="flex items-center gap-2 text-slate-600 hover:text-amber-500 transition-all text-[10px] font-black uppercase tracking-widest group/btn">
-                                                        <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all">
-                                                            <Download size={16} />
-                                                        </div>
-                                                        Baixar Documentos
-                                                    </button>
-                                                </td>
+                                                <td className="p-6"><div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600/10 text-blue-500 border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest"><Building2 size={12} /> {roster.companyName}</div></td>
+                                                <td className="p-6"><div className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[11px] tracking-tight"><Warehouse size={14} className="text-slate-700" /> {roster.unit}</div></td>
+                                                <td className="p-6"><button onClick={() => startDownloadProcess(roster.workerId)} className="flex items-center gap-2 text-slate-600 hover:text-amber-500 transition-all text-[10px] font-black uppercase tracking-widest group/btn"><div className="p-2 rounded-lg bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all"><Download size={16} /></div>Baixar Documentos</button></td>
                                                 <td className="p-6">
                                                     <div className="flex items-center justify-end gap-2">
-                                                        <button 
-                                                            onClick={() => setDeleteConfig({ id: roster.id, type: 'roster', name: roster.workerName })}
-                                                            className="p-2.5 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white border border-rose-600/20 rounded-xl transition-all shadow-lg"
-                                                            title="Excluir Registro"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
+                                                        <button onClick={() => setDeleteConfig({ id: roster.id, type: 'roster', name: roster.workerName })} className="p-2.5 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white border border-rose-600/20 rounded-xl transition-all shadow-lg"><Trash2 size={16} /></button>
                                                         {isApproved ? (
-                                                            <div className="bg-emerald-500/10 border border-emerald-500/20 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase text-emerald-500 flex items-center gap-2 shadow-lg shadow-emerald-900/10 animate-fade-in">
-                                                                <CheckCircle2 size={16} className="text-emerald-400" /> Liberado para Acesso
-                                                            </div>
+                                                            <div className="bg-emerald-500/10 border border-emerald-500/20 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase text-emerald-500 flex items-center gap-2 shadow-lg shadow-emerald-900/10 animate-fade-in"><CheckCircle2 size={16} className="text-emerald-400" /> Liberado para Acesso</div>
                                                         ) : (
-                                                            isAdmin ? (
-                                                                <button 
-                                                                    onClick={() => handleApproveWorker(roster.workerId, roster.id)}
-                                                                    disabled={actionLoading === roster.id}
-                                                                    className="bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white border border-emerald-500/20 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-emerald-900/10 group/lib"
-                                                                >
-                                                                    {actionLoading === roster.id ? <LoaderIcon className="animate-spin" size={16} /> : <><CheckCircle2 size={16} className="group-hover:lib:scale-110 transition-transform" /> Liberar</>}
-                                                                </button>
+                                                            (isAdmin || isManager) ? (
+                                                                <button onClick={() => handleApproveWorker(roster.workerId, roster.id)} disabled={actionLoading === roster.id} className="bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white border border-emerald-500/20 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-emerald-900/10 group/lib">{actionLoading === roster.id ? <LoaderIcon className="animate-spin" size={16} /> : <><CheckCircle2 size={16} className="group-hover:lib:scale-110 transition-transform" /> Liberar</>}</button>
                                                             ) : (
-                                                                <div className="bg-amber-500/5 border border-amber-500/20 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase text-amber-500 flex items-center gap-2 italic">
-                                                                    Aguardando Auditoria
-                                                                </div>
+                                                                <div className="bg-amber-500/5 border border-amber-500/20 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase text-amber-500 flex items-center gap-2 italic">Aguardando Auditoria</div>
                                                             )
                                                         )}
                                                     </div>
@@ -614,51 +531,24 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 </>
             )}
 
+            {/* MODALS (Sem alterações lógicas) */}
             {showVerifyModal && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-fade-in">
                     <div className="bg-[#0f172a] border border-slate-700 rounded-[32px] p-10 shadow-2xl max-sm w-full relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600"></div>
                         <div className="flex flex-col items-center text-center mb-8">
-                            <div className="w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center border border-blue-600/20 mb-4">
-                                <Lock className="text-blue-500" size={32} />
-                            </div>
+                            <div className="w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center border border-blue-600/20 mb-4"><Lock className="text-blue-500" size={32} /></div>
                             <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">Verificar Identidade</h3>
-                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">
-                                {batchDownloadMode ? (
-                                    <>Confirme sua senha para baixar <br/><span className="text-emerald-500">{confirmedTodayFiltered.length} fotos de colaboradores</span></>
-                                ) : (
-                                    <>Digite sua senha para baixar o documento de <br/><span className="text-white">{targetWorker?.name}</span></>
-                                )}
-                            </p>
+                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">{batchDownloadMode ? <>Confirme sua senha para baixar <br/><span className="text-emerald-500">{confirmedTodayFiltered.length} fotos de colaboradores</span></> : <>Digite sua senha para baixar o documento de <br/><span className="text-white">{targetWorker?.name}</span></>}</p>
                         </div>
                         <form onSubmit={handleVerifyAndAction} className="space-y-6">
                             <div className="relative group">
                                 <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 size={18} ${errorVerify ? 'text-rose-500' : 'text-slate-600 group-focus-within:text-blue-500'}`} />
-                                <input 
-                                    autoFocus
-                                    type={showPassword ? "text" : "password"}
-                                    value={verifyPassword}
-                                    onChange={e => setVerifyPassword(e.target.value)}
-                                    className={`w-full bg-slate-950 border rounded-2xl pl-12 pr-12 py-4 text-white outline-none transition-all font-bold tracking-widest
-                                        ${errorVerify ? 'border-rose-500' : 'border-slate-800 focus:border-blue-500'}
-                                    `}
-                                    placeholder="SENHA"
-                                />
-                                <button 
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white"
-                                >
-                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                </button>
+                                <input autoFocus type={showPassword ? "text" : "password"} value={verifyPassword} onChange={e => setVerifyPassword(e.target.value)} className={`w-full bg-slate-950 border rounded-2xl pl-12 pr-12 py-4 text-white outline-none transition-all font-bold tracking-widest ${errorVerify ? 'border-rose-500' : 'border-slate-800 focus:border-blue-500'}`} placeholder="SENHA" />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
                             </div>
                             {errorVerify && <p className="text-rose-500 text-[10px] font-black uppercase text-center animate-pulse">{errorVerify}</p>}
-                            <div className="flex gap-4">
-                                <button type="button" onClick={() => { setShowVerifyModal(false); setTargetWorker(null); setBatchDownloadMode(false); }} className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">Cancelar</button>
-                                <button type="submit" disabled={verifying || !verifyPassword} className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl shadow-blue-900/40 transition-all flex items-center justify-center gap-2">
-                                    {verifying ? <LoaderIcon className="animate-spin" size={16} /> : <><Download size={16} /> Confirmar</>}
-                                </button>
-                            </div>
+                            <div className="flex gap-4"><button type="button" onClick={() => { setShowVerifyModal(false); setTargetWorker(null); setBatchDownloadMode(false); }} className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">Cancelar</button><button type="submit" disabled={verifying || !verifyPassword} className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl shadow-blue-900/40 transition-all flex items-center justify-center gap-2">{verifying ? <LoaderIcon className="animate-spin" size={16} /> : <><Download size={16} /> Confirmar</>}</button></div>
                         </form>
                     </div>
                 </div>
@@ -668,18 +558,10 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
                     <div className="bg-slate-900 border border-slate-700 rounded-[32px] p-10 shadow-2xl max-sm w-full text-center relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-600"></div>
-                        <div className="w-20 h-20 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-500/20">
-                            <AlertTriangle className="text-rose-600" size={40} />
-                        </div>
+                        <div className="w-20 h-20 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-500/20"><AlertTriangle className="text-rose-600" size={40} /></div>
                         <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Confirmar Exclusão?</h3>
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">
-                            Deseja realmente remover o registro de <br/>
-                            <span className="text-rose-500 font-black">{deleteConfig.name}</span>?
-                        </p>
-                        <div className="flex gap-4">
-                            <button onClick={() => setDeleteConfig(null)} className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">Cancelar</button>
-                            <button onClick={confirmDeleteAction} className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl shadow-rose-900/40 transition-all active:scale-95">Sim, Excluir</button>
-                        </div>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">Deseja realmente remover o registro de <br/><span className="text-rose-500 font-black">{deleteConfig.name}</span>?</p>
+                        <div className="flex gap-4"><button onClick={() => setDeleteConfig(null)} className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">Cancelar</button><button onClick={confirmDeleteAction} className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl shadow-rose-900/40 transition-all active:scale-95">Sim, Excluir</button></div>
                     </div>
                 </div>
             )}
