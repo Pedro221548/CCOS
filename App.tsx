@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef, useMemo } from 'react';
-import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar, Clock, RefreshCw, BookOpen, DollarSign, UserPlus } from 'lucide-react';
+import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar, Clock, RefreshCw, BookOpen, DollarSign, UserPlus, TableProperties } from 'lucide-react';
 import { Camera, AccessPoint, User, ProcessedWorker, AppNotification, ThirdPartyImport, Note, ShiftNote, ThirdPartyPayment, PaymentImport, Status } from './types';
 import { authService } from './services/auth';
 import { monitoringService } from './services/monitoring';
@@ -32,6 +32,7 @@ const Heatmap = lazy(() => import('./components/Heatmap'));
 const Manual = lazy(() => import('./components/Manual'));
 const Payments = lazy(() => import('./components/Payments'));
 const Registration = lazy(() => import('./components/Registration'));
+const MonthlyReport = lazy(() => import('./components/MonthlyReport'));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center h-full w-full">
@@ -60,8 +61,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   
-  // Inicialização padrão; será sobrescrita pela função de login se for fornecedor
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'registration' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users'>(
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'registration' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users' | 'monthly-report'>(
     (localStorage.getItem('cv_active_tab') as any) || 'dashboard'
   );
   const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'alarms' | 'access'>(
@@ -142,7 +142,7 @@ const App: React.FC = () => {
       setAuthLoading(false);
       
       // LÓGICA DE DIRECIONAMENTO PARA FORNECEDOR
-      if (currentUser?.role === 'provider') {
+      if (currentUser?.role === 'provider' && activeTab !== 'registration' && activeTab !== 'monthly-report') {
           setActiveTab('registration');
       }
     });
@@ -163,7 +163,7 @@ const App: React.FC = () => {
   }, [user]);
 
   const handleTabChange = useCallback((tab: typeof activeTab) => {
-    if (user?.role === 'provider' && tab !== 'registration') return;
+    if (user?.role === 'provider' && !['registration', 'monthly-report'].includes(tab)) return;
     if (['data', 'users'].includes(tab) && !isAdmin) { alert("Acesso negado."); return; }
     setActiveTab(tab);
     if (window.innerWidth < 1024) setSidebarOpen(false);
@@ -303,11 +303,11 @@ const App: React.FC = () => {
       <aside className={`fixed inset-y-0 left-0 z-40 bg-slate-50 dark:bg-slate-950 border-r border-slate-300 dark:border-slate-800 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 lg:translate-x-0 lg:static lg:h-full lg:w-64 flex flex-col shadow-2xl lg:shadow-none`}>
         <div className="flex flex-col items-center justify-center py-10 px-4 shrink-0 select-none">
             <div onClick={() => user.role !== 'provider' && handleTabChange('dashboard')} className={`flex flex-col items-center group w-full text-center ${user.role !== 'provider' ? 'cursor-pointer' : ''}`}>
-                <div className="relative mb-4 transform transition-transform group-hover:scale-105 duration-300 mx-auto">
-                    <div className="absolute inset-0 bg-amber-500/20 blur-2xl rounded-full"></div>
-                    <Shield className="w-16 h-16 text-amber-500 relative z-10 fill-amber-500/10 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" strokeWidth={1.5} />
+                <div className="relative mb-6 transform transition-transform group-hover:scale-105 duration-300 mx-auto">
+                    <div className="absolute inset-0 bg-amber-500/20 blur-3xl rounded-full"></div>
+                    <Shield className="w-24 h-24 text-amber-500 relative z-10 fill-amber-500/10 drop-shadow-[0_0_20px_rgba(245,158,11,0.6)]" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-4xl font-black text-amber-500 mb-4 leading-none tracking-tighter drop-shadow-md">CCOS</h1>
+                <h1 className="text-5xl font-black text-amber-500 mb-6 leading-none tracking-tighter drop-shadow-md">CCOS</h1>
                 <div className="px-5 py-1.5 bg-amber-500/5 border border-amber-500/20 rounded-full inline-block mx-auto shadow-inner"><span className="text-[10px] font-black text-amber-600 uppercase tracking-[0.3em]">DEMONSTRAÇÃO</span></div>
             </div>
         </div>
@@ -320,8 +320,12 @@ const App: React.FC = () => {
               </>
           )}
           
-          <button onClick={() => handleTabChange('registration')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'registration' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><UserPlus size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Cadastro</span></button>
+          <button onClick={() => handleTabChange('registration')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'registration' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><UserPlus size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Escala Diária</span></button>
           
+          {user.role === 'provider' && (
+              <button onClick={() => handleTabChange('monthly-report')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'monthly-report' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><TableProperties size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Relatório Mensal</span></button>
+          )}
+
           {user.role !== 'provider' && (
               <>
                 <button onClick={() => handleTabChange('finance')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'finance' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><DollarSign size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Financeiro</span></button>
@@ -386,6 +390,7 @@ const App: React.FC = () => {
                 {activeTab === 'dashboard' && <Dashboard data={data} thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
                 {activeTab === 'finance' && <Payments payments={paymentRecords} currentUser={user} />}
                 {activeTab === 'registration' && <Registration currentUser={user} />}
+                {activeTab === 'monthly-report' && <MonthlyReport currentUser={user} attendanceRoster={data.attendanceRoster || []} thirdPartyWorkers={thirdPartyWorkers} />}
                 {activeTab === 'monitoring' && (
                   <div className="space-y-8 animate-fade-in">
                     <div className="bg-slate-900/50 p-1 rounded-2xl border border-slate-800/50 shadow-sm">

@@ -41,17 +41,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         
         {/* Header - CCOS Styled Logo */}
         <div className="p-10 pb-8 flex flex-col items-center justify-center">
-            <div className="relative mb-6 group transform transition-transform duration-500">
-                <div className="absolute inset-0 bg-amber-500/20 blur-3xl rounded-full animate-pulse"></div>
-                <Shield className="w-20 h-20 text-amber-500 relative z-10 fill-amber-500/10 drop-shadow-[0_0_20px_rgba(245,158,11,0.6)]" strokeWidth={1.5} />
+            <div className="relative mb-8 group transform transition-transform duration-500">
+                <div className="absolute inset-0 bg-amber-500/20 blur-[60px] rounded-full animate-pulse"></div>
+                <Shield className="w-32 h-32 text-amber-500 relative z-10 fill-amber-500/10 drop-shadow-[0_0_30px_rgba(245,158,11,0.7)]" strokeWidth={1.5} />
             </div>
             
-            <h1 className="text-6xl font-black text-amber-500 tracking-tighter leading-none text-center drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]">
+            <h1 className="text-8xl font-black text-amber-500 tracking-tighter leading-none text-center drop-shadow-[0_0_15px_rgba(245,158,11,0.4)]">
                 CCOS
             </h1>
             
-            <div className="mt-6 px-10 py-2.5 bg-amber-500/5 border border-amber-500/20 rounded-full">
-                <span className="text-xs font-black text-amber-600 uppercase tracking-[0.4em]">
+            <div className="mt-8 px-12 py-3 bg-amber-500/5 border border-amber-500/20 rounded-full">
+                <span className="text-xs font-black text-amber-600 uppercase tracking-[0.5em]">
                     DEMONSTRAÇÃO
                 </span>
             </div>

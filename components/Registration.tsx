@@ -29,7 +29,7 @@ const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehou
 
 const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     const isManager = currentUser.role === 'manager';
-    const isAdmin = currentUser.role === 'admin' || isManager;
+    const isAdmin = currentUser.role === 'admin';
     const isProvider = currentUser.role === 'provider';
 
     const [activeTab, setActiveTab] = useState<'roster' | 'team' | 'admin_view'>(isProvider ? 'roster' : 'admin_view');
@@ -85,12 +85,11 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         const unsubRoster = onValue(rosterRef, (snap) => {
             if (snap.exists()) {
                 const data = snap.val();
-                // Fix error: Changed 'key' to 'k' to match the map function argument
                 let list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
                 
                 // PRIVACIDADE: Fornecedor só vê a escala da sua empresa
                 if (isProvider) {
-                    list = list.filter(r => r.companyName === currentUser.companyName);
+                    list = list.filter(r => r.companyName === (currentUser.companyName || currentUser.name));
                 }
 
                 setDailyRoster(list);
@@ -98,7 +97,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         });
 
         return () => { unsubWorkers(); unsubRoster(); };
-    }, [currentUser.uid, currentUser.companyName, isProvider]);
+    }, [currentUser.uid, currentUser.companyName, currentUser.name, isProvider]);
 
     const handleSaveWorker = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -107,8 +106,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         
         setIsSaving(true);
         try {
-            // Garante que o cadastro seja vinculado à empresa do fornecedor logado
-            const finalCompanyName = currentUser.companyName || "NÃO IDENTIFICADO";
+            const finalCompanyName = currentUser.companyName || currentUser.name || "NÃO IDENTIFICADO";
             const newWorkerRef = push(ref(db, 'monitoramento/service_workers'));
             await set(newWorkerRef, {
                 name: formData.name.toUpperCase(),
@@ -277,14 +275,10 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     };
 
     const confirmedTodayRaw = useMemo(() => {
-        // Filtragem por data
         let list = dailyRoster.filter(r => r.date === selectedDate);
-        
-        // SEGURANÇA: Gestor só vê escalas das suas unidades permitidas
         if (isManager) {
             list = list.filter(r => hasWarehousePermission(currentUser.allowedWarehouses, r.unit));
         }
-        
         return list;
     }, [dailyRoster, selectedDate, isManager, currentUser.allowedWarehouses]);
 
@@ -319,12 +313,12 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
             <div className="bg-[#0f172a] border border-slate-800 rounded-[24px] p-8 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex items-center gap-6 z-10">
                     <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl shadow-inner">
-                        <Shield className="text-amber-500" size={36} strokeWidth={1.5} />
+                        <Shield className="text-amber-500" size={48} strokeWidth={1.5} />
                     </div>
                     <div>
                         <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Controle de Acesso</h2>
                         <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
-                             <Lock size={12} className="text-slate-600" /> {isProvider ? `Gestão: ${currentUser.companyName}` : isManager ? 'Módulo de Gestão de Unidade' : 'Gestão Centralizada de Terceirizados'}
+                             <Lock size={12} className="text-slate-600" /> {isProvider ? `Gestão: ${currentUser.companyName || currentUser.name}` : isManager ? 'Módulo de Gestão de Unidade' : 'Gestão Centralizada de Terceirizados'}
                         </p>
                     </div>
                 </div>
@@ -500,7 +494,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 
                     <div className="bg-slate-900 border border-slate-800 rounded-[24px] shadow-2xl overflow-hidden min-h-[400px]">
                         <div className="p-4 border-b border-slate-800/40 flex justify-end gap-3">
-                            {isAdmin && (
+                            {(isAdmin || isManager) && (
                                 <button 
                                     onClick={startBatchPhotoDownload}
                                     className="bg-emerald-600/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-600 hover:text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg"
@@ -596,7 +590,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                                 <CheckCircle2 size={16} className="text-emerald-400" /> Liberado para Acesso
                                                             </div>
                                                         ) : (
-                                                            isAdmin ? (
+                                                            (isAdmin || isManager) ? (
                                                                 <button 
                                                                     onClick={() => handleApproveWorker(roster.workerId, roster.id)}
                                                                     disabled={actionLoading === roster.id}
@@ -694,7 +688,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
                     <div className="bg-slate-900 border border-slate-700 rounded-[32px] p-10 shadow-2xl max-sm w-full text-center relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-600"></div>
-                        <div className="w-20 h-20 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-500/20">
+                        <div className="w-20 h-20 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-600/20">
                             <AlertTriangle className="text-rose-600" size={40} />
                         </div>
                         <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Confirmar Exclusão?</h3>
@@ -717,15 +711,28 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600"></div>
                         <div className="p-10">
                             <div className="flex justify-between items-start mb-8">
-                                <div><h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Novo Registro</h3><p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-2">Empresa: {currentUser.companyName}</p></div>
+                                <div>
+                                    <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Novo Registro</h3>
+                                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-2">Empresa: {currentUser.companyName || currentUser.name}</p>
+                                </div>
                                 <button onClick={() => setShowAddModal(false)} className="p-2 bg-slate-800 hover:bg-rose-600 text-white rounded-full transition-all"><X size={20}/></button>
                             </div>
                             <form onSubmit={handleSaveWorker} className="space-y-6">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     <div className="space-y-3">
                                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Foto Perfil</label>
-                                        <div className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-[32px] overflow-hidden flex items-center justify-center relative group">
-                                            {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover p-2 rounded-[28px]" alt="" /> : <CameraIcon size={32} className="text-slate-800" />}
+                                        <div 
+                                            onClick={() => document.getElementById('photo-up')?.click()}
+                                            className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-[32px] overflow-hidden flex items-center justify-center relative group cursor-pointer hover:border-blue-500 transition-colors"
+                                        >
+                                            {photoPreview ? (
+                                                <img src={photoPreview} className="w-full h-full object-cover p-2 rounded-[28px]" alt="" />
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <CameraIcon size={32} className="text-slate-800 group-hover:text-blue-500 transition-colors" />
+                                                    <span className="text-[8px] text-slate-700 font-black uppercase">Clique para selecionar</span>
+                                                </div>
+                                            )}
                                             <input type="file" accept="image/*" className="hidden" id="photo-up" onChange={e => {
                                                 const file = e.target.files?.[0];
                                                 if (file) {
@@ -734,19 +741,27 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                     r.readAsDataURL(file);
                                                 }
                                             }} />
-                                            <button type="button" onClick={() => document.getElementById('photo-up')?.click()} className="absolute bottom-3 right-3 p-2.5 bg-blue-600 text-white rounded-full shadow-xl hover:scale-110 transition-transform"><CameraIcon size={16} /></button>
+                                            <div className="absolute bottom-3 right-3 p-2.5 bg-blue-600 text-white rounded-full shadow-xl hover:scale-110 transition-transform"><CameraIcon size={16} /></div>
                                         </div>
                                     </div>
 
                                     <div className="space-y-3">
                                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Documento (PDF/IMG)</label>
-                                        <div className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-[32px] overflow-hidden flex items-center justify-center relative group">
+                                        <div 
+                                            onClick={() => document.getElementById('doc-up')?.click()}
+                                            className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-[32px] overflow-hidden flex items-center justify-center relative group cursor-pointer hover:border-emerald-500 transition-colors"
+                                        >
                                             {documentData ? (
                                                 <div className="p-4 text-center">
                                                     <div className="w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-2"><File className="text-blue-500" size={24} /></div>
                                                     <p className="text-[9px] text-slate-400 font-bold uppercase truncate max-w-full px-2">{documentData.name}</p>
                                                 </div>
-                                            ) : <FileText size={32} className="text-slate-800" />}
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <FileText size={32} className="text-slate-800 group-hover:text-emerald-500 transition-colors" />
+                                                    <span className="text-[8px] text-slate-700 font-black uppercase">Clique para selecionar</span>
+                                                </div>
+                                            )}
                                             <input type="file" accept=".pdf,image/*" className="hidden" id="doc-up" onChange={e => {
                                                 const file = e.target.files?.[0];
                                                 if (file) {
@@ -755,7 +770,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                     r.readAsDataURL(file);
                                                 }
                                             }} />
-                                            <button type="button" onClick={() => document.getElementById('doc-up')?.click()} className="absolute bottom-3 right-3 p-2.5 bg-emerald-600 text-white rounded-full shadow-xl hover:scale-110 transition-transform"><Upload size={16} /></button>
+                                            <div className="absolute bottom-3 right-3 p-2.5 bg-emerald-600 text-white rounded-full shadow-xl hover:scale-110 transition-transform"><Upload size={16} /></div>
                                         </div>
                                     </div>
                                 </div>
