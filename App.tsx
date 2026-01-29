@@ -34,8 +34,11 @@ const Payments = lazy(() => import('./components/Payments'));
 const Registration = lazy(() => import('./components/Registration'));
 
 const LoadingFallback = () => (
-  <div className="flex items-center justify-center h-full w-full">
-    <Loader2 className="animate-spin text-amber-500 w-8 h-8" />
+  <div className="flex items-center justify-center h-full w-full bg-[#020408]">
+    <div className="flex flex-col items-center gap-4">
+        <Loader2 className="animate-spin text-amber-500 w-12 h-12" />
+        <span className="text-amber-500/50 text-[10px] font-black uppercase tracking-[0.3em]">Carregando Módulos...</span>
+    </div>
   </div>
 );
 
@@ -44,9 +47,7 @@ const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehou
     const normalizedTarget = (targetWarehouse || '').toUpperCase();
     return allowedList.some(allowed => {
         const normalizedAllowed = allowed.toUpperCase();
-        if (normalizedAllowed === normalizedTarget) return true;
-        if (normalizedAllowed.includes(normalizedTarget) || normalizedTarget.includes(normalizedAllowed)) return true;
-        return false;
+        return normalizedAllowed === normalizedTarget || normalizedAllowed.includes(normalizedTarget) || normalizedTarget.includes(normalizedAllowed);
     });
 };
 
@@ -60,16 +61,10 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   
-  // Inicialização padrão; será sobrescrita pela função de login se for fornecedor
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'registration' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users'>(
-    (localStorage.getItem('cv_active_tab') as any) || 'dashboard'
-  );
-  const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'alarms' | 'access'>(
-    (localStorage.getItem('cv_mon_tab') as any) || 'cameras'
-  );
-  const [thirdPartySubTab, setThirdPartySubTab] = useState<'status' | 'access-mgmt' | 'heatmap'>(
-    (localStorage.getItem('cv_tp_tab') as any) || 'status'
-  );
+  // Inicialização segura
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'registration' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users'>('dashboard');
+  const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'alarms' | 'access'>('cameras');
+  const [thirdPartySubTab, setThirdPartySubTab] = useState<'status' | 'access-mgmt' | 'heatmap'>('status');
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
@@ -88,14 +83,15 @@ const App: React.FC = () => {
 
   const isAdmin = user?.role === 'admin';
 
+  // Sincronização de persistência apenas se não for fornecedor
   useEffect(() => { 
-    if (user?.role !== 'provider') {
+    if (user && user.role !== 'provider') {
       localStorage.setItem('cv_active_tab', activeTab); 
     }
   }, [activeTab, user]);
   
-  useEffect(() => { localStorage.setItem('cv_mon_tab', monitoringSubTab); }, [monitoringSubTab]);
-  useEffect(() => { localStorage.setItem('cv_tp_tab', thirdPartySubTab); }, [thirdPartySubTab]);
+  useEffect(() => { if(user) localStorage.setItem('cv_mon_tab', monitoringSubTab); }, [monitoringSubTab, user]);
+  useEffect(() => { if(user) localStorage.setItem('cv_tp_tab', thirdPartySubTab); }, [thirdPartySubTab, user]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -124,13 +120,27 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const unsubscribe = authService.subscribeToAuthChanges((currentUser) => {
+      // 1. Atualiza o usuário
       setUser(currentUser);
-      setAuthLoading(false);
       
-      // LÓGICA DE DIRECIONAMENTO PARA FORNECEDOR
-      if (currentUser?.role === 'provider') {
-          setActiveTab('registration');
+      // 2. Lógica de redirecionamento e limpeza de estado para evitar tela branca
+      if (currentUser) {
+          if (currentUser.role === 'provider') {
+              setActiveTab('registration');
+          } else {
+              // Recupera estado salvo apenas para usuários internos
+              const savedTab = localStorage.getItem('cv_active_tab') as any;
+              const savedMon = localStorage.getItem('cv_mon_tab') as any;
+              const savedTp = localStorage.getItem('cv_tp_tab') as any;
+              
+              setActiveTab(savedTab && savedTab !== 'registration' ? savedTab : 'dashboard');
+              if (savedMon) setMonitoringSubTab(savedMon);
+              if (savedTp) setThirdPartySubTab(savedTp);
+          }
       }
+      
+      // 3. Finaliza o loading após os estados estarem sincronizados
+      setAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -150,12 +160,17 @@ const App: React.FC = () => {
 
   const handleTabChange = useCallback((tab: typeof activeTab) => {
     if (user?.role === 'provider' && tab !== 'registration') return;
-    if (['data', 'users'].includes(tab) && !isAdmin) { alert("Acesso negado."); return; }
+    if (['data', 'users'].includes(tab) && !isAdmin) return;
     setActiveTab(tab);
     if (window.innerWidth < 1024) setSidebarOpen(false);
   }, [isAdmin, user]);
 
-  const handleLogout = useCallback(() => { authService.logout(); setActiveTab('dashboard'); }, []);
+  const handleLogout = useCallback(() => { 
+    authService.logout(); 
+    // Reset de estados locais ao deslogar
+    setActiveTab('dashboard');
+    setUser(null);
+  }, []);
   
   const markAllRead = async () => {
       if (!user) return;
@@ -269,11 +284,11 @@ const App: React.FC = () => {
   const handleAddShiftNote = (note: ShiftNote) => organizerService.addShiftNote(note, data.shiftNotes || []);
   const handleDeleteShiftNote = (id: string) => organizerService.deleteShiftNote(id, data.shiftNotes || []);
 
-  if (authLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="animate-spin text-amber-500 w-10 h-10" /></div>;
+  if (authLoading) return <div className="min-h-screen bg-[#020408] flex items-center justify-center"><Loader2 className="animate-spin text-amber-500 w-10 h-10" /></div>;
   if (!user) return <Suspense fallback={<LoadingFallback />}><Login onLogin={() => {}} /></Suspense>;
 
   return (
-    <div className="h-screen w-full bg-slate-200 dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex font-sans overflow-hidden">
+    <div className="h-screen w-full bg-slate-200 dark:bg-[#020408] text-slate-900 dark:text-slate-100 flex font-sans overflow-hidden">
       
       <div className="fixed top-4 right-4 z-[200] flex flex-col gap-3 pointer-events-none">
           {toasts.map(t => (
