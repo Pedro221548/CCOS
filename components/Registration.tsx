@@ -37,9 +37,7 @@ const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehou
     const normalizedTarget = (targetWarehouse || '').toUpperCase();
     return allowedList.some(allowed => {
         const normalizedAllowed = allowed.toUpperCase();
-        if (normalizedAllowed === normalizedTarget) return true;
-        if (normalizedAllowed.includes(normalizedTarget) || normalizedTarget.includes(normalizedAllowed)) return true;
-        return false;
+        return normalizedAllowed === normalizedTarget || normalizedAllowed.includes(normalizedTarget) || normalizedTarget.includes(normalizedAllowed);
     });
 };
 
@@ -55,6 +53,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('TODOS');
     
     const [selectedWorkerIds, setSelectedWorkerIds] = useState<Set<string>>(new Set());
+    const [selectedRosterIds, setSelectedRosterIds] = useState<Set<string>>(new Set());
     const [targetUnit, setTargetUnit] = useState<string>(WAREHOUSE_LIST[0]);
 
     const [showAddModal, setShowAddModal] = useState(false);
@@ -73,7 +72,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     const [copySuccess, setCopySuccess] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-    const [deleteConfig, setDeleteConfig] = useState<{ id: string, type: 'roster' | 'worker', name: string } | null>(null);
+    const [deleteConfig, setDeleteConfig] = useState<{ id: string | string[], type: 'roster' | 'worker', name: string } | null>(null);
 
     useEffect(() => {
         const workersRef = ref(db, 'monitoramento/service_workers');
@@ -113,13 +112,13 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         
         setIsSaving(true);
         try {
-            const finalCompanyName = currentUser.companyName || "B11";
+            const finalCompanyName = (currentUser.companyName || "B11").trim().toUpperCase();
             const newWorkerRef = push(ref(db, 'monitoramento/service_workers'));
             await set(newWorkerRef, {
                 name: formData.name.toUpperCase(),
                 cpf: formData.cpf.replace(/[^\d]+/g, ''), 
                 companyId: currentUser.uid,
-                companyName: finalCompanyName.toUpperCase(),
+                companyName: finalCompanyName,
                 photoUrl: photoPreview,
                 documentUrl: documentData.url,
                 status: 'pending',
@@ -155,6 +154,13 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         setSelectedWorkerIds(newSet);
     };
 
+    const toggleRosterSelection = (id: string) => {
+        const newSet = new Set(selectedRosterIds);
+        if (newSet.has(id)) newSet.delete(id);
+        else newSet.add(id);
+        setSelectedRosterIds(newSet);
+    };
+
     const handleBatchAddToRoster = async () => {
         if (selectedWorkerIds.size === 0) return;
         
@@ -170,7 +176,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 date: selectedDate,
                 workerId: worker.id,
                 workerName: worker.name,
-                companyName: worker.companyName,
+                companyName: (worker.companyName || "B11").trim().toUpperCase(),
                 unit: targetUnit,
                 checkedIn: false
             });
@@ -189,14 +195,11 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         let list = dailyRoster.filter(r => r.date === selectedDate);
         
         if (isProvider) {
-            // Comparação robusta para fornecedor
-            const providerCompany = (currentUser.companyName || '').trim().toUpperCase();
-            // Identifica ids dos colaboradores que pertencem a este fornecedor como backup
+            const providerCompany = (currentUser.companyName || 'B11').trim().toUpperCase();
             const myWorkerIds = new Set(workers.map(w => w.id));
 
             list = list.filter(r => {
-                const entryCompany = (r.companyName || '').trim().toUpperCase();
-                // Mostra se a empresa bater OU se o colaborador escalar pertencer ao pool do fornecedor
+                const entryCompany = (r.companyName || 'B11').trim().toUpperCase();
                 return entryCompany === providerCompany || myWorkerIds.has(r.workerId);
             });
         } else if (isManager) {
@@ -205,16 +208,51 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         return list;
     }, [dailyRoster, selectedDate, isProvider, isManager, currentUser.companyName, currentUser.allowedWarehouses, workers]);
 
-    const activeCompanies = useMemo(() => {
-        const companies = new Set<string>();
-        confirmedTodayRaw.forEach(r => { if (r.companyName) companies.add(r.companyName.toUpperCase()); });
-        return Array.from(companies).sort();
+    // Lógica Ajustada: Unifica registros sem empresa ou N/A sob a marca 'B11'
+    const companyStats = useMemo(() => {
+        const stats: { [key: string]: number } = {};
+
+        confirmedTodayRaw.forEach(r => {
+            let name = (r.companyName || '').trim().toUpperCase();
+            if (!name || name === 'N/A' || name === 'NÃO IDENTIFICADO') {
+                name = 'B11';
+            }
+            stats[name] = (stats[name] || 0) + 1;
+        });
+
+        return Object.keys(stats).sort().map(name => ({
+            name,
+            count: stats[name]
+        }));
     }, [confirmedTodayRaw]);
 
     const confirmedTodayFiltered = useMemo(() => {
-        if (selectedCompanyFilter === 'TODOS' || isProvider) return confirmedTodayRaw;
-        return confirmedTodayRaw.filter(r => r.companyName.toUpperCase() === selectedCompanyFilter);
-    }, [confirmedTodayRaw, selectedCompanyFilter, isProvider]);
+        if (selectedCompanyFilter === 'TODOS') return confirmedTodayRaw;
+        return confirmedTodayRaw.filter(r => {
+            let name = (r.companyName || '').trim().toUpperCase();
+            if (!name || name === 'N/A' || name === 'NÃO IDENTIFICADO') {
+                name = 'B11';
+            }
+            return name === selectedCompanyFilter;
+        });
+    }, [confirmedTodayRaw, selectedCompanyFilter]);
+
+    const handleSelectAllRoster = () => {
+        if (selectedRosterIds.size === confirmedTodayFiltered.length) {
+            setSelectedRosterIds(new Set());
+        } else {
+            setSelectedRosterIds(new Set(confirmedTodayFiltered.map(r => r.id)));
+        }
+    };
+
+    const handleBatchDeleteRoster = () => {
+        if (selectedRosterIds.size === 0) return;
+        setDeleteConfig({
+            id: Array.from(selectedRosterIds),
+            type: 'roster',
+            name: `${selectedRosterIds.size} REGISTROS SELECIONADOS`
+        });
+    };
 
     const handleCopyAllVisible = () => {
         if (confirmedTodayFiltered.length === 0) return;
@@ -296,17 +334,23 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     const confirmDeleteAction = async () => {
         if (!deleteConfig) return;
         try {
-            const path = deleteConfig.type === 'roster' 
-                ? `monitoramento/attendance_roster/${deleteConfig.id}` 
-                : `monitoramento/service_workers/${deleteConfig.id}`;
-            await remove(ref(db, path));
+            if (Array.isArray(deleteConfig.id)) {
+                const promises = deleteConfig.id.map(id => remove(ref(db, `monitoramento/attendance_roster/${id}`)));
+                await Promise.all(promises);
+                setSelectedRosterIds(new Set());
+            } else {
+                const path = deleteConfig.type === 'roster' 
+                    ? `monitoramento/attendance_roster/${deleteConfig.id}` 
+                    : `monitoramento/service_workers/${deleteConfig.id}`;
+                await remove(ref(db, path));
+            }
             setDeleteConfig(null);
         } catch (e) { alert("Erro ao excluir."); }
     };
 
     return (
         <div className="max-w-[1400px] mx-auto space-y-6 animate-fade-in pb-20 px-4 sm:px-0">
-            {/* Header Proeminente - Estilo Mockup */}
+            {/* Header Proeminente */}
             <div className="bg-[#1a1f2e] border border-slate-800 rounded-[28px] p-10 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex items-center gap-8 z-10">
                     <div className="p-6 bg-slate-900 border border-slate-700 rounded-3xl shadow-inner group transition-transform hover:scale-105">
@@ -316,7 +360,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                         <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic leading-none mb-3">CONTROLE DE ACESSO</h2>
                         <div className="flex items-center gap-2 text-slate-500 text-sm font-bold uppercase tracking-widest">
                              <Briefcase size={14} className="text-slate-600" /> 
-                             EMPRESA: <span className="text-slate-300">{isProvider ? (currentUser.companyName || 'N/A') : 'N/A'}</span>
+                             EMPRESA: <span className="text-slate-300">{isProvider ? (currentUser.companyName || 'B11') : 'CCOS MASTER'}</span>
                         </div>
                     </div>
                 </div>
@@ -333,14 +377,13 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                     )}
                     <div className="px-6 py-3 bg-[#eab308]/10 border border-[#eab308]/20 rounded-2xl text-[#eab308] font-black text-[10px] uppercase tracking-[0.3em] flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
-                        MÓDULO FORNECEDOR
+                        MÓDULO OPERACIONAL
                     </div>
                 </div>
             </div>
 
             {activeTab === 'team' && isProvider ? (
                 <div className="space-y-6 animate-fade-in">
-                    {/* Painel de Escala Operacional */}
                     <div className="bg-slate-900 border border-slate-800 rounded-[32px] p-8 shadow-2xl flex flex-col md:flex-row justify-between items-center gap-8">
                         <div className="flex items-center gap-5">
                             <div className="p-4 bg-blue-500/10 rounded-2xl text-blue-500 border border-blue-500/20">
@@ -428,7 +471,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                     <div className="h-12 w-px bg-slate-800"></div>
                                     <div className="text-center md:text-right">
                                         <span className="block text-[11px] text-slate-500 font-black uppercase tracking-[0.2em] mb-2">EMPRESAS ATIVAS</span>
-                                        <span className="block text-5xl font-black text-blue-500 tabular-nums leading-none">{activeCompanies.length}</span>
+                                        <span className="block text-5xl font-black text-blue-500 tabular-nums leading-none">{companyStats.length}</span>
                                     </div>
                                 </>
                             )}
@@ -437,39 +480,41 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 
                     {!isProvider && (
                         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
-                            <div className="flex items-center gap-2 bg-slate-900/50 p-2 rounded-2xl border border-slate-800 shadow-inner">
+                            <div className="flex items-center bg-[#0d1117] p-1.5 rounded-2xl border border-slate-800 shadow-inner">
                                 <button 
                                     onClick={() => setSelectedCompanyFilter('TODOS')}
-                                    className={`px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2
-                                        ${selectedCompanyFilter === 'TODOS' ? 'bg-slate-800 text-white shadow-lg border border-slate-700' : 'text-slate-600 hover:text-slate-400'}
+                                    className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all flex items-center gap-2
+                                        ${selectedCompanyFilter === 'TODOS' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/30' : 'text-slate-500 hover:text-slate-300 border border-transparent'}
                                     `}
                                 >
-                                    <LayoutGrid size={16} /> TODOS
+                                    <LayoutGrid size={14} /> TODOS
                                 </button>
-                                <div className="w-px h-5 bg-slate-800 mx-3"></div>
-                                {activeCompanies.map(company => {
-                                    const count = confirmedTodayRaw.filter(r => r.companyName.toUpperCase() === company).length;
-                                    return (
-                                        <button 
-                                            key={company}
-                                            onClick={() => setSelectedCompanyFilter(company)}
-                                            className={`px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap
-                                                ${selectedCompanyFilter === company 
-                                                    ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-xl' 
-                                                    : 'text-slate-600 hover:text-slate-400 border border-transparent'}
-                                            `}
-                                        >
-                                            {company} <span className="opacity-50 text-[10px] font-mono">({count})</span>
-                                        </button>
-                                    );
-                                })}
+                                <div className="w-px h-4 bg-slate-800 mx-2"></div>
+                                {companyStats.map(item => (
+                                    <button 
+                                        key={item.name}
+                                        onClick={() => setSelectedCompanyFilter(item.name)}
+                                        className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all flex items-center gap-2 whitespace-nowrap border
+                                            ${selectedCompanyFilter === item.name 
+                                                ? 'bg-blue-600/20 text-blue-400 border-blue-500/40 shadow-xl' 
+                                                : 'text-slate-500 hover:text-slate-300 border-transparent'}
+                                        `}
+                                    >
+                                        {item.name} <span className="opacity-50 text-[9px] font-mono">({item.count})</span>
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     )}
 
-                    {/* Tabela Principal - Estética "ControlVision" */}
+                    {/* Tabela Principal */}
                     <div className="bg-slate-900 border border-slate-800 rounded-[32px] shadow-2xl overflow-hidden min-h-[500px]">
-                        <div className="p-6 border-b border-slate-800/40 flex justify-end gap-4 bg-slate-950/20">
+                        <div className="p-6 border-b border-slate-800/40 flex flex-wrap justify-end gap-4 bg-slate-950/20">
+                            {selectedRosterIds.size > 0 && (
+                                <button onClick={handleBatchDeleteRoster} className="bg-rose-600 hover:bg-rose-500 text-white px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-3 shadow-lg shadow-rose-900/30 animate-fade-in">
+                                    <Trash2 size={18} /> APAGAR SELECIONADOS ({selectedRosterIds.size})
+                                </button>
+                            )}
                             {(isAdmin || isManager) && (
                                 <button onClick={startBatchPhotoDownload} className="bg-emerald-600/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-600 hover:text-white px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-3 shadow-lg"><ImageIcon size={18} /> BAIXAR FOTOS (JPG)</button>
                             )}
@@ -479,6 +524,15 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                             <table className="w-full text-left">
                                 <thead className="bg-[#05070a] text-slate-500 text-[11px] font-black uppercase tracking-[0.25em] border-b border-slate-800">
                                     <tr>
+                                        <th className="p-8 w-16">
+                                            <button onClick={handleSelectAllRoster} className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
+                                                {selectedRosterIds.size === confirmedTodayFiltered.length && confirmedTodayFiltered.length > 0 ? (
+                                                    <CheckSquare size={20} className="text-blue-500" />
+                                                ) : (
+                                                    <Square size={20} className="text-slate-600" />
+                                                )}
+                                            </button>
+                                        </th>
                                         <th className="p-8">IDENTIFICAÇÃO COLABORADOR</th>
                                         <th className="p-8">EMPRESA PARCEIRA</th>
                                         <th className="p-8">UNIDADE ALVO</th>
@@ -488,12 +542,29 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                 </thead>
                                 <tbody className="divide-y divide-slate-800/40">
                                     {confirmedTodayFiltered.length === 0 ? (
-                                        <tr><td colSpan={5} className="p-32 text-center text-slate-600 font-bold uppercase tracking-widest text-sm">Nenhum registro escalado nesta data.</td></tr>
+                                        <tr><td colSpan={6} className="p-32 text-center text-slate-600 font-bold uppercase tracking-widest text-sm">Nenhum registro escalado nesta data.</td></tr>
                                     ) : confirmedTodayFiltered.map(roster => {
                                         const worker = workers.find(w => w.id === roster.workerId);
                                         const isApproved = worker?.status === 'approved';
+                                        const isSelected = selectedRosterIds.has(roster.id);
+                                        
+                                        // Correção: Se a empresa não estiver definida, assume B11
+                                        let displayCompany = (roster.companyName || '').trim().toUpperCase();
+                                        if (!displayCompany || displayCompany === 'N/A' || displayCompany === 'NÃO IDENTIFICADO') {
+                                            displayCompany = 'B11';
+                                        }
+
                                         return (
-                                            <tr key={roster.id} className={`transition-all group border-l-4 ${isApproved ? 'bg-emerald-500/[0.01] border-l-emerald-500' : 'hover:bg-slate-800/20 border-l-transparent'}`}>
+                                            <tr key={roster.id} className={`transition-all group border-l-4 ${isSelected ? 'bg-blue-600/[0.03] border-l-blue-500' : isApproved ? 'bg-emerald-500/[0.01] border-l-emerald-500' : 'hover:bg-slate-800/20 border-l-transparent'}`}>
+                                                <td className="p-8">
+                                                    <button onClick={() => toggleRosterSelection(roster.id)} className="p-2 rounded-lg transition-colors">
+                                                        {isSelected ? (
+                                                            <CheckSquare size={20} className="text-blue-500" />
+                                                        ) : (
+                                                            <Square size={20} className="text-slate-700 group-hover:text-slate-500" />
+                                                        )}
+                                                    </button>
+                                                </td>
                                                 <td className="p-8">
                                                     <div className="flex items-center gap-5">
                                                         <div className="relative shrink-0">
@@ -509,7 +580,11 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="p-8"><div className="inline-flex items-center gap-3 px-4 py-2 bg-blue-600/10 text-blue-500 border border-blue-500/20 rounded-2xl text-[11px] font-black uppercase tracking-widest"><Building2 size={14} /> {roster.companyName}</div></td>
+                                                <td className="p-8">
+                                                    <div className="inline-flex items-center gap-3 px-4 py-2 border rounded-2xl text-[11px] font-black uppercase tracking-widest bg-blue-600/10 text-blue-500 border-blue-500/20">
+                                                        <Building2 size={14} /> {displayCompany}
+                                                    </div>
+                                                </td>
                                                 <td className="p-8"><div className="flex items-center gap-3 text-slate-400 font-black uppercase text-xs tracking-widest"><Warehouse size={16} className="text-slate-700" /> {roster.unit}</div></td>
                                                 <td className="p-8"><button onClick={() => startDownloadProcess(roster.workerId)} className="flex items-center gap-3 text-slate-500 hover:text-amber-500 transition-all text-[11px] font-black uppercase tracking-[0.15em] group/btn"><div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all shadow-inner"><Download size={18} /></div>BAIXAR DOCUMENTOS</button></td>
                                                 <td className="p-8">
@@ -565,19 +640,19 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-600"></div>
                         <div className="w-24 h-24 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-rose-600/20 shadow-inner"><AlertTriangle className="text-rose-600" size={48} /></div>
                         <h3 className="text-2xl font-black text-white mb-3 uppercase tracking-tighter italic">Confirmar Exclusão?</h3>
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-10">Deseja realmente remover o registro de <br/><span className="text-rose-500 font-black">{deleteConfig.name}</span>?</p>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-10">Deseja realmente remover {Array.isArray(deleteConfig.id) ? deleteConfig.name : <>o registro de <span className="text-rose-500 font-black">{deleteConfig.name}</span></>}?</p>
                         <div className="flex gap-4"><button onClick={() => setDeleteConfig(null)} className="flex-1 py-5 bg-slate-800 text-white rounded-3xl font-black uppercase text-[11px] tracking-widest transition-all border border-slate-700">CANCELAR</button><button onClick={confirmDeleteAction} className="flex-1 py-5 bg-rose-600 text-white rounded-3xl font-black uppercase text-[11px] tracking-widest shadow-2xl shadow-rose-900/40 transition-all active:scale-95">SIM, EXCLUIR</button></div>
                     </div>
                 </div>
             )}
 
             {showAddModal && (
-                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in overflow-y-auto">
+                <div className="fixed inset-0 z-150 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in overflow-y-auto">
                     <div className="bg-[#0f172a] border border-slate-700 rounded-[40px] shadow-2xl w-full max-w-xl my-8 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600"></div>
                         <div className="p-12">
                             <div className="flex justify-between items-start mb-10">
-                                <div><h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">NOVO REGISTRO</h3><p className="text-slate-500 text-[11px] font-bold uppercase tracking-widest mt-3">EMPRESA: {currentUser.companyName}</p></div>
+                                <div><h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">NOVO REGISTRO</h3><p className="text-slate-500 text-[11px] font-bold uppercase tracking-widest mt-3">EMPRESA: {currentUser.companyName || 'B11'}</p></div>
                                 <button onClick={() => setShowAddModal(false)} className="p-3 bg-slate-800 hover:bg-rose-600 text-white rounded-full transition-all border border-slate-700 shadow-lg"><X size={24}/></button>
                             </div>
                             <form onSubmit={handleSaveWorker} className="space-y-8">
