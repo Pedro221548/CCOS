@@ -739,7 +739,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                 </button>
                                             ) : isApproved && (
                                                 <div className="flex-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 font-black text-[9px] uppercase flex items-center justify-center gap-2 rounded-lg">
-                                                    <CheckCircle2 size={12} /> AUDITADO
+                                                    <CheckCircle2 size={12} /> CADASTRADO
                                                 </div>
                                             )}
                                         </div>
@@ -798,7 +798,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                             <span className="font-black text-white block uppercase text-base tracking-tight leading-none mb-1.5">{roster.workerName}</span>
                                                             <div className="flex items-center gap-3">
                                                                 <span className="text-[11px] font-mono text-slate-500 font-bold tracking-[0.2em]">{worker?.cpf ? worker.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : '-'}</span>
-                                                                {isApproved && <span className="text-[9px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded font-black uppercase tracking-tighter shadow-sm">LIBERADO</span>}
+                                                                {isApproved && <span className="text-[9px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded font-black uppercase tracking-tighter shadow-sm">CADASTRADO</span>}
                                                             </div>
                                                         </div>
                                                     </div>

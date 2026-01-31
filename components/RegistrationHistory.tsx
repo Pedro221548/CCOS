@@ -98,7 +98,7 @@ const RegistrationHistory: React.FC<RegistrationHistoryProps> = ({ currentUser }
                 "CPF": worker?.cpf || 'NÃO LOCALIZADO',
                 "EMPRESA": r.companyName,
                 "UNIDADE ALVO": r.unit,
-                "STATUS": r.checkedIn ? 'AUDITADO/LIBERADO' : 'AGUARDANDO',
+                "STATUS": r.checkedIn ? 'CADASTRADO/LIBERADO' : 'AGUARDANDO',
                 "CONFIRMADO EM": r.confirmedAt ? new Date(r.confirmedAt).toLocaleString('pt-BR') : 'N/A'
             };
         });
@@ -214,7 +214,7 @@ const RegistrationHistory: React.FC<RegistrationHistoryProps> = ({ currentUser }
                                                                 </div>
                                                                 <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
                                                                     {item.checkedIn ? (
-                                                                        <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-black text-[7px] md:text-[8px] uppercase tracking-tighter">AUDITADO</span>
+                                                                        <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-black text-[7px] md:text-[8px] uppercase tracking-tighter">CADASTRADO</span>
                                                                     ) : (
                                                                         <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 font-black text-[7px] md:text-[8px] uppercase tracking-tighter">AGUARDANDO</span>
                                                                     )}
