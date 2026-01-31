@@ -27,7 +27,8 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
     const [selectedAccessPoints, setSelectedAccessPoints] = useState<string[]>([]);
     const [showAPDropdown, setShowAPDropdown] = useState(false);
     const [peopleSearch, setPeopleSearch] = useState('');
-    const [dateSearch, setDateSearch] = useState(''); 
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     
     const [expandedPersonKey, setExpandedPersonKey] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -96,6 +97,11 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         } else {
             setSelectedAccessPoints([...availableAccessPoints]);
         }
+    };
+
+    const clearDateFilters = () => {
+        setStartDate('');
+        setEndDate('');
     };
 
     // Lógica de cálculo de Duração/Permanência
@@ -177,11 +183,17 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         if (selectedAccessPoints.length > 0) {
             subset = subset.filter(w => selectedAccessPoints.includes(w.accessPoint));
         }
-        if (dateSearch) {
-            subset = subset.filter(w => w.date === dateSearch);
+        
+        // Filtro de Período
+        if (startDate) {
+            subset = subset.filter(w => w.date >= startDate);
         }
+        if (endDate) {
+            subset = subset.filter(w => w.date <= endDate);
+        }
+
         return subset;
-    }, [thirdPartyWorkers, selectedWarehouse, selectedAccessPoints, dateSearch, currentUser]);
+    }, [thirdPartyWorkers, selectedWarehouse, selectedAccessPoints, startDate, endDate, currentUser]);
 
     const groupedPeople = useMemo(() => {
         const groups: { [key: string]: { id: string, name: string, company: string, history: ProcessedWorker[] } } = {};
@@ -339,18 +351,52 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                             </h3>
                             
                             <div className="flex flex-wrap xl:flex-nowrap gap-3 w-full md:w-auto items-center">
-                                {/* FILTRO MULTI-SELEÇÃO DE PORTAS (ALTA VISIBILIDADE) */}
+                                {/* Filtro de Período - NOVO */}
+                                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 p-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-inner">
+                                    <div className="relative">
+                                        <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                                        <input 
+                                            type="date"
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            className="pl-8 pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] text-slate-700 dark:text-slate-200 focus:border-purple-500 outline-none font-bold [color-scheme:light] dark:[color-scheme:dark]"
+                                            title="Data Inicial"
+                                        />
+                                    </div>
+                                    <span className="text-slate-400 font-black text-[10px]">ATÉ</span>
+                                    <div className="relative">
+                                        <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                                        <input 
+                                            type="date"
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                            className="pl-8 pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] text-slate-700 dark:text-slate-200 focus:border-purple-500 outline-none font-bold [color-scheme:light] dark:[color-scheme:dark]"
+                                            title="Data Final"
+                                        />
+                                    </div>
+                                    {(startDate || endDate) && (
+                                        <button 
+                                            onClick={clearDateFilters}
+                                            className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-all"
+                                            title="Limpar Datas"
+                                        >
+                                            <RotateCcw size={14} />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* FILTRO MULTI-SELEÇÃO DE PORTAS */}
                                 <div className="relative z-[50]" ref={apDropdownRef}>
                                     <button 
                                         onClick={() => setShowAPDropdown(!showAPDropdown)}
-                                        className="w-full xl:w-72 pl-10 pr-10 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-200 text-xs font-bold text-left flex items-center justify-between hover:border-purple-500 transition-all shadow-sm"
+                                        className="w-full xl:w-64 pl-10 pr-10 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-200 text-xs font-bold text-left flex items-center justify-between hover:border-purple-500 transition-all shadow-sm"
                                     >
                                         <div className="flex items-center gap-2 truncate">
                                             <DoorClosed className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500" size={16} />
                                             {selectedAccessPoints.length === 0 ? (
-                                                <span className="text-slate-500 italic">Todos os Pontos de Acesso</span>
+                                                <span className="text-slate-500 italic">Portas</span>
                                             ) : (
-                                                <span className="text-purple-500">{selectedAccessPoints.length} Selecionados</span>
+                                                <span className="text-purple-500">{selectedAccessPoints.length} Sel.</span>
                                             )}
                                         </div>
                                         <ChevronDown size={16} className={`text-slate-500 transition-transform duration-300 ${showAPDropdown ? 'rotate-180' : ''}`} />
@@ -400,16 +446,6 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                         </div>
                                     )}
                                 </div>
-
-                                <div className="relative">
-                                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                                    <input 
-                                        type="date"
-                                        value={dateSearch}
-                                        onChange={(e) => setDateSearch(e.target.value)}
-                                        className="w-full sm:w-auto pl-9 pr-4 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-purple-500 [color-scheme:light] dark:[color-scheme:dark]"
-                                    />
-                                </div>
                                 
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
@@ -417,20 +453,10 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                         type="text" 
                                         value={peopleSearch}
                                         onChange={(e) => setPeopleSearch(e.target.value)}
-                                        placeholder="Buscar por nome..." 
+                                        placeholder="Buscar nome..." 
                                         className="w-full sm:w-auto pl-9 pr-4 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold focus:outline-none focus:border-purple-500"
                                     />
                                 </div>
-                                
-                                {selectedAccessPoints.length > 0 && (
-                                    <button 
-                                        onClick={() => setSelectedAccessPoints([])}
-                                        className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-all"
-                                        title="Limpar filtros de porta"
-                                    >
-                                        <RotateCcw size={18} />
-                                    </button>
-                                )}
                             </div>
                         </div>
 
