@@ -226,6 +226,8 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         if (selectedWorkerIds.size === 0) return;
         
         const now = new Date().toISOString();
+        const finalCompanyName = (currentUser.companyName || currentUser.name || "EMPRESA").trim().toUpperCase();
+
         const promises = Array.from(selectedWorkerIds).map(workerId => {
             const worker = workers.find(w => w.id === workerId);
             if (!worker) return Promise.resolve();
@@ -238,15 +240,45 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 date: selectedDate,
                 workerId: worker.id,
                 workerName: worker.name,
-                companyName: (worker.companyName || currentUser.companyName || currentUser.name || "EMPRESA").trim().toUpperCase(),
+                companyName: finalCompanyName,
                 unit: targetUnit,
                 checkedIn: false,
-                confirmedAt: now // GRAVA DATA E HORA DO CLIQUE
+                confirmedAt: now
             });
         });
 
         try {
             await Promise.all(promises);
+
+            // --- NOTIFICAÇÃO PARA ADMINS E GESTORES ---
+            const usersSnap = await get(ref(db, 'users'));
+            if (usersSnap.exists()) {
+                const allUsers = usersSnap.val();
+                const notifPromises: Promise<any>[] = [];
+                
+                Object.keys(allUsers).forEach(uid => {
+                    const u = allUsers[uid];
+                    // Notifica quem é Admin ou Gestor (se o gestor tiver permissão na unidade alvo)
+                    const isAdminUser = u.role === 'admin';
+                    const isManagerOfUnit = u.role === 'manager' && hasWarehousePermission(u.allowedWarehouses, targetUnit);
+
+                    if (isAdminUser || isManagerOfUnit) {
+                        const notifRef = push(ref(db, `notifications/${uid}`));
+                        notifPromises.push(set(notifRef, {
+                            recipientId: uid,
+                            senderId: currentUser.uid,
+                            senderName: finalCompanyName,
+                            message: `Nova lista de escala enviada por ${finalCompanyName} (${targetUnit})`,
+                            type: 'alert',
+                            timestamp: now,
+                            read: false,
+                            linkTo: 'registration'
+                        }));
+                    }
+                });
+                await Promise.all(notifPromises);
+            }
+
             setSelectedWorkerIds(new Set());
             setActiveTab('roster');
         } catch (e) {
@@ -942,15 +974,5 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         </div>
     );
 };
-
-// Componente Loader auxiliar (interno)
-const MyLoaderIcon = ({ className, size }: { className?: string, size?: number }) => (
-    <div className={className} style={{ width: size, height: size }}>
-        <svg className="animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-    </div>
-);
 
 export default Registration;

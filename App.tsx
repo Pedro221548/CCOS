@@ -62,7 +62,6 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   
-  // Inicialização segura
   const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'registration' | 'registration-history' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users'>('dashboard');
   const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'alarms' | 'access'>('cameras');
   const [thirdPartySubTab, setThirdPartySubTab] = useState<'status' | 'access-mgmt' | 'heatmap'>('status');
@@ -84,7 +83,6 @@ const App: React.FC = () => {
 
   const isAdmin = user?.role === 'admin';
 
-  // Sincronização de persistência
   useEffect(() => { 
     if (user) {
       localStorage.setItem('cv_active_tab', activeTab); 
@@ -124,17 +122,15 @@ const App: React.FC = () => {
       setUser(currentUser);
       
       if (currentUser) {
-          const savedTab = localStorage.getItem('cv_active_tab') as any;
+          // MODIFICAÇÃO PARA TODOS OS USUÁRIOS:
+          // Força a aba inicial como Dashboard e garante que o menu lateral esteja fechado.
+          setActiveTab('dashboard');
+          setSidebarOpen(false);
+          
           const savedMon = localStorage.getItem('cv_mon_tab') as any;
           const savedTp = localStorage.getItem('cv_tp_tab') as any;
-          
-          if (currentUser.role === 'provider') {
-              setActiveTab(savedTab === 'registration' || savedTab === 'registration-history' ? savedTab : 'registration');
-          } else {
-              setActiveTab(savedTab || 'dashboard');
-              if (savedMon) setMonitoringSubTab(savedMon);
-              if (savedTp) setThirdPartySubTab(savedTp);
-          }
+          if (savedMon) setMonitoringSubTab(savedMon);
+          if (savedTp) setThirdPartySubTab(savedTp);
       }
       
       setAuthLoading(false);
@@ -155,8 +151,25 @@ const App: React.FC = () => {
       return () => unsubscribe();
   }, [user]);
 
+  const unreadNotificationsCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
+
+  const markAllRead = async () => {
+      if (!user) return;
+      const updates: any = {};
+      notifications.forEach(n => { if (!n.read) updates[`notifications/${user.uid}/${n.id}/read`] = true; });
+      if (Object.keys(updates).length > 0) await update(ref(db), updates);
+  };
+
+  const handleToggleNotifications = () => {
+      const willShow = !showNotifications;
+      setShowNotifications(willShow);
+      if (willShow && unreadNotificationsCount > 0) {
+          markAllRead();
+      }
+  };
+
   const handleTabChange = useCallback((tab: typeof activeTab) => {
-    if (user?.role === 'provider' && !['registration', 'registration-history'].includes(tab)) return;
+    if (user?.role === 'provider' && !['registration', 'registration-history', 'dashboard'].includes(tab)) return;
     if (['data', 'users'].includes(tab) && !isAdmin) return;
     setActiveTab(tab);
     if (window.innerWidth < 1024) setSidebarOpen(false);
@@ -165,15 +178,9 @@ const App: React.FC = () => {
   const handleLogout = useCallback(() => { 
     authService.logout(); 
     setActiveTab('dashboard');
+    setSidebarOpen(false);
     setUser(null);
   }, []);
-  
-  const markAllRead = async () => {
-      if (!user) return;
-      const updates: any = {};
-      notifications.forEach(n => { if (!n.read) updates[`notifications/${user.uid}/${n.id}/read`] = true; });
-      if (Object.keys(updates).length > 0) await update(ref(db), updates);
-  };
 
   const handleImportData = async (cameras: Camera[], accessPoints: AccessPoint[]) => {
       try {
@@ -299,7 +306,7 @@ const App: React.FC = () => {
 
       <aside className={`fixed inset-y-0 left-0 z-40 bg-slate-50 dark:bg-slate-950 border-r border-slate-300 dark:border-slate-800 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 lg:translate-x-0 lg:static lg:h-full lg:w-64 flex flex-col shadow-2xl lg:shadow-none`}>
         <div className="flex flex-col items-center justify-center py-10 px-4 shrink-0 select-none">
-            <div onClick={() => user.role !== 'provider' && handleTabChange('dashboard')} className={`flex flex-col items-center group w-full text-center ${user.role !== 'provider' ? 'cursor-pointer' : ''}`}>
+            <div onClick={() => handleTabChange('dashboard')} className="flex flex-col items-center group w-full text-center cursor-pointer">
                 <div className="relative mb-4 transform transition-transform group-hover:scale-105 duration-300 mx-auto">
                     <div className="absolute inset-0 bg-amber-500/20 blur-2xl rounded-full"></div>
                     <Shield className="w-16 h-16 text-amber-500 relative z-10 fill-amber-500/10 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" strokeWidth={1.5} />
@@ -309,16 +316,28 @@ const App: React.FC = () => {
             </div>
         </div>
         <nav className="p-4 space-y-1 flex-1 overflow-y-auto custom-scrollbar border-t border-slate-800/50 mt-4">
+          <button onClick={() => handleTabChange('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><LayoutDashboard size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Dashboard</span></button>
+          
           {user.role !== 'provider' && (
               <>
-                <button onClick={() => handleTabChange('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><LayoutDashboard size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Dashboard</span></button>
                 <button onClick={() => handleTabChange('monitoring')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'monitoring' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><Shield size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Monitoramento</span></button>
                 <button onClick={() => handleTabChange('third-party-mgmt')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'third-party-mgmt' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><Users size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Gestão Fluxo</span></button>
               </>
           )}
           
-          {/* BOTÕES COMUNS PARA TODOS OS PERFIS (CADASTRO E HISTÓRICO) */}
-          <button onClick={() => handleTabChange('registration')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'registration' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><UserPlus size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Cadastro</span></button>
+          <button onClick={() => handleTabChange('registration')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative ${activeTab === 'registration' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
+            <UserPlus size={20} /> 
+            <div className="flex items-center gap-2">
+                <span className="text-sm font-bold uppercase tracking-wider">Cadastro</span>
+                {unreadNotificationsCount > 0 && (
+                    <div className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></span>
+                    </div>
+                )}
+            </div>
+          </button>
+
           <button onClick={() => handleTabChange('registration-history')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'registration-history' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><History size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Histórico</span></button>
           
           {user.role !== 'provider' && (
@@ -338,13 +357,25 @@ const App: React.FC = () => {
             </div>
           )}
         </nav>
+        
         <div className="mt-auto p-4 border-t border-slate-800/50 bg-slate-950/50">
-           <div className="flex items-center gap-3 mb-2" onClick={() => setShowProfileModal(true)}>
-              <div className="relative group cursor-pointer">
+           <div className="flex items-center gap-3 mb-2 cursor-pointer relative" onClick={() => setShowProfileModal(true)}>
+              <div className="relative group shrink-0">
                 <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.name}&background=f59e0b&color=000`} alt="Avatar" className="w-11 h-11 rounded-full border-2 border-slate-800 object-cover group-hover:border-amber-500 transition-colors" />
+                
                 <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-950"></div>
+                
+                {unreadNotificationsCount > 0 && (
+                   <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center">
+                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
+                       <div className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600 border border-white/20"></div>
+                   </div>
+                )}
               </div>
-              <div className="flex-1 min-w-0"><p className="text-xs font-black text-white uppercase truncate tracking-tight">{user.name}</p><p className="text-[9px] font-bold text-slate-500 uppercase truncate">{user.jobTitle || user.role.toUpperCase()}</p></div>
+              <div className="flex-1 min-w-0">
+                  <p className="text-xs font-black text-white uppercase truncate tracking-tight">{user.name}</p>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase truncate">{user.jobTitle || user.role.toUpperCase()}</p>
+              </div>
            </div>
            <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 mt-2 px-4 py-2 rounded-lg text-slate-500 hover:text-rose-500 hover:bg-rose-500/5 transition-all text-[10px] font-black uppercase tracking-widest"><LogOut size={14} /> <span>Sair</span></button>
         </div>
@@ -354,18 +385,45 @@ const App: React.FC = () => {
         <header className="h-16 bg-slate-50/80 dark:bg-[#020408]/80 backdrop-blur-md border-b border-slate-300 dark:border-slate-800/50 flex items-center justify-between px-6 sticky top-0 z-20 shrink-0">
           <div className="flex items-center gap-4">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors"><Menu size={24} /></button>
-            <div className="px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>Operação Ativa</div>
+            <div className="hidden sm:flex px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-500 uppercase tracking-widest items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>Operação Ativa</div>
           </div>
           <div className="flex items-center gap-3">
              <div className="hidden sm:flex items-center bg-slate-950/80 px-4 py-1.5 rounded-xl border border-slate-800 shadow-inner mr-2"><div className="text-sm font-mono font-black text-white tracking-widest flex items-center gap-2"><Clock size={16} className="text-blue-500" />{currentTime.toLocaleTimeString('pt-BR')}</div></div>
              <button onClick={() => setShowFeedbackModal(true)} className="p-2 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all flex items-center gap-1 group" title="Sugerir Melhoria"><MessageSquareHeart size={20} strokeWidth={2.5} /><span className="hidden xl:inline text-[10px] font-black uppercase tracking-widest">Feedback</span></button>
              <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-white transition-colors">{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
              <div className="relative">
-                <button onClick={() => setShowNotifications(!showNotifications)} className="p-2 text-slate-400 hover:text-white focus:outline-none transition-colors"><Bell size={20} />{notifications.filter(n => !n.read).length > 0 && <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white">{notifications.filter(n => !n.read).length}</span>}</button>
+                <button 
+                  onClick={handleToggleNotifications} 
+                  className={`p-2 text-slate-400 hover:text-white focus:outline-none transition-colors relative ${unreadNotificationsCount > 0 ? 'animate-[pulse_1.5s_infinite]' : ''}`}
+                >
+                  <Bell size={20} />
+                  {unreadNotificationsCount > 0 && (
+                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white shadow-lg animate-fade-in">
+                      {unreadNotificationsCount}
+                    </span>
+                  )}
+                </button>
+                
                 {showNotifications && (
                     <div className="absolute right-0 mt-2 w-72 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 overflow-hidden animate-fade-in">
-                        <div className="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/50"><span className="text-xs font-bold uppercase text-slate-400">Notificações</span><button onClick={markAllRead} className="text-[10px] text-amber-400 font-bold hover:text-white transition-colors">Limpar</button></div>
-                        <div className="max-h-60 overflow-y-auto custom-scrollbar">{notifications.length === 0 ? <div className="p-8 text-center text-slate-600 text-[10px] uppercase font-bold tracking-widest">Vazio</div> : notifications.map(n => (<div key={n.id} className={`p-3 border-b border-slate-800 flex gap-2 ${!n.read ? 'bg-amber-600/5' : ''}`}><div className="flex-1"><p className="text-xs text-white leading-relaxed">{n.message}</p><span className="text-[9px] text-slate-600 font-bold uppercase mt-1 block">{new Date(n.timestamp).toLocaleTimeString()}</span></div></div>))}</div>
+                        <div className="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+                          <span className="text-xs font-bold uppercase text-slate-400">Notificações</span>
+                          <button onClick={markAllRead} className="text-[10px] text-amber-400 font-bold hover:text-white transition-colors">Limpar</button>
+                        </div>
+                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                          {notifications.length === 0 ? (
+                            <div className="p-8 text-center text-slate-600 text-[10px] uppercase font-bold tracking-widest">Vazio</div>
+                          ) : (
+                            notifications.map(n => (
+                              <div key={n.id} className={`p-3 border-b border-slate-800 flex gap-2 ${!n.read ? 'bg-amber-600/5' : 'opacity-60'}`}>
+                                <div className="flex-1">
+                                  <p className="text-xs text-white leading-relaxed font-medium">{n.message}</p>
+                                  <span className="text-[9px] text-slate-600 font-bold uppercase mt-1 block font-mono">{new Date(n.timestamp).toLocaleTimeString()}</span>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
                     </div>
                 )}
              </div>
@@ -374,9 +432,9 @@ const App: React.FC = () => {
         </header>
 
         <div className="bg-amber-600/10 border-b border-amber-600/20 py-2 px-4 flex items-center justify-center gap-3 animate-fade-in relative z-10">
-             <Shield size={14} className="text-amber-500" />
-             <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-2">CCOS • Plataforma em Fase de Desenvolvimento</span>
-             <Shield size={14} className="text-amber-500" />
+             <Shield size={14} className="hidden md:inline text-amber-500" />
+             <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest text-center">CCOS • AMBIENTE DE DEMONSTRAÇÃO E MONITORAMENTO</span>
+             <Shield size={14} className="hidden md:inline text-amber-500" />
         </div>
 
         <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 scroll-smooth custom-scrollbar" ref={mainContentRef} onScroll={handleScroll}>
