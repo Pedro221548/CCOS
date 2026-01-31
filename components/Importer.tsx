@@ -1,8 +1,7 @@
 
 import React, { useRef, useState } from 'react';
-import { FileSpreadsheet, RotateCcw, Upload, Video, DoorClosed, Save, Briefcase, Trash2, Clock, FileText, Download, Database, Check, Layers, Power, X, AlertTriangle, RefreshCw, Info, DollarSign, Wand2, ListChecks } from 'lucide-react';
+import { FileSpreadsheet, RotateCcw, Upload, Video, DoorClosed, Save, Briefcase, Trash2, Clock, FileText, Download, Database, Check, Layers, Power, X, AlertTriangle, RefreshCw, Info, DollarSign, Wand2, ListChecks, ShieldAlert, Loader2 } from 'lucide-react';
 import { Camera, AccessPoint, Status, ProcessedWorker, ThirdPartyImport, ChannelType, ThirdPartyPayment, PaymentImport } from '../types';
-// Import WAREHOUSE_LIST from constants to fix the missing name error
 import { WAREHOUSE_LIST } from '../constants';
 
 const VALID_COMPANIES = ['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PRIMUS', 'PRAYLOG', 'GMILL', 'BSB'];
@@ -64,19 +63,16 @@ const normalizeWarehouse = (rawWarehouse: string | null, location: string | null
     const modName = (module || '').toUpperCase();
     const idStr = (id || '').toString().trim();
 
-    // 1. REGRA DE OURO (IP): Precedência máxima para os IPs solicitados
     if (idStr.includes('177.69.119.221')) return 'GALPÃO SP';
     if (idStr.includes('10.0.30.65') || idStr.includes('179.108.121.85')) return 'GALPÃO LSP';
 
     const textToCheck = `${channelName} ${locName} ${modName} ${rawWarehouse}`.toUpperCase();
 
-    // 2. ORDEM DE CHECAGEM POR TEXTO (Importante: LSP deve vir antes de SP)
     if (textToCheck.includes('LSP')) return 'GALPÃO LSP'; 
     if (textToCheck.includes('G5')) return 'GALPÃO G5';
     if (textToCheck.includes('G2')) return 'GALPÃO G2';
     if (textToCheck.includes('G3')) return 'GALPÃO G3';
     
-    // Check SP de forma mais criteriosa se não for LSP
     if (textToCheck.includes('SP-IP') || textToCheck.includes('SP0') || textToCheck.includes('SP_') || (textToCheck.includes('SP') && !textToCheck.includes('LSP'))) {
         return 'GALPÃO SP';
     }
@@ -86,7 +82,6 @@ const normalizeWarehouse = (rawWarehouse: string | null, location: string | null
     if (textToCheck.includes('4ELOS ES') || textToCheck.includes('4 ELOS ES')) return 'GALPÃO 4 ELOS ES';
     if (textToCheck.includes('4ELOS RJ') || textToCheck.includes('4 ELOS RJ')) return 'GALPÃO 4 ELOS RJ';
 
-    // Fallback para lista de unidades válidas se não caiu nos filtros manuais
     for (const unit of VALID_UNITS) {
         if (unit.keywords.some(k => textToCheck.includes(k))) return unit.id;
     }
@@ -179,10 +174,12 @@ const Importer: React.FC<ImporterProps> = ({
 }) => {
   const [cameraData, setCameraData] = useState<any[]>([]);
   const [accessData, setAccessData] = useState<any[]>([]);
-  const [resetTarget, setResetTarget] = useState<'cameras' | 'access' | 'thirdparty' | 'payments' | null>(null);
-  
-  // Pivot Unit selection
   const [selectedPivotUnit, setSelectedPivotUnit] = useState<string>('GALPÃO G2');
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  // MODAL STATES
+  const [resetTarget, setResetTarget] = useState<'cameras' | 'access' | 'thirdparty' | 'payments' | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'thirdparty' | 'payment', name: string } | null>(null);
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const accessInputRef = useRef<HTMLInputElement>(null);
@@ -255,7 +252,9 @@ const Importer: React.FC<ImporterProps> = ({
                    else if (fullSearchString.includes('GMILL')) company = 'GMILL';
                    else if (fullSearchString.includes('BSB')) company = 'BSB';
                 }
-                if (!company) company = 'B11';
+                
+                if (!company) company = ''; 
+
                 const dateNormalized = parseRowDate(row);
                 let timeStr = row['Hora'] || '-';
                 if (typeof timeStr === 'string' && timeStr.includes(' ')) timeStr = timeStr.split(' ')[1]; 
@@ -360,13 +359,31 @@ const Importer: React.FC<ImporterProps> = ({
       onImport(cameras, access);
   };
 
-  const executeReset = () => {
+  // EXECUTE ACTIONS AFTER CONFIRMATION
+  const executeReset = async () => {
       if (!resetTarget) return;
-      if (resetTarget === 'cameras') onResetCameras();
-      else if (resetTarget === 'access') onResetAccess();
-      else if (resetTarget === 'thirdparty') onResetThirdParty();
-      else if (resetTarget === 'payments') onResetPayments();
-      setResetTarget(null);
+      setIsDeleting(true);
+      try {
+        if (resetTarget === 'cameras') await onResetCameras();
+        else if (resetTarget === 'access') await onResetAccess();
+        else if (resetTarget === 'thirdparty') await onResetThirdParty();
+        else if (resetTarget === 'payments') await onResetPayments();
+      } finally {
+        setIsDeleting(false);
+        setResetTarget(null);
+      }
+  };
+
+  const executeDeleteItem = async () => {
+    if (!itemToDelete) return;
+    setIsDeleting(true);
+    try {
+        if (itemToDelete.type === 'thirdparty') await onDeleteImport(itemToDelete.id);
+        else if (itemToDelete.type === 'payment') await onDeletePayment(itemToDelete.id);
+    } finally {
+        setIsDeleting(false);
+        setItemToDelete(null);
+    }
   };
 
   return (
@@ -394,9 +411,9 @@ const Importer: React.FC<ImporterProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
-                <div onClick={() => cameraInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
+                <div onClick={() => cameraInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full text-center">
                     <div className="p-5 bg-slate-800 rounded-full group-hover:bg-emerald-500/20 transition-all group-hover:scale-110 shadow-inner"><Video className="w-10 h-10 text-slate-400 group-hover:text-emerald-500" /></div>
-                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight">Câmeras / Alarmes</h3><p className="text-slate-500 text-xs mt-2 font-medium">{cameraData.length > 0 ? `${cameraData.length} linhas em espera` : 'Selecionar .xlsx oficial'}</p></div>
+                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight italic">CÂMERAS / ALARMES</h3><p className="text-slate-500 text-xs mt-2 font-medium">{cameraData.length > 0 ? `${cameraData.length} linhas em espera` : 'Selecionar .xlsx oficial'}</p></div>
                     <input type="file" accept=".xlsx, .xls" ref={cameraInputRef} className="hidden" onChange={(e) => handleFileUpload(e, 'camera')} />
                 </div>
                 <button onClick={() => setResetTarget('cameras')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
@@ -405,9 +422,9 @@ const Importer: React.FC<ImporterProps> = ({
             </div>
 
             <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-blue-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
-                <div onClick={() => accessInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
+                <div onClick={() => accessInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full text-center">
                     <div className="p-5 bg-slate-800 rounded-full group-hover:bg-blue-500/20 transition-all group-hover:scale-110 shadow-inner"><DoorClosed className="w-10 h-10 text-slate-400 group-hover:text-blue-500" /></div>
-                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors uppercase tracking-tight">Controle de Acesso</h3><p className="text-slate-500 text-xs mt-2 font-medium">{accessData.length > 0 ? `${accessData.length} linhas em espera` : 'Selecionar .xlsx oficial'}</p></div>
+                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors uppercase tracking-tight italic">CONTROLE DE ACESSO</h3><p className="text-slate-500 text-xs mt-2 font-medium">{accessData.length > 0 ? `${accessData.length} linhas em espera` : 'Selecionar .xlsx oficial'}</p></div>
                     <input type="file" accept=".xlsx, .xls" ref={accessInputRef} className="hidden" onChange={(e) => handleFileUpload(e, 'access')} />
                 </div>
                 <button onClick={() => setResetTarget('access')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
@@ -416,9 +433,9 @@ const Importer: React.FC<ImporterProps> = ({
             </div>
 
             <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-amber-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
-                <div onClick={() => thirdPartyInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
+                <div onClick={() => thirdPartyInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full text-center">
                     <div className="p-5 bg-slate-800 rounded-full group-hover:bg-amber-500/20 transition-all group-hover:scale-110 shadow-inner"><Briefcase className="w-10 h-10 text-slate-400 group-hover:text-amber-500" /></div>
-                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors uppercase tracking-tight">Fluxo Terceirizados</h3><p className="text-slate-500 text-xs mt-2 font-medium">Histórico bruto de catracas</p></div>
+                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors uppercase tracking-tight italic">FLUXO TERCEIRIZADOS</h3><p className="text-slate-500 text-xs mt-2 font-medium">Histórico bruto de catracas</p></div>
                     <input type="file" accept=".xlsx, .xls" ref={thirdPartyInputRef} className="hidden" onChange={handleThirdPartyUpload} />
                 </div>
                 <button onClick={() => setResetTarget('thirdparty')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
@@ -427,13 +444,12 @@ const Importer: React.FC<ImporterProps> = ({
             </div>
 
             <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
-                <div className="w-full flex flex-col items-center">
+                <div className="w-full flex flex-col items-center text-center">
                     <div onClick={() => paymentInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full">
                         <div className="p-5 bg-slate-800 rounded-full group-hover:bg-emerald-500/20 transition-all group-hover:scale-110 shadow-inner"><ListChecks className="w-10 h-10 text-slate-400 group-hover:text-emerald-500" /></div>
-                        <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight">Frequência/Pivot</h3><p className="text-slate-500 text-[10px] mt-2 font-black uppercase tracking-widest">Planilha de Diárias</p></div>
+                        <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight italic">FREQUÊNCIA/PIVOT</h3><p className="text-slate-500 text-[10px] mt-2 font-black uppercase tracking-widest">Planilha de Diárias</p></div>
                         <input type="file" accept=".xlsx, .xls" ref={paymentInputRef} className="hidden" onChange={handlePaymentUpload} />
                     </div>
-                    {/* Unidade Alvo para Pivot */}
                     <div className="mt-4 w-full px-2">
                         <label className="block text-[9px] font-black text-slate-500 uppercase mb-1 ml-1">Vincular Diárias ao Galpão:</label>
                         <select 
@@ -480,7 +496,14 @@ const Importer: React.FC<ImporterProps> = ({
                                     <tr key={imp.id} className="hover:bg-slate-800/40 transition-colors group">
                                         <td className="p-5"><span className="font-bold text-slate-200">{imp.fileName}</span></td>
                                         <td className="p-5 text-center"><span className="bg-slate-950 px-2 py-1 rounded text-emerald-400 font-mono font-bold text-xs">{imp.count}</span></td>
-                                        <td className="p-5 text-right"><button onClick={() => onDeleteImport(imp.id)} className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded transition-all"><Trash2 size={16} /></button></td>
+                                        <td className="p-5 text-right">
+                                            <button 
+                                                onClick={() => setItemToDelete({ id: imp.id, type: 'thirdparty', name: imp.fileName })} 
+                                                className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded transition-all"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -517,7 +540,14 @@ const Importer: React.FC<ImporterProps> = ({
                                     <tr key={imp.id} className="hover:bg-slate-800/40 transition-colors group">
                                         <td className="p-5"><span className="font-bold text-slate-200">{imp.fileName}</span></td>
                                         <td className="p-5 text-center"><span className="bg-slate-950 px-2 py-1 rounded text-emerald-400 font-mono font-bold text-xs">{imp.count}</span></td>
-                                        <td className="p-5 text-right"><button onClick={() => onDeletePayment(imp.id)} className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded transition-all"><Trash2 size={16} /></button></td>
+                                        <td className="p-5 text-right">
+                                            <button 
+                                                onClick={() => setItemToDelete({ id: imp.id, type: 'payment', name: imp.fileName })} 
+                                                className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded transition-all"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -527,26 +557,46 @@ const Importer: React.FC<ImporterProps> = ({
             </div>
         </div>
 
-        {resetTarget && (
-            <div className="fixed inset-0 z-150 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
-                <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center space-y-6 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-rose-500"></div>
-                    <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-500/20">
-                        <RotateCcw className="text-rose-500 w-10 h-10 animate-pulse" />
+        {/* MODAL DE CONFIRMAÇÃO UNIFICADO (ESTILO CCOS) */}
+        {(resetTarget || itemToDelete) && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-fade-in">
+                <div className="bg-[#05070a] border border-slate-800 rounded-[32px] shadow-[0_0_50px_rgba(0,0,0,0.8)] w-full max-w-md p-10 text-center space-y-8 relative overflow-hidden ring-1 ring-slate-800">
+                    <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-600 shadow-[0_0_15px_rgba(225,29,72,0.5)]"></div>
+                    
+                    <div className="w-24 h-24 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-500/20 shadow-inner">
+                        <ShieldAlert className="text-rose-600 w-12 h-12 animate-pulse" />
                     </div>
-                    <div>
-                        <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Apagar Dados?</h3>
-                        <p className="text-slate-400 text-sm mt-3 leading-relaxed">
-                            Esta ação removerá permanentemente a base de <strong>{
-                                resetTarget === 'cameras' ? 'Câmeras' : 
-                                resetTarget === 'access' ? 'Acessos' : 
-                                resetTarget === 'thirdparty' ? 'Fluxo Terceiros' : 'Frequência'
-                            }</strong>.
-                        </p>
+                    
+                    <div className="space-y-4">
+                        <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none drop-shadow-md">CONFIRMAR AÇÃO?</h3>
+                        <div className="text-slate-400 text-sm leading-relaxed font-medium">
+                            {resetTarget ? (
+                                <p>Esta ação removerá permanentemente TODA a base de <br/> <strong className="text-white uppercase tracking-wider">{
+                                    resetTarget === 'cameras' ? 'Câmeras' : 
+                                    resetTarget === 'access' ? 'Acessos' : 
+                                    resetTarget === 'thirdparty' ? 'Fluxo Terceiros' : 'Frequência'
+                                }</strong>. <br/>Não há como desfazer.</p>
+                            ) : (
+                                <p>Deseja realmente excluir o arquivo <br/> <strong className="text-rose-500 font-bold italic tracking-tight">"{itemToDelete?.name}"</strong>?</p>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex gap-4 pt-2">
-                        <button onClick={() => setResetTarget(null)} className="flex-1 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-black uppercase text-xs tracking-widest transition-all">Cancelar</button>
-                        <button onClick={executeReset} className="flex-1 px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-rose-900/40 transition-all active:scale-95">Sim, Limpar</button>
+
+                    <div className="flex gap-4 pt-4">
+                        <button 
+                            onClick={() => { setResetTarget(null); setItemToDelete(null); }} 
+                            disabled={isDeleting}
+                            className="flex-1 px-6 py-4 bg-[#1e293b] hover:bg-blue-600 text-slate-200 hover:text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-all border border-slate-700 hover:border-blue-400 shadow-lg disabled:opacity-50"
+                        >
+                            CANCELAR
+                        </button>
+                        <button 
+                            onClick={resetTarget ? executeReset : executeDeleteItem} 
+                            disabled={isDeleting}
+                            className="flex-1 px-6 py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-[0_0_20px_rgba(225,29,72,0.3)] hover:shadow-[0_0_30px_rgba(225,29,72,0.5)] transition-all active:scale-95 flex items-center justify-center gap-2"
+                        >
+                            {isDeleting ? <Loader2 size={18} className="animate-spin" /> : 'CONFIRMAR'}
+                        </button>
                     </div>
                 </div>
             </div>

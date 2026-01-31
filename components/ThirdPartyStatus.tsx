@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Filter, Search, X, Users, Briefcase, MapPin, Clock, ChevronDown, ChevronUp, Calendar, BarChart3, PieChart, Crown, TrendingUp } from 'lucide-react';
-import { ProcessedWorker, User } from '../types';
+import { ProcessedWorker, User, ThirdPartyPayment } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
 
 const VALID_COMPANIES = ['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PRIMUS', 'PRAYLOG', 'GMILL', 'BSB'];
@@ -15,7 +15,6 @@ interface UnitStats {
     workers: ProcessedWorker[];
 }
 
-// Helper for strict permission check
 const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehouse: string) => {
     if (!allowedList || allowedList.length === 0) return false;
     const normalizedTarget = (targetWarehouse || '').toUpperCase();
@@ -29,10 +28,11 @@ const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehou
 
 interface ThirdPartyStatusProps {
     workers?: ProcessedWorker[];
+    paymentRecords?: ThirdPartyPayment[];
     currentUser?: User;
 }
 
-const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], currentUser }) => {
+const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], paymentRecords = [], currentUser }) => {
     const [expandedUnit, setExpandedUnit] = useState<string | null>(null);
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [selectedUnit, setSelectedUnit] = useState<string>('ALL');
@@ -55,13 +55,43 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], curre
     }, [currentUser]);
 
     const { stats, globalTotal, companyStats, topUnit } = useMemo(() => {
-        const filtered = workers.filter(w => {
-            // SECURITY: Permission Filter
-            if (currentUser?.role === 'manager' && !hasWarehousePermission(currentUser.allowedWarehouses, w.unit)) return false;
+        // 1. Criar dicionário do Financeiro para cruzamento (Nome -> Empresa)
+        const financeMap: { [name: string]: string } = {};
+        paymentRecords?.forEach(p => {
+            const nameKey = p.workerName.trim().toUpperCase();
+            const company = (p.company || '').trim().toUpperCase();
+            // Só mapeia se a empresa for conhecida e não for um placeholder genérico
+            if (company && company !== 'N/A' && company !== 'TERCEIRIZADO' && company !== 'UNDEFINED') {
+                financeMap[nameKey] = company;
+            }
+        });
 
-            if (!VALID_COMPANIES.includes(w.company)) return false;
+        // 2. Filtrar e Identificar Empresas
+        const validatedWorkers = workers.filter(w => {
+            // Filtros básicos de interface
+            if (currentUser?.role === 'manager' && !hasWarehousePermission(currentUser.allowedWarehouses, w.unit)) return false;
             if (selectedDate && w.date !== 'N/A' && w.date !== selectedDate) return false;
             if (selectedUnit !== 'ALL' && w.unit !== selectedUnit) return false;
+
+            // Lógica de Identificação de Empresa
+            let identifiedCompany = (w.company || '').trim().toUpperCase();
+            
+            // Se estiver vazio na planilha de acesso, tenta buscar no financeiro pelo nome exato
+            if (!identifiedCompany || identifiedCompany === 'NÃO IDENTIFICADO') {
+                const nameKey = w.name.trim().toUpperCase();
+                if (financeMap[nameKey]) {
+                    identifiedCompany = financeMap[nameKey];
+                }
+            }
+
+            // CRÍTICO: Se após o cruzamento ainda não tivermos uma empresa válida, 
+            // ou se a empresa não estiver na lista oficial, EXCLUÍMOS do painel de status.
+            if (!identifiedCompany || identifiedCompany === '' || !VALID_COMPANIES.includes(identifiedCompany)) {
+                return false;
+            }
+
+            // Atualiza a empresa do objeto em memória para refletir no agrupamento
+            w.company = identifiedCompany;
             return true;
         });
 
@@ -70,15 +100,17 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], curre
         const uniqueWorkerSet = new Set<string>(); 
         let total = 0;
         
+        // Inicializar mapas
         VALID_UNITS.forEach(u => {
             if (currentUser?.role === 'manager' && !hasWarehousePermission(allowedWarehouses, u.id)) return;
             statsMap[u.id] = { id: u.id, total: 0, byCompany: {}, workers: [] };
-            VALID_COMPANIES.forEach(c => statsMap[u.id].byCompany[c] = 0);
         });
 
         VALID_COMPANIES.forEach(c => companyCountMap[c] = 0);
 
-        filtered.forEach(w => {
+        // Agregação dos dados validados
+        validatedWorkers.forEach(w => {
+            // Evitar duplicidade de contagem para o mesmo colaborador no mesmo dia/unidade/empresa
             const uniqueKey = `${w.date}-${w.unit}-${w.name.trim().toUpperCase()}-${w.company}`;
             if (!uniqueWorkerSet.has(uniqueKey)) {
                 uniqueWorkerSet.add(uniqueKey);
@@ -98,20 +130,22 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], curre
         });
 
         const sortedStats = Object.values(statsMap)
-            .filter(u => selectedUnit === 'ALL' || u.id === selectedUnit)
+            .filter(u => (selectedUnit === 'ALL' || u.id === selectedUnit) && u.total > 0)
             .sort((a, b) => b.total - a.total);
 
         return {
             stats: sortedStats,
             globalTotal: total,
             companyStats: Object.entries(companyCountMap).sort((a, b) => b[1] - a[1]).filter(c => c[1] > 0),
-            topUnit: sortedStats.length > 0 && sortedStats[0].total > 0 ? sortedStats[0] : null
+            topUnit: sortedStats.length > 0 ? sortedStats[0] : null
         };
 
-    }, [workers, selectedDate, selectedUnit, currentUser, allowedWarehouses]);
+    }, [workers, paymentRecords, selectedDate, selectedUnit, currentUser, allowedWarehouses]);
 
-    const getDetailTableWorkers = (unitStats: UnitStats) => {
-        return unitStats.workers.filter(w => {
+    const getDetailTableWorkers = (unitId: string) => {
+        const unit = stats.find(s => s.id === unitId);
+        if (!unit) return [];
+        return unit.workers.filter(w => {
             return w.name.toLowerCase().includes(searchTerm.toLowerCase());
         });
     };
@@ -125,8 +159,8 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], curre
                             <Users className="text-amber-500" />
                             Status dos Terceirizados
                         </h2>
-                        <p className="text-slate-400 text-sm mt-1">
-                            {currentUser?.role === 'manager' ? 'Visualizando seus galpões permitidos.' : 'Monitoramento total de empresas parceiras.'}
+                        <p className="text-slate-400 text-sm mt-1 font-medium italic">
+                            Dados filtrados: apenas registros com empresa confirmada via Planilha ou Financeiro.
                         </p>
                     </div>
                     
@@ -143,7 +177,7 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], curre
                                 <option value="ALL">
                                     {currentUser?.role === 'manager' ? 'Meus Galpões' : 'Todas Unidades'}
                                 </option>
-                                {VALID_UNITS.filter(u => hasWarehousePermission(allowedWarehouses, u.id)).map(u => <option key={u.id} value={u.id}>{u.id}</option>)}
+                                {WAREHOUSE_LIST.filter(u => hasWarehousePermission(allowedWarehouses, u)).map(u => <option key={u} value={u}>{u}</option>)}
                             </select>
                             <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
                         </div>
@@ -151,14 +185,15 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], curre
                 </div>
             </div>
 
-            {workers.length === 0 ? (
+            {globalTotal === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-slate-900/50 border-2 border-dashed border-slate-800 rounded-xl text-center">
-                    <Briefcase size={48} className="text-slate-600 mb-4" />
-                    <h3 className="text-slate-300 font-bold text-lg">Sem registros</h3>
-                    <p className="text-slate-500 text-sm max-w-md mt-2">Nenhum dado importado no sistema.</p>
+                    <Briefcase size={48} className="text-slate-600 mb-4 opacity-50" />
+                    <h3 className="text-slate-300 font-bold text-lg uppercase tracking-widest">Sem Dados Confirmados</h3>
+                    <p className="text-slate-500 text-sm max-w-md mt-2">Nenhum colaborador com empresa identificada foi encontrado para os filtros selecionados.</p>
                 </div>
             ) : (
                 <>
+                    {/* KPIs Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
                         <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-5 text-white shadow-lg flex flex-col justify-center items-center">
                             <div className="p-2 bg-white/10 rounded-full mb-2">
@@ -191,7 +226,7 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], curre
                                 Top 5 Unidades
                             </h3>
                             <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-2 max-h-[100px]">
-                                {stats.filter(s => s.total > 0).slice(0, 5).map(s => (
+                                {stats.slice(0, 5).map(s => (
                                     <div key={s.id}>
                                         <div className="flex justify-between items-center text-[10px] mb-1">
                                             <span className="text-slate-400 font-medium truncate max-w-[120px]">{s.id}</span>
@@ -226,7 +261,7 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], curre
 
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                        <input type="text" className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 placeholder-slate-500 focus:outline-none focus:border-blue-500 text-sm shadow-sm transition-all" placeholder="Buscar por nome em seus galpões..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                        <input type="text" className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 placeholder-slate-500 focus:outline-none focus:border-blue-500 text-sm shadow-sm transition-all" placeholder="Buscar por nome nos registros validados..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -290,7 +325,7 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], curre
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-800 text-slate-300">
-                                        {getDetailTableWorkers(stats.find(s => s.id === expandedUnit)!).map((worker) => (
+                                        {getDetailTableWorkers(expandedUnit).map((worker) => (
                                             <tr key={worker.id} className="hover:bg-slate-800/50 transition-colors">
                                                 <td className="p-4 font-mono text-slate-500 text-xs">{worker.date !== 'N/A' ? worker.date.split('-').reverse().join('/') : '-'}</td>
                                                 <td className="p-4 font-medium text-white">{worker.name}</td>

@@ -8,16 +8,13 @@ import { organizerService } from './services/organizer';
 import { ref, onValue, update, query, orderByChild } from 'firebase/database';
 import { db } from './services/firebase';
 
-// Hooks
 import { useTheme } from './hooks/useTheme';
 import { useAppData } from './hooks/useAppData';
 import { useNotificationSounds } from './hooks/useNotificationSounds';
 
-// Components
 import ProfileModal from './components/ProfileModal';
 import FeedbackModal from './components/FeedbackModal';
 
-// Lazy Load Components
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const CameraList = lazy(() => import('./components/CameraList'));
 const AccessControlList = lazy(() => import('./components/AccessControlList'));
@@ -39,7 +36,7 @@ const LoadingFallback = () => (
     <div className="flex flex-col items-center gap-4">
         <Loader2 className="animate-spin text-amber-500 w-12 h-12" />
         <span className="text-amber-500/50 text-[10px] font-black uppercase tracking-[0.3em]">Carregando Módulos...</span>
-    </div>
+  </div>
   </div>
 );
 
@@ -122,8 +119,6 @@ const App: React.FC = () => {
       setUser(currentUser);
       
       if (currentUser) {
-          // MODIFICAÇÃO PARA TODOS OS USUÁRIOS:
-          // Força a aba inicial como Dashboard e garante que o menu lateral esteja fechado.
           setActiveTab('dashboard');
           setSidebarOpen(false);
           
@@ -240,13 +235,12 @@ const App: React.FC = () => {
     }
   };
 
+  // REMOÇÃO DO window.confirm - A confirmação agora é feita pelo modal do Importer
   const handleDeleteImport = async (id: string) => {
-      if (!window.confirm("Deseja remover este histórico?")) return;
       try { await monitoringService.deleteThirdPartyImport(id); addToast("Removido.", "info"); } catch (e) { addToast("Erro.", "alert"); }
   };
 
   const handleDeletePayment = async (id: string) => {
-      if (!window.confirm("Deseja remover este histórico financeiro?")) return;
       try { await monitoringService.deletePaymentImport(id); addToast("Financeiro removido.", "info"); } catch (e) { addToast("Erro.", "alert"); }
   };
 
@@ -467,7 +461,7 @@ const App: React.FC = () => {
                             <button onClick={() => setThirdPartySubTab('heatmap')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${thirdPartySubTab === 'heatmap' ? 'bg-amber-600 text-slate-950 font-bold shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>MAPA CALOR</button>
                         </div>
                     </div>
-                    {thirdPartySubTab === 'status' && <ThirdPartyStatus workers={thirdPartyWorkers} currentUser={user} />}
+                    {thirdPartySubTab === 'status' && <ThirdPartyStatus workers={thirdPartyWorkers} paymentRecords={paymentRecords} currentUser={user} />}
                     {thirdPartySubTab === 'access-mgmt' && <AccessManagement accessPoints={data.accessPoints} thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
                     {thirdPartySubTab === 'heatmap' && <Heatmap thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
                   </div>
