@@ -4,7 +4,7 @@ import { User, TeamWorker, AttendanceRoster } from '../types';
 import { 
     Users, UserPlus, Calendar, ShieldCheck, FileText, Camera as CameraIcon, 
     Upload, X, CheckCircle2, AlertTriangle, Shield, Smartphone, 
-    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser, Image, Clock, Mail
+    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser, Image, Clock, Mail, ChevronDown
 } from 'lucide-react';
 import { ref, push, onValue, set, remove, update, get, query, orderByChild, equalTo } from 'firebase/database';
 import { auth, db } from '../services/firebase';
@@ -452,29 +452,29 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     };
 
     return (
-        <div className="max-w-[1400px] mx-auto space-y-6 animate-fade-in pb-20 px-4 sm:px-0">
-            {/* Header Proeminente */}
-            <div className="bg-[#1a1f2e] border border-slate-800 rounded-[28px] p-10 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-6">
-                <div className="flex items-center gap-8 z-10">
-                    <div className="p-6 bg-slate-900 border border-slate-700 rounded-3xl shadow-inner group transition-transform hover:scale-105">
-                        <Shield className="text-amber-500 fill-amber-500/10" size={44} strokeWidth={1.2} />
+        <div className="max-w-[1400px] mx-auto space-y-4 md:space-y-6 animate-fade-in pb-20 px-2 sm:px-0">
+            {/* Header Proeminente - Otimizado Mobile */}
+            <div className="bg-[#1a1f2e] border border-slate-800 rounded-[20px] md:rounded-[28px] p-5 md:p-10 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6">
+                <div className="flex items-center gap-4 md:gap-8 z-10 w-full md:w-auto">
+                    <div className="p-3 md:p-6 bg-slate-900 border border-slate-700 rounded-2xl md:rounded-3xl shadow-inner shrink-0">
+                        <Shield className="text-amber-500 fill-amber-500/10 w-8 h-8 md:w-11 md:h-11" strokeWidth={1.2} />
                     </div>
-                    <div>
-                        <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic leading-none mb-3">CONTROLE DE ACESSO</h2>
-                        <div className="flex items-center gap-2 text-slate-500 text-sm font-bold uppercase tracking-widest">
-                             <Briefcase size={14} className="text-slate-600" /> 
-                             EMPRESA: <span className="text-slate-300">{isProvider ? (currentUser.companyName || currentUser.name || 'N/A') : 'CCOS MASTER'}</span>
+                    <div className="min-w-0">
+                        <h2 className="text-xl md:text-4xl font-black text-white uppercase tracking-tighter italic leading-none mb-1 md:mb-3">CONTROLE DE ACESSO</h2>
+                        <div className="flex items-center gap-2 text-slate-500 text-[10px] md:text-sm font-bold uppercase tracking-widest truncate">
+                             <Briefcase size={12} className="text-slate-600 shrink-0" /> 
+                             <span className="truncate">EMPRESA: <span className="text-slate-300">{isProvider ? (currentUser.companyName || currentUser.name || 'N/A') : 'CCOS MASTER'}</span></span>
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-4 z-10">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 z-10 w-full md:w-auto">
                     {isProvider && (
-                        <div className="flex gap-3">
-                            <button onClick={() => setActiveTab(activeTab === 'team' ? 'roster' : 'team')} className="px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-all border border-slate-700">
-                                {activeTab === 'team' ? 'VER ESCALA DIÁRIA' : 'MINHA EQUIPE (CADASTROS)'}
+                        <div className="grid grid-cols-1 sm:flex gap-2">
+                            <button onClick={() => setActiveTab(activeTab === 'team' ? 'roster' : 'team')} className="px-4 md:px-8 py-3 md:py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl md:rounded-2xl font-black uppercase text-[10px] md:text-xs tracking-widest transition-all border border-slate-700">
+                                {activeTab === 'team' ? 'VER ESCALA DIÁRIA' : 'MINHA EQUIPE'}
                             </button>
-                            <button onClick={() => setShowAddModal(true)} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-all shadow-xl shadow-blue-900/40 flex items-center gap-2">
-                                <UserPlus size={18} /> NOVO CADASTRO
+                            <button onClick={() => setShowAddModal(true)} className="px-4 md:px-8 py-3 md:py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl md:rounded-2xl font-black uppercase text-[10px] md:text-xs tracking-widest transition-all shadow-xl shadow-blue-900/40 flex items-center justify-center gap-2">
+                                <UserPlus size={16} /> NOVO CADASTRO
                             </button>
                         </div>
                     )}
@@ -482,13 +482,13 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                         <button 
                             onClick={handlePurgeInvalidRecords}
                             disabled={isPurging}
-                            className="px-6 py-4 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all border border-rose-600/30 flex items-center gap-3 shadow-lg shadow-rose-900/10"
+                            className="px-4 py-3 md:py-4 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white rounded-xl md:rounded-2xl font-black uppercase text-[9px] md:text-[10px] tracking-widest transition-all border border-rose-600/30 flex items-center justify-center gap-2"
                         >
-                            {isPurging ? <Loader2 className="animate-spin" size={16} /> : <Eraser size={16} />}
+                            {isPurging ? <Loader2 className="animate-spin" size={14} /> : <Eraser size={14} />}
                             LIMPAR DADOS INVÁLIDOS
                         </button>
                     )}
-                    <div className="px-6 py-3 bg-[#eab308]/10 border border-[#eab308]/20 rounded-2xl text-[#eab308] font-black text-[10px] uppercase tracking-[0.3em] flex items-center gap-3">
+                    <div className="hidden md:flex px-6 py-3 bg-[#eab308]/10 border border-[#eab308]/20 rounded-2xl text-[#eab308] font-black text-[10px] uppercase tracking-[0.3em] items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
                         MÓDULO OPERACIONAL
                     </div>
@@ -496,65 +496,64 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
             </div>
 
             {activeTab === 'team' && isProvider ? (
-                <div className="space-y-6 animate-fade-in">
-                    <div className="bg-slate-900 border border-slate-800 rounded-[32px] p-8 shadow-2xl flex flex-col md:flex-row justify-between items-center gap-8">
-                        <div className="flex items-center gap-5">
-                            <div className="p-4 bg-blue-500/10 rounded-2xl text-blue-500 border border-blue-500/20">
-                                <Users size={28} />
+                <div className="space-y-4 md:space-y-6 animate-fade-in">
+                    <div className="bg-slate-900 border border-slate-800 rounded-[20px] md:rounded-[32px] p-5 md:p-8 shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6 md:gap-8">
+                        <div className="flex items-center gap-4 md:gap-5 w-full md:w-auto">
+                            <div className="p-3 md:p-4 bg-blue-500/10 rounded-xl md:rounded-2xl text-blue-500 border border-blue-500/20">
+                                <Users size={24} className="md:w-7 md:h-7" />
                             </div>
                             <div>
-                                <h3 className="text-white font-black uppercase text-base tracking-widest">ESCALA OPERACIONAL</h3>
-                                <p className="text-[11px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">{selectedWorkerIds.size} COLABORADORES SELECIONADOS</p>
+                                <h3 className="text-white font-black uppercase text-sm md:text-base tracking-widest">MINHA EQUIPE</h3>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-0.5">{selectedWorkerIds.size} SELECIONADOS</p>
                             </div>
                         </div>
-                        <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-                            <div className="relative w-full sm:w-72">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                            <div className="relative w-full sm:w-64">
                                 <select 
                                     value={targetUnit}
                                     onChange={(e) => setTargetUnit(e.target.value)}
-                                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-xs text-white font-bold uppercase outline-none focus:border-blue-500 appearance-none cursor-pointer"
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl md:rounded-2xl px-5 py-3 md:py-4 text-[10px] md:text-xs text-white font-bold uppercase outline-none focus:border-blue-500 appearance-none cursor-pointer"
                                 >
                                     {WAREHOUSE_LIST.map(u => <option key={u} value={u}>{u}</option>)}
                                 </select>
-                                <Warehouse className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" size={18} />
+                                <Warehouse className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" size={16} />
                             </div>
                             <button 
                                 onClick={handleBatchAddToRoster}
                                 disabled={selectedWorkerIds.size === 0}
-                                className="w-full sm:w-auto px-10 py-4 bg-[#10b981] hover:bg-[#059669] disabled:opacity-30 disabled:grayscale text-white font-black rounded-2xl uppercase text-xs tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-xl shadow-emerald-900/30"
+                                className="px-6 md:px-10 py-3 md:py-4 bg-[#10b981] hover:bg-[#059669] disabled:opacity-30 disabled:grayscale text-white font-black rounded-xl md:rounded-2xl uppercase text-[10px] md:text-xs tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-xl shadow-emerald-900/30"
                             >
-                                <ClipboardCheck size={22} /> CONFIRMAR ESCALA HOJE
+                                <ClipboardCheck size={18} /> CONFIRMAR ESCALA
                             </button>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6">
                         {workers.map(w => {
                             const isSelected = selectedWorkerIds.has(w.id);
                             return (
-                                <div key={w.id} onClick={() => toggleWorkerSelection(w.id)} className={`relative cursor-pointer bg-slate-950 border rounded-[32px] p-6 transition-all group overflow-hidden ${isSelected ? 'border-blue-500 bg-blue-500/5 shadow-2xl shadow-blue-900/20' : 'border-slate-800 hover:border-slate-700'}`}>
-                                    <div className="flex items-center gap-5 relative z-10">
+                                <div key={w.id} onClick={() => toggleWorkerSelection(w.id)} className={`relative cursor-pointer bg-slate-950 border rounded-[20px] md:rounded-[32px] p-4 md:p-6 transition-all group overflow-hidden ${isSelected ? 'border-blue-500 bg-blue-500/5 shadow-2xl shadow-blue-900/20' : 'border-slate-800 hover:border-slate-700'}`}>
+                                    <div className="flex items-center gap-4 md:gap-5 relative z-10">
                                         <div className="relative shrink-0">
-                                            <img src={w.photoUrl} className="w-16 h-16 rounded-[20px] object-cover border-2 border-slate-800" />
-                                            <div className={`absolute -top-2 -left-2 p-1.5 rounded-xl border shadow-lg transition-all ${isSelected ? 'bg-blue-600 border-blue-400 scale-110' : 'bg-slate-800 border-slate-700'}`}>
-                                                {isSelected ? <CheckSquare size={18} className="text-white" /> : <Square size={18} className="text-slate-600" />}
+                                            <img src={w.photoUrl} className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-[20px] object-cover border-2 border-slate-800" />
+                                            <div className={`absolute -top-1.5 -left-1.5 p-1 rounded-lg border shadow-lg transition-all ${isSelected ? 'bg-blue-600 border-blue-400 scale-110' : 'bg-slate-800 border-slate-700'}`}>
+                                                {isSelected ? <CheckSquare size={14} className="text-white" /> : <Square size={14} className="text-slate-600" />}
                                             </div>
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-white font-black uppercase text-xs truncate leading-tight tracking-tight">{w.name}</p>
-                                            <div className="flex flex-col gap-1 mt-2">
-                                                <p className="text-[10px] text-slate-600 font-mono font-bold tracking-widest">{w.cpf}</p>
-                                                <div className={`inline-block w-fit px-2 py-0.5 rounded text-[8px] font-black uppercase border tracking-widest ${w.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                                            <p className="text-white font-black uppercase text-[11px] md:text-xs truncate leading-tight tracking-tight">{w.name}</p>
+                                            <div className="flex flex-col gap-1 mt-1.5">
+                                                <p className="text-[9px] text-slate-600 font-mono font-bold tracking-widest">{w.cpf}</p>
+                                                <div className={`inline-block w-fit px-2 py-0.5 rounded text-[7px] md:text-[8px] font-black uppercase border tracking-widest ${w.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
                                                     {w.status === 'approved' ? 'CADASTRADO' : 'PENDENTE'}
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={(e) => { e.stopPropagation(); startDownloadProcess(w.id, 'document'); }} className="p-2 text-slate-500 hover:text-blue-500 transition-all"><Download size={20} /></button>
-                                            <button onClick={(e) => { e.stopPropagation(); setDeleteConfig({ id: w.id, type: 'worker', name: w.name }); }} className="p-2 text-slate-500 hover:text-rose-500 transition-all"><Trash2 size={18} /></button>
+                                        <div className="flex flex-col gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={(e) => { e.stopPropagation(); startDownloadProcess(w.id, 'document'); }} className="p-1.5 text-slate-500 hover:text-blue-500 transition-all"><Download size={16} /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); setDeleteConfig({ id: w.id, type: 'worker', name: w.name }); }} className="p-1.5 text-slate-500 hover:text-rose-500 transition-all"><Trash2 size={16} /></button>
                                         </div>
                                     </div>
-                                    {isSelected && <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-3xl rounded-full"></div>}
                                 </div>
                             );
                         })}
@@ -562,98 +561,163 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 </div>
             ) : (
                 <>
-                    {/* Filtros e Stats da Roster */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-[28px] p-6 shadow-xl flex flex-col md:flex-row items-center gap-8 animate-fade-in">
-                        <div className="bg-slate-950 p-2 rounded-2xl border border-slate-800 flex items-center gap-5 flex-1 w-full md:w-auto pr-8">
-                            <div className="p-4 bg-amber-500/10 rounded-xl text-amber-500">
-                                <Calendar size={26} />
+                    {/* Filtros e Stats da Roster - Otimizado Mobile */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-[20px] md:rounded-[28px] p-4 md:p-6 shadow-xl flex flex-col lg:flex-row items-center gap-4 md:gap-8 animate-fade-in">
+                        <div className="bg-slate-950 p-1.5 md:p-2 rounded-xl md:rounded-2xl border border-slate-800 flex items-center gap-3 md:gap-5 flex-1 w-full lg:w-auto pr-4 md:pr-8">
+                            <div className="p-3 md:p-4 bg-amber-500/10 rounded-lg md:rounded-xl text-amber-500 shrink-0">
+                                <Calendar size={20} className="md:w-7 md:h-7" />
                             </div>
                             <input 
                                 type="date" 
                                 value={selectedDate}
                                 onChange={(e) => setSelectedDate(e.target.value)}
-                                className="bg-transparent border-none text-white font-black text-base uppercase outline-none flex-1 [color-scheme:dark] cursor-pointer" 
+                                className="bg-transparent border-none text-white font-black text-sm md:text-base uppercase outline-none flex-1 [color-scheme:dark] cursor-pointer" 
                             />
                         </div>
-                        <div className="flex items-center gap-16 px-6">
+                        <div className="flex items-center justify-around md:justify-end gap-6 md:gap-16 px-2 md:px-6 w-full lg:w-auto">
                             <div className="text-center md:text-right">
-                                <span className="block text-[11px] text-slate-500 font-black uppercase tracking-[0.2em] mb-2">ESCALADOS HOJE</span>
-                                <span className="block text-5xl font-black text-amber-500 tabular-nums leading-none">{confirmedTodayRaw.length}</span>
+                                <span className="block text-[8px] md:text-[11px] text-slate-500 font-black uppercase tracking-[0.2em] mb-1 md:mb-2">ESCALADOS</span>
+                                <span className="block text-3xl md:text-5xl font-black text-amber-500 tabular-nums leading-none">{confirmedTodayRaw.length}</span>
                             </div>
+                            <div className="h-8 md:h-12 w-px bg-slate-800"></div>
                             {!isProvider && !isManager && (
-                                <>
-                                    <div className="h-12 w-px bg-slate-800"></div>
-                                    <div className="text-center md:text-right">
-                                        <span className="block text-[11px] text-slate-500 font-black uppercase tracking-[0.2em] mb-2">EMPRESAS ATIVAS</span>
-                                        <span className="block text-5xl font-black text-blue-500 tabular-nums leading-none">{companyStats.length}</span>
-                                    </div>
-                                </>
+                                <div className="text-center md:text-right">
+                                    <span className="block text-[8px] md:text-[11px] text-slate-500 font-black uppercase tracking-[0.2em] mb-1 md:mb-2">EMPRESAS</span>
+                                    <span className="block text-3xl md:text-5xl font-black text-blue-500 tabular-nums leading-none">{companyStats.length}</span>
+                                </div>
                             )}
                         </div>
                     </div>
 
-                    {!isProvider && (
-                        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
-                            <div className="flex items-center bg-[#0d1117] p-1.5 rounded-2xl border border-slate-800 shadow-inner">
+                    {!isProvider && companyStats.length > 0 && (
+                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                            <div className="flex items-center bg-[#0d1117] p-1 rounded-xl border border-slate-800 shadow-inner min-w-max">
                                 <button 
                                     onClick={() => setSelectedCompanyFilter('TODOS')}
-                                    className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all flex items-center gap-2
+                                    className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-[0.1em] transition-all flex items-center gap-1.5
                                         ${selectedCompanyFilter === 'TODOS' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/30' : 'text-slate-500 hover:text-slate-300 border border-transparent'}
                                     `}
                                 >
-                                    <LayoutGrid size={14} /> TODOS
+                                    <LayoutGrid size={12} /> TODOS
                                 </button>
-                                <div className="w-px h-4 bg-slate-800 mx-2"></div>
                                 {companyStats.map(item => (
                                     <button 
                                         key={item.name}
                                         onClick={() => setSelectedCompanyFilter(item.name)}
-                                        className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all flex items-center gap-2 whitespace-nowrap border
+                                        className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-[0.1em] transition-all flex items-center gap-1.5 whitespace-nowrap border
                                             ${selectedCompanyFilter === item.name 
-                                                ? 'bg-blue-600/20 text-blue-400 border-blue-500/40 shadow-xl' 
+                                                ? 'bg-blue-600/20 text-blue-400 border-blue-500/40' 
                                                 : 'text-slate-500 hover:text-slate-300 border-transparent'}
                                         `}
                                     >
-                                        {item.name} <span className="opacity-50 text-[9px] font-mono">({item.count})</span>
+                                        {item.name} <span className="opacity-50 text-[8px] font-mono">({item.count})</span>
                                     </button>
                                 ))}
                             </div>
                         </div>
                     )}
 
-                    {/* Tabela Principal */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-[32px] shadow-2xl overflow-hidden min-h-[500px]">
-                        <div className="p-6 border-b border-slate-800/40 flex flex-wrap justify-end gap-4 bg-slate-950/20">
-                            {selectedRosterIds.size > 0 && (
-                                <button onClick={handleBatchDeleteRoster} className="bg-rose-600 hover:bg-rose-500 text-white px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-3 shadow-lg shadow-rose-900/30 animate-fade-in">
-                                    <Trash2 size={18} /> APAGAR SELECIONADOS ({selectedRosterIds.size})
-                                </button>
-                            )}
-                            
-                            {/* BOTÃO COPIAR PARA E-MAIL (APENAS PRESTADORES) */}
-                            {isProvider && (
+                    {/* Tabela Principal - Adaptada Mobile */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-[20px] md:rounded-[32px] shadow-2xl overflow-hidden min-h-[400px]">
+                        {/* Ações da Tabela */}
+                        <div className="p-3 md:p-6 border-b border-slate-800/40 bg-slate-950/20 flex flex-col sm:flex-row justify-end gap-2 md:gap-4">
+                            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                                {selectedRosterIds.size > 0 && (
+                                    <button onClick={handleBatchDeleteRoster} className="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-500 text-white px-4 py-2.5 rounded-xl text-[9px] md:text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg">
+                                        <Trash2 size={14} /> APAGAR ({selectedRosterIds.size})
+                                    </button>
+                                )}
+                                
+                                {isProvider && (
+                                    <button 
+                                        onClick={handleCopyEmailTemplate} 
+                                        className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-[9px] md:text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border shadow-lg ${copyEmailSuccess ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-slate-800 border-slate-700 text-emerald-500 hover:text-white'}`}
+                                    >
+                                        {copyEmailSuccess ? <CheckCircle2 size={14} /> : <Mail size={14} />}
+                                        E-MAIL
+                                    </button>
+                                )}
                                 <button 
-                                    onClick={handleCopyEmailTemplate} 
-                                    className={`px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-3 border shadow-lg ${copyEmailSuccess ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-slate-800 border-slate-700 text-emerald-500 hover:text-white hover:bg-emerald-600'}`}
+                                    onClick={startBatchPhotoDownload} 
+                                    disabled={isBatchProcessing || confirmedTodayFiltered.length === 0}
+                                    className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-[9px] md:text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-xl border
+                                        ${isBatchProcessing ? 'bg-amber-600/20 text-amber-500 border-amber-500/40 opacity-70 cursor-not-allowed' : 'bg-[#eab308] hover:bg-[#ca8a04] text-slate-950 border-[#ca8a04]'}
+                                    `}
                                 >
-                                    {copyEmailSuccess ? <CheckCircle2 size={18} /> : <Mail size={18} />}
-                                    {copyEmailSuccess ? 'COPIADO PARA O E-MAIL!' : 'COPIAR PARA E-MAIL'}
+                                    {isBatchProcessing ? <Loader2 className="animate-spin" size={14} /> : <ImageIcon size={14} />}
+                                    FOTOS
                                 </button>
-                            )}
-
-                            <button 
-                                onClick={startBatchPhotoDownload} 
-                                disabled={isBatchProcessing || confirmedTodayFiltered.length === 0}
-                                className={`px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-3 shadow-xl border
-                                    ${isBatchProcessing ? 'bg-amber-600/20 text-amber-500 border-amber-500/40 opacity-70 cursor-not-allowed' : 'bg-[#eab308] hover:bg-[#ca8a04] text-slate-950 border-[#ca8a04]'}
-                                `}
-                            >
-                                {isBatchProcessing ? <Loader2 className="animate-spin" size={18} /> : <ImageIcon size={18} />}
-                                {isBatchProcessing ? 'PROCESSANDO DOWNLOADS...' : 'BAIXAR TODAS AS FOTOS (JPG)'}
-                            </button>
-                            <button onClick={handleCopyAllVisible} className={`px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-3 border shadow-lg ${copySuccess ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white'}`}>{copySuccess ? <CheckCircle2 size={18} /> : <Copy size={18} />} {copySuccess ? 'COPIADO!' : 'COPIAR LISTA (NOME/CPF)'}</button>
+                                <button onClick={handleCopyAllVisible} className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-[9px] md:text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border shadow-lg ${copySuccess ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white'}`}>{copySuccess ? <CheckCircle2 size={14} /> : <Copy size={14} />} {copySuccess ? 'COPIADO!' : 'LISTA'}</button>
+                            </div>
                         </div>
-                        <div className="overflow-x-auto custom-scrollbar">
+
+                        {/* LISTA MOBILE (CARDS) */}
+                        <div className="md:hidden p-4 space-y-4">
+                            {confirmedTodayFiltered.length === 0 ? (
+                                <div className="p-20 text-center text-slate-600 font-bold uppercase tracking-widest text-[10px]">Vazio</div>
+                            ) : confirmedTodayFiltered.map(roster => {
+                                const worker = workers.find(w => w.id === roster.workerId);
+                                const isApproved = worker?.status === 'approved';
+                                const isSelected = selectedRosterIds.has(roster.id);
+                                
+                                return (
+                                    <div key={roster.id} className={`bg-slate-950/50 border rounded-2xl p-4 transition-all relative overflow-hidden ${isSelected ? 'border-blue-500 bg-blue-500/5' : isApproved ? 'border-emerald-500/20' : 'border-slate-800'}`}>
+                                        <div className="flex items-start gap-4">
+                                            <div className="relative shrink-0" onClick={() => toggleRosterSelection(roster.id)}>
+                                                <img src={worker?.photoUrl || `https://ui-avatars.com/api/?name=${roster.workerName}&background=1e293b&color=475569`} className="w-16 h-16 rounded-xl object-cover border border-slate-800" />
+                                                <div className={`absolute -top-2 -left-2 p-1.5 rounded-lg border shadow-lg ${isSelected ? 'bg-blue-600 border-blue-400' : 'bg-slate-800 border-slate-700'}`}>
+                                                    {isSelected ? <CheckSquare size={14} className="text-white" /> : <Square size={14} className="text-slate-600" />}
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex justify-between items-start">
+                                                    <span className="font-black text-white block uppercase text-[11px] tracking-tight truncate pr-2">{roster.workerName}</span>
+                                                    <span className={`shrink-0 px-2 py-0.5 rounded text-[7px] font-black uppercase border tracking-tighter ${isApproved ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                                                        {isApproved ? 'LIBERADO' : 'AGUARDANDO'}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[9px] font-mono text-slate-500 font-bold tracking-widest mt-1">{worker?.cpf ? worker.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : '-'}</p>
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <div className="flex items-center gap-1 text-[8px] font-black text-blue-500 uppercase bg-blue-500/5 border border-blue-500/10 px-2 py-0.5 rounded">
+                                                        <Building2 size={10} /> {roster.companyName}
+                                                    </div>
+                                                    <div className="flex items-center gap-1 text-[8px] font-black text-slate-500 uppercase bg-slate-800/50 border border-slate-800 px-2 py-0.5 rounded">
+                                                        <Warehouse size={10} /> {roster.unit}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-800/50">
+                                            <button onClick={() => startDownloadProcess(roster.workerId, 'photo')} className="flex items-center justify-center gap-2 py-2 bg-slate-900 border border-slate-800 rounded-lg text-[9px] font-black text-slate-400 uppercase tracking-widest active:bg-slate-800">
+                                                <Image size={12} /> FOTO
+                                            </button>
+                                            <button onClick={() => startDownloadProcess(roster.workerId, 'document')} className="flex items-center justify-center gap-2 py-2 bg-slate-900 border border-slate-800 rounded-lg text-[9px] font-black text-slate-400 uppercase tracking-widest active:bg-slate-800">
+                                                <Download size={12} /> DOCS
+                                            </button>
+                                        </div>
+
+                                        <div className="flex gap-2 mt-2">
+                                            <button onClick={() => setDeleteConfig({ id: roster.id, type: 'roster', name: roster.workerName })} className="p-2.5 bg-rose-600/10 text-rose-500 border border-rose-600/20 rounded-lg active:bg-rose-600 active:text-white transition-all">
+                                                <Trash2 size={14} />
+                                            </button>
+                                            {!isApproved && (isAdmin || isManager) ? (
+                                                <button onClick={() => handleApproveWorker(roster.workerId, roster.id)} disabled={actionLoading === roster.id} className="flex-1 bg-emerald-600 text-white font-black rounded-lg text-[9px] uppercase tracking-[0.2em] shadow-lg flex items-center justify-center gap-2">
+                                                    {actionLoading === roster.id ? <Loader2 className="animate-spin" size={14} /> : <><CheckCircle2 size={14} /> LIBERAR ACESSO</>}
+                                                </button>
+                                            ) : isApproved && (
+                                                <div className="flex-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 font-black text-[9px] uppercase flex items-center justify-center gap-2 rounded-lg">
+                                                    <CheckCircle2 size={12} /> AUDITADO
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* TABELA DESKTOP */}
+                        <div className="hidden md:block overflow-x-auto custom-scrollbar">
                             <table className="w-full text-left">
                                 <thead className="bg-[#05070a] text-slate-500 text-[11px] font-black uppercase tracking-[0.25em] border-b border-slate-800">
                                     <tr>
@@ -666,9 +730,9 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                 )}
                                             </button>
                                         </th>
-                                        <th className="p-8">IDENTIFICAÇÃO COLABORADOR</th>
-                                        <th className="p-8">EMPRESA PARCEIRA</th>
-                                        <th className="p-8">UNIDADE ALVO</th>
+                                        <th className="p-8">IDENTIFICAÇÃO</th>
+                                        <th className="p-8">EMPRESA</th>
+                                        <th className="p-8">UNIDADE</th>
                                         <th className="p-8">AUDITORIA</th>
                                         <th className="p-8 text-right">AÇÕES</th>
                                     </tr>
@@ -681,13 +745,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                         const isApproved = worker?.status === 'approved';
                                         const isSelected = selectedRosterIds.has(roster.id);
                                         
-                                        const displayCompany = (
-                                            roster.companyName || 
-                                            worker?.companyName || 
-                                            (isProvider ? (currentUser.companyName || currentUser.name) : null) || 
-                                            'NÃO IDENTIFICADO'
-                                        ).trim().toUpperCase();
-
                                         return (
                                             <tr key={roster.id} className={`transition-all group border-l-4 ${isSelected ? 'bg-blue-600/[0.03] border-l-blue-500' : isApproved ? 'bg-emerald-500/[0.01] border-l-emerald-500' : 'hover:bg-slate-800/20 border-l-transparent'}`}>
                                                 <td className="p-8">
@@ -715,19 +772,18 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                     </div>
                                                 </td>
                                                 <td className="p-8">
-                                                    <div className={`inline-flex items-center gap-3 px-4 py-2 border rounded-2xl text-[11px] font-black uppercase tracking-widest ${displayCompany === 'NÃO IDENTIFICADO' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20 animate-pulse' : 'bg-blue-600/10 text-blue-500 border-blue-500/20'}`}>
-                                                        <Building2 size={14} /> {displayCompany}
+                                                    <div className={`inline-flex items-center gap-3 px-4 py-2 border rounded-2xl text-[11px] font-black uppercase tracking-widest bg-blue-600/10 text-blue-500 border-blue-500/20`}>
+                                                        <Building2 size={14} /> {roster.companyName}
                                                     </div>
                                                 </td>
                                                 <td className="p-8"><div className="flex items-center gap-3 text-slate-400 font-black uppercase text-xs tracking-widest"><Warehouse size={16} className="text-slate-700" /> {roster.unit}</div></td>
                                                 <td className="p-8">
                                                     <div className="flex flex-col gap-3">
-                                                        {/* EXIBIÇÃO DA DATA E HORA DE CONFIRMAÇÃO (ONDE A SETA APONTAVA) */}
                                                         {roster.confirmedAt && (
                                                             <div className="flex items-center gap-2 text-slate-500 bg-slate-950/50 p-2 rounded-xl border border-slate-800/50 w-fit mb-1">
                                                                 <Clock size={12} className="text-amber-500" />
                                                                 <span className="text-[10px] font-mono font-bold uppercase tracking-tighter">
-                                                                    Escalado em: {new Date(roster.confirmedAt).toLocaleDateString('pt-BR')} {new Date(roster.confirmedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                    {new Date(roster.confirmedAt).toLocaleDateString('pt-BR')} {new Date(roster.confirmedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                                                 </span>
                                                             </div>
                                                         )}
@@ -738,7 +794,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                             </button>
                                                             <button onClick={() => startDownloadProcess(roster.workerId, 'document')} className="flex items-center gap-3 text-slate-500 hover:text-amber-500 transition-all text-[10px] font-black uppercase tracking-[0.1em] group/btn">
                                                                 <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all shadow-inner"><Download size={14} /></div>
-                                                                Baixar Documentos
+                                                                Documentos
                                                             </button>
                                                         </div>
                                                     </div>
@@ -770,25 +826,25 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
             {/* MODALS */}
             {showVerifyModal && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-fade-in">
-                    <div className="bg-[#0f172a] border border-slate-700 rounded-[40px] p-12 shadow-2xl max-w-sm w-full relative overflow-hidden">
+                    <div className="bg-[#0f172a] border border-slate-700 rounded-[32px] md:rounded-[40px] p-8 md:p-12 shadow-2xl max-w-sm w-full relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600"></div>
-                        <div className="flex flex-col items-center text-center mb-10">
-                            <div className="w-20 h-20 bg-blue-600/10 rounded-full flex items-center justify-center border border-blue-600/20 mb-6 shadow-inner"><Lock className="text-blue-500" size={36} /></div>
-                            <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Verificar Identidade</h3>
-                            <p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest mt-3 leading-relaxed">
+                        <div className="flex flex-col items-center text-center mb-8 md:mb-10">
+                            <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-600/10 rounded-full flex items-center justify-center border border-blue-600/20 mb-6 shadow-inner"><Lock className="text-blue-500" size={32} /></div>
+                            <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter italic">Verificar Identidade</h3>
+                            <p className="text-slate-400 text-[10px] md:text-[11px] font-bold uppercase tracking-widest mt-3 leading-relaxed">
                                 {requestedDownloadType === 'batch_photo' ? 
-                                    <>Confirme sua senha para baixar <br/><span className="text-emerald-500">{confirmedTodayFiltered.length} fotos de colaboradores</span></> : 
-                                    <>Digite sua senha para baixar {requestedDownloadType === 'photo' ? 'a foto' : 'o documento'} de <br/><span className="text-white">{targetWorker?.name}</span></>}
+                                    <>Confirme sua senha para baixar <br/><span className="text-emerald-500">{confirmedTodayFiltered.length} fotos</span></> : 
+                                    <>Digite sua senha para baixar o arquivo de <br/><span className="text-white">{targetWorker?.name}</span></>}
                             </p>
                         </div>
-                        <form onSubmit={handleVerifyAndAction} className="space-y-8">
+                        <form onSubmit={handleVerifyAndAction} className="space-y-6 md:space-y-8">
                             <div className="relative group">
-                                <Lock className={`absolute left-5 top-1/2 -translate-y-1/2 size={20} ${errorVerify ? 'text-rose-500' : 'text-slate-600 group-focus-within:text-blue-500'}`} />
-                                <input autoFocus type={showPassword ? "text" : "password"} value={verifyPassword} onChange={e => setVerifyPassword(e.target.value)} className={`w-full bg-slate-950 border rounded-3xl pl-14 pr-14 py-5 text-white outline-none transition-all font-black tracking-[0.3em] text-center text-sm ${errorVerify ? 'border-rose-500' : 'border-slate-800 focus:border-blue-500'}`} placeholder="SENHA" />
-                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors">{showPassword ? <EyeOff size={20} /> : <Eye size={20} />}</button>
+                                <Lock className={`absolute left-5 top-1/2 -translate-y-1/2 size={18} ${errorVerify ? 'text-rose-500' : 'text-slate-600 group-focus-within:text-blue-500'}`} />
+                                <input autoFocus type={showPassword ? "text" : "password"} value={verifyPassword} onChange={e => setVerifyPassword(e.target.value)} className={`w-full bg-slate-950 border rounded-2xl md:rounded-3xl pl-12 md:pl-14 pr-12 md:pr-14 py-4 md:py-5 text-white outline-none transition-all font-black tracking-[0.3em] text-center text-sm ${errorVerify ? 'border-rose-500' : 'border-slate-800 focus:border-blue-500'}`} placeholder="SENHA" />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
                             </div>
-                            {errorVerify && <p className="text-rose-500 text-[11px] font-black uppercase text-center animate-pulse tracking-widest">{errorVerify}</p>}
-                            <div className="flex gap-4"><button type="button" onClick={() => { setShowVerifyModal(false); setTargetWorker(null); setRequestedDownloadType(null); }} className="flex-1 py-5 bg-slate-800 text-white rounded-3xl font-black uppercase text-xs tracking-widest transition-all border border-slate-700">CANCELAR</button><button type="submit" disabled={verifying || !verifyPassword} className="flex-1 py-5 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-2xl shadow-blue-900/40 transition-all flex items-center justify-center gap-3">{verifying ? <Loader2 className="animate-spin" size={18} /> : <><Download size={18} /> CONFIRMAR</>}</button></div>
+                            {errorVerify && <p className="text-rose-500 text-[10px] font-black uppercase text-center animate-pulse tracking-widest">{errorVerify}</p>}
+                            <div className="flex gap-3"><button type="button" onClick={() => { setShowVerifyModal(false); setTargetWorker(null); setRequestedDownloadType(null); }} className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all border border-slate-700">VOLTAR</button><button type="submit" disabled={verifying || !verifyPassword} className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl shadow-blue-900/40 transition-all flex items-center justify-center gap-2">{verifying ? <Loader2 className="animate-spin" size={16} /> : <><Download size={16} /> CONFIRMAR</>}</button></div>
                         </form>
                     </div>
                 </div>
@@ -796,31 +852,31 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 
             {deleteConfig && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
-                    <div className="bg-slate-900 border border-slate-700 rounded-[40px] p-12 shadow-2xl max-sm w-full text-center relative overflow-hidden">
+                    <div className="bg-slate-900 border border-slate-700 rounded-[32px] p-8 md:p-12 shadow-2xl max-sm w-full text-center relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-600"></div>
-                        <div className="w-24 h-24 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-rose-600/20 shadow-inner"><AlertTriangle className="text-rose-600" size={48} /></div>
-                        <h3 className="text-2xl font-black text-white mb-3 uppercase tracking-tighter italic">Confirmar Exclusão?</h3>
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-10">Deseja realmente remover {Array.isArray(deleteConfig.id) ? deleteConfig.name : <>o registro de <span className="text-rose-500 font-black">{deleteConfig.name}</span></>}?</p>
-                        <div className="flex gap-4"><button onClick={() => setDeleteConfig(null)} className="flex-1 py-5 bg-slate-800 text-white rounded-3xl font-black uppercase text-[11px] tracking-widest transition-all border border-slate-700">CANCELAR</button><button onClick={confirmDeleteAction} className="flex-1 py-5 bg-rose-600 text-white rounded-3xl font-black uppercase text-[11px] tracking-widest shadow-2xl shadow-rose-900/40 transition-all active:scale-95">SIM, EXCLUIR</button></div>
+                        <div className="w-20 h-20 bg-rose-600/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-600/20 shadow-inner"><AlertTriangle className="text-rose-600" size={40} /></div>
+                        <h3 className="text-xl md:text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Confirmar Exclusão?</h3>
+                        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest leading-relaxed mb-8 md:mb-10">Deseja realmente remover {Array.isArray(deleteConfig.id) ? deleteConfig.name : <>o registro de <span className="text-rose-500 font-black">{deleteConfig.name}</span></>}?</p>
+                        <div className="flex gap-3 md:gap-4"><button onClick={() => setDeleteConfig(null)} className="flex-1 py-4 bg-slate-800 text-white rounded-2xl md:rounded-3xl font-black uppercase text-[10px] tracking-widest transition-all border border-slate-700">CANCELAR</button><button onClick={confirmDeleteAction} className="flex-1 py-4 bg-rose-600 text-white rounded-2xl md:rounded-3xl font-black uppercase text-[10px] tracking-widest shadow-2xl shadow-rose-900/40 transition-all active:scale-95">SIM, EXCLUIR</button></div>
                     </div>
                 </div>
             )}
 
             {showAddModal && (
                 <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in overflow-y-auto">
-                    <div className="bg-[#0f172a] border border-slate-700 rounded-[40px] shadow-2xl w-full max-w-xl my-8 relative overflow-hidden">
+                    <div className="bg-[#0f172a] border border-slate-700 rounded-[32px] md:rounded-[40px] shadow-2xl w-full max-w-xl my-4 md:my-8 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600"></div>
-                        <div className="p-12">
-                            <div className="flex justify-between items-start mb-10">
-                                <div><h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">NOVO REGISTRO</h3><p className="text-slate-500 text-[11px] font-bold uppercase tracking-widest mt-3">EMPRESA: {currentUser.companyName || currentUser.name || 'N/A'}</p></div>
-                                <button onClick={() => setShowAddModal(false)} className="p-3 bg-slate-800 hover:bg-rose-600 text-white rounded-full transition-all border border-slate-700 shadow-lg"><X size={24}/></button>
+                        <div className="p-6 md:p-12">
+                            <div className="flex justify-between items-start mb-6 md:mb-10">
+                                <div><h3 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter italic">NOVO REGISTRO</h3><p className="text-slate-500 text-[9px] md:text-[11px] font-bold uppercase tracking-widest mt-2 md:mt-3">EMPRESA: {currentUser.companyName || currentUser.name || 'N/A'}</p></div>
+                                <button onClick={() => setShowAddModal(false)} className="p-2.5 bg-slate-800 hover:bg-rose-600 text-white rounded-full transition-all border border-slate-700 shadow-lg"><X size={20}/></button>
                             </div>
-                            <form onSubmit={handleSaveWorker} className="space-y-8">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                                    <div className="space-y-4">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">FOTO PERFIL</label>
-                                        <div className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-[40px] overflow-hidden flex items-center justify-center relative group shadow-inner">
-                                            {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover p-3 rounded-[36px]" alt="" /> : <CameraIcon size={44} className="text-slate-800" />}
+                            <form onSubmit={handleSaveWorker} className="space-y-6 md:space-y-8">
+                                <div className="grid grid-cols-2 md:grid-cols-2 gap-4 md:gap-8">
+                                    <div className="space-y-3">
+                                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">FOTO PERFIL</label>
+                                        <div className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-2xl md:rounded-[40px] overflow-hidden flex items-center justify-center relative group shadow-inner">
+                                            {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover p-2 md:p-3 rounded-[24px] md:rounded-[36px]" alt="" /> : <CameraIcon size={32} className="text-slate-800" />}
                                             <input 
                                               type="file" 
                                               accept="image/*" 
@@ -835,18 +891,18 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                 }
                                               }} 
                                             />
-                                            <button type="button" onClick={() => photoInputRef.current?.click()} className="absolute bottom-5 right-5 p-4 bg-blue-600 text-white rounded-3xl shadow-2xl hover:scale-110 transition-transform"><CameraIcon size={20} /></button>
+                                            <button type="button" onClick={() => photoInputRef.current?.click()} className="absolute bottom-3 right-3 p-3 bg-blue-600 text-white rounded-xl md:rounded-2xl shadow-2xl hover:scale-110 transition-transform"><CameraIcon size={16} /></button>
                                         </div>
                                     </div>
-                                    <div className="space-y-4">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">DOCUMENTO (PDF/IMG)</label>
-                                        <div className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-[40px] overflow-hidden flex items-center justify-center relative group shadow-inner">
+                                    <div className="space-y-3">
+                                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">DOCUMENTO</label>
+                                        <div className="aspect-square bg-slate-950 border-2 border-dashed border-slate-800 rounded-2xl md:rounded-[40px] overflow-hidden flex items-center justify-center relative group shadow-inner">
                                             {documentData ? (
-                                                <div className="p-6 text-center">
-                                                    <div className="w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/20"><File className="text-blue-500" size={32} /></div>
-                                                    <p className="text-[10px] text-slate-400 font-bold uppercase truncate max-w-full px-4">{documentData.name}</p>
+                                                <div className="p-3 text-center">
+                                                    <div className="w-10 h-10 md:w-16 md:h-16 bg-blue-600/10 rounded-full flex items-center justify-center mx-auto mb-2 border border-blue-500/20"><File className="text-blue-500" size={24} /></div>
+                                                    <p className="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase truncate max-w-full px-2">{documentData.name}</p>
                                                 </div>
-                                            ) : <FileText size={44} className="text-slate-800" />}
+                                            ) : <FileText size={32} className="text-slate-800" />}
                                             <input 
                                               type="file" 
                                               accept=".pdf,image/*" 
@@ -861,21 +917,21 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                 }
                                               }} 
                                             />
-                                            <button type="button" onClick={() => docInputRef.current?.click()} className="absolute bottom-5 right-5 p-4 bg-emerald-600 text-white rounded-3xl shadow-2xl hover:scale-110 transition-transform"><Upload size={20} /></button>
+                                            <button type="button" onClick={() => docInputRef.current?.click()} className="absolute bottom-3 right-3 p-3 bg-emerald-600 text-white rounded-xl md:rounded-2xl shadow-2xl hover:scale-110 transition-transform"><Upload size={16} /></button>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="space-y-5">
+                                <div className="space-y-4">
                                     <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">NOME COMPLETO</label>
-                                        <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-3xl px-8 py-5 text-white font-black uppercase placeholder-slate-900 outline-none focus:border-blue-500 shadow-inner" placeholder="DIGITE O NOME..." />
+                                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2">NOME COMPLETO</label>
+                                        <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl md:rounded-2xl px-6 py-4 md:py-5 text-white font-black uppercase text-xs md:text-sm placeholder-slate-900 outline-none focus:border-blue-500 shadow-inner" placeholder="DIGITE O NOME..." />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">CPF (SÓ NÚMEROS)</label>
-                                        <input required value={formData.cpf} onChange={e => setFormData({...formData, cpf: e.target.value.replace(/\D/g, '')})} className="w-full bg-slate-950 border border-slate-800 rounded-3xl px-8 py-5 text-white font-mono placeholder-slate-900 outline-none focus:border-blue-500 shadow-inner" placeholder="000.000.000-00" maxLength={11} />
+                                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2">CPF (SÓ NÚMEROS)</label>
+                                        <input required value={formData.cpf} onChange={e => setFormData({...formData, cpf: e.target.value.replace(/\D/g, '')})} className="w-full bg-slate-950 border border-slate-800 rounded-xl md:rounded-2xl px-6 py-4 md:py-5 text-white font-mono text-xs md:text-sm placeholder-slate-900 outline-none focus:border-blue-500 shadow-inner" placeholder="000.000.000-00" maxLength={11} />
                                     </div>
                                 </div>
-                                <button type="submit" disabled={isSaving} className="w-full py-6 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-3xl uppercase tracking-[0.3em] text-xs shadow-2xl active:scale-[0.98] transition-all disabled:opacity-30">
+                                <button type="submit" disabled={isSaving} className="w-full py-5 md:py-6 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl md:rounded-3xl uppercase tracking-[0.3em] text-[10px] md:text-xs shadow-2xl active:scale-[0.98] transition-all disabled:opacity-30">
                                     {isSaving ? <Loader2 className="animate-spin mx-auto" size={24} /> : 'CONCLUIR E ENVIAR'}
                                 </button>
                             </form>
