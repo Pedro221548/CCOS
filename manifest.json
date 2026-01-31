@@ -1,0 +1,24 @@
+
+{
+  "name": "ControlVision CCOS",
+  "short_name": "ControlVision",
+  "description": "Plataforma de Monitoramento e Gestão CCOS",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020408",
+  "theme_color": "#f59e0b",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1162/1162499.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/192/1162/1162499.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
