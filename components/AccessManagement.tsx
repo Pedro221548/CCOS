@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { User, ProcessedWorker, AccessPoint } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
@@ -234,6 +233,12 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         return [...history].sort((a, b) => new Date(`${a.date}T${a.time.length === 5 ? a.time + ':00' : a.time}`).getTime() - new Date(`${b.date}T${b.time.length === 5 ? b.time + ':00' : b.time}`).getTime());
     };
 
+    const handleEmailReport = () => {
+        const subject = "Relatório de Permanência - ControlVision";
+        const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(generatedMessage)}`;
+        window.location.href = mailtoUrl;
+    };
+
     return (
         <div className="space-y-4 md:space-y-6 animate-fade-in pb-24 max-w-7xl mx-auto p-2 md:p-6 relative">
             {/* Header Responsivo */}
@@ -441,7 +446,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                         <textarea value={generatedMessage} readOnly className="w-full h-[150px] bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs text-slate-300 focus:outline-none resize-none font-mono leading-relaxed shadow-inner" />
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <button onClick={() => { navigator.clipboard.writeText(generatedMessage); alert("Copiado!"); }} className="py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95"><MessageCircle size={20} /> WhatsApp</button>
-                            <button onClick={() => window.open(`mailto:?subject=Relatório&body=${encodeURIComponent(generatedMessage)}`)} className="py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95"><Mail size={20} /> E-mail</button>
+                            <button onClick={handleEmailReport} className="py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95"><Mail size={20} /> E-mail</button>
                         </div>
                     </div>
                 </div>
