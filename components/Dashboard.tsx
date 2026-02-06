@@ -133,6 +133,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
       return Array.from(dates).sort().reverse().filter(d => d && d !== 'N/A');
   }, [filteredWorkers]);
 
+  // Lista de portas baseada no galpão selecionado no gráfico
   const availableAccessPointsChart = useMemo(() => {
     const set = new Set<string>();
     filteredWorkers.forEach(w => {
@@ -145,6 +146,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
     return Array.from(set).sort();
   }, [filteredWorkers, selectedWarehouseChart, selectedChartDate]);
 
+  // Limpar portas ao mudar galpão
   useEffect(() => {
     setSelectedAccessPointsChart([]);
   }, [selectedWarehouseChart]);
@@ -158,7 +160,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
         filteredWorkers.forEach(w => {
             if (w.date !== selectedChartDate) return;
             if (selectedWarehouseChart !== 'ALL' && w.unit !== selectedWarehouseChart) return;
+            // Filtro por Portas (Multi-seleção)
             if (selectedAccessPointsChart.length > 0 && !selectedAccessPointsChart.includes(w.accessPoint)) return;
+
             if (w.time && w.time.includes(':')) {
                 const hour = parseInt(w.time.split(':')[0], 10);
                 if (!isNaN(hour) && hour >= 0 && hour < 24) counts[hour]++;
@@ -204,6 +208,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
       return [...shiftNotes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [shiftNotes]);
 
+  // Lógica de Consulta Pessoal
   const uniquePeople = useMemo(() => {
       const map: { [key: string]: { name: string, company: string } } = {};
       thirdPartyWorkers.forEach(w => {
@@ -223,7 +228,11 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
       const [name, company] = selectedPersonKey.split('|');
       let filtered = thirdPartyWorkers
         .filter(w => w.name.toUpperCase() === name && w.company.toUpperCase() === company);
-      if (personalDateFilter) filtered = filtered.filter(w => w.date === personalDateFilter);
+      
+      if (personalDateFilter) {
+          filtered = filtered.filter(w => w.date === personalDateFilter);
+      }
+
       return filtered.sort((a, b) => {
           const dateA = new Date(`${a.date}T${a.time}`).getTime();
           const dateB = new Date(`${b.date}T${b.time}`).getTime();
@@ -231,6 +240,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
       });
   }, [thirdPartyWorkers, selectedPersonKey, personalDateFilter]);
 
+  // Handlers para o novo Modal
   const openInfoModal = (cam: Camera, editMode: boolean = false) => {
       setSelectedCamForInfo(cam);
       setLocalTicket(cam.ticket || '');
@@ -300,7 +310,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
   }, [whatsAppMessage]);
 
   return (
-    <div className="space-y-4 sm:space-y-6 pb-8 px-1 sm:px-0">
+    <div className="space-y-4 sm:space-y-6 pb-8">
       
       {isManager && (
           <div className="bg-slate-900 p-4 sm:p-6 rounded-xl border border-purple-500/30 mb-2 flex flex-col md:flex-row justify-between items-center shadow-lg shadow-purple-900/10 relative overflow-hidden animate-fade-in gap-4">
@@ -400,20 +410,20 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
       </div>
 
       {/* Fluxo de Acessos Section */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 md:p-5 shadow-lg animate-fade-in relative z-20">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-lg animate-fade-in relative z-20">
           <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6">
               <h3 className="text-slate-800 dark:text-white font-bold text-lg flex items-center gap-2">
                   <Clock className="text-blue-500" />
                   Fluxo de Acessos
               </h3>
               
-              <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full xl:w-auto">
+              <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
                   {!isManager && (isAdmin || isViewer) && (
-                      <div className="relative flex-1 min-w-[140px] sm:flex-none">
+                      <div className="relative flex-1 min-w-[180px] sm:flex-none">
                           <select 
                               value={selectedWarehouseChart} 
                               onChange={(e) => setSelectedWarehouseChart(e.target.value)}
-                              className="w-full sm:w-48 pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs md:text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
+                              className="w-full sm:w-48 pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
                           >
                               <option value="ALL">Todos Galpões</option>
                               {WAREHOUSE_LIST.map(wh => (
@@ -425,24 +435,24 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                   )}
 
                   {/* Multi-Filtro Ponto de Acesso no Gráfico */}
-                  <div className="relative flex-1 min-w-[140px] sm:flex-none" ref={apDropdownRef}>
+                  <div className="relative flex-1 min-w-[220px] sm:flex-none" ref={apDropdownRef}>
                       <button 
                           onClick={() => setShowAPDropdown(!showAPDropdown)}
-                          className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300 text-xs md:text-sm text-left flex items-center justify-between hover:border-blue-500 transition-colors"
+                          className="w-full pl-9 pr-10 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300 text-sm text-left flex items-center justify-between hover:border-blue-500 transition-colors"
                       >
                           <div className="flex items-center gap-2 truncate">
                               <DoorClosed className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                               {selectedAccessPointsChart.length === 0 ? (
-                                  <span className="text-slate-500">Portas</span>
+                                  <span className="text-slate-500">Todas as Portas</span>
                               ) : (
-                                  <span className="text-blue-500 font-bold">{selectedAccessPointsChart.length} Sel.</span>
+                                  <span className="text-blue-500 font-bold">{selectedAccessPointsChart.length} Portas</span>
                               )}
                           </div>
                           <ChevronDown size={16} className={`text-slate-500 transition-transform ${showAPDropdown ? 'rotate-180' : ''}`} />
                       </button>
 
                       {showAPDropdown && (
-                          <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 min-w-[240px] max-w-[300px] max-h-[300px] overflow-y-auto z-[100] custom-scrollbar animate-fade-in ring-4 ring-black/20">
+                          <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 min-w-[280px] max-w-[400px] max-h-[350px] overflow-y-auto z-[100] custom-scrollbar animate-fade-in ring-4 ring-black/20">
                               <div 
                                   className="flex items-center gap-3 p-3 hover:bg-blue-500/10 rounded-xl cursor-pointer transition-all border-b border-slate-800 mb-2 group"
                                   onClick={toggleAllAPsChart}
@@ -454,6 +464,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                                   )}
                                   <span className="text-[10px] font-black text-white uppercase tracking-widest">Selecionar Tudo</span>
                               </div>
+                              
                               <div className="space-y-1">
                                   {availableAccessPointsChart.map(ap => (
                                       <div 
@@ -474,15 +485,22 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                                       </div>
                                   ))}
                               </div>
+
+                              {availableAccessPointsChart.length === 0 && (
+                                  <div className="p-8 text-center">
+                                      <DoorClosed className="mx-auto text-slate-700 mb-2" size={32} />
+                                      <p className="text-slate-600 text-[10px] uppercase font-black tracking-widest">Sem portas disponíveis</p>
+                                  </div>
+                              )}
                           </div>
                       )}
                   </div>
 
-                  <div className="relative flex-1 min-w-[120px] sm:flex-none">
+                  <div className="relative flex-1 min-w-[160px] sm:flex-none">
                       <select 
                           value={selectedChartDate} 
                           onChange={(e) => setSelectedChartDate(e.target.value)}
-                          className="w-full sm:w-40 pl-3 pr-8 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs md:text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
+                          className="w-full sm:w-48 pl-3 pr-10 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
                       >
                           {availableChartDates.map(date => (
                               <option key={date} value={date}>{date.split('-').reverse().join('/')}</option>
@@ -490,18 +508,28 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                       </select>
                       <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                   </div>
+                  
+                  {selectedAccessPointsChart.length > 0 && (
+                      <button 
+                        onClick={() => setSelectedAccessPointsChart([])}
+                        className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all"
+                        title="Limpar filtros de porta"
+                      >
+                        <X size={20} />
+                      </button>
+                  )}
               </div>
           </div>
 
-          <div className="h-[250px] md:h-[300px] w-full mt-4">
+          <div className="h-[300px] w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={hourlyData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.1} />
-                      <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#64748b' }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#64748b' }} />
+                      <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
                       <Tooltip 
                           cursor={{ fill: '#3b82f610' }}
-                          contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '11px' }}
+                          contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
                           itemStyle={{ color: '#60a5fa', fontWeight: 'bold' }}
                       />
                       <Bar dataKey="acessos" fill="#7c3aed" radius={[4, 4, 0, 0]} />
@@ -512,7 +540,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
 
       {/* Câmeras Offline Table & Barra Lateral */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in relative z-10">
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg overflow-hidden">
                 <div className="bg-slate-50 dark:bg-slate-900/40 p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
                     <h3 className="text-slate-800 dark:text-white font-bold text-sm flex items-center gap-2">
@@ -655,7 +683,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
         </div>
 
         {/* COLUNA LATERAL - CONSULTA E PLANTÃO */}
-        <div className="lg:col-span-1 space-y-6">
+        <div className="lg:col-span-1 space-y-4 sm:space-y-6">
             
             {/* CONSULTA RÁPIDA DE ACESSO */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-lg flex flex-col h-[500px] overflow-hidden">

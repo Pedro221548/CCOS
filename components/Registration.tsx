@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, TeamWorker, AttendanceRoster } from '../types';
 import { 
@@ -382,13 +383,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
             return `${roster.workerName} - ${cpfFormatted}`;
         }).join('\n');
 
-        const fullText = header + list;
-        navigator.clipboard.writeText(fullText);
-        
-        // Abrir cliente de e-mail
-        const subject = `Liberação de Acesso - ${company} - ${formattedDate}`;
-        window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullText)}`;
-
+        navigator.clipboard.writeText(header + list);
         setCopyEmailSuccess(true);
         setTimeout(() => setCopyEmailSuccess(false), 2000);
     };

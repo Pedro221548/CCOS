@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { User, ProcessedWorker } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
-import { Activity, Clock, Filter, X, DoorClosed, CheckSquare, Square, ChevronDown, Calendar, RotateCcw } from 'lucide-react';
+import { Activity, Clock, Filter, X, AlertCircle, DoorClosed, CheckSquare, Square, ChevronDown, Calendar, RotateCcw } from 'lucide-react';
 
 interface HeatmapProps {
     thirdPartyWorkers: ProcessedWorker[];
@@ -19,6 +19,7 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
     
     const dropdownRef = useRef<HTMLDivElement>(null);
 
+    // Fechar dropdown ao clicar fora
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -29,11 +30,13 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // --- PERMISSÕES ---
     const allowedWarehouses = useMemo(() => {
         if (currentUser.role === 'manager') return currentUser.allowedWarehouses || [];
         return WAREHOUSE_LIST;
     }, [currentUser]);
 
+    // Lista dinâmica de Pontos de Acesso baseada no Galpão
     const availableAccessPoints = useMemo(() => {
         const set = new Set<string>();
         thirdPartyWorkers.forEach(w => {
@@ -44,6 +47,7 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
         return Array.from(set).sort();
     }, [thirdPartyWorkers, selectedWarehouse]);
 
+    // Resetar seleção de portas ao mudar o galpão
     useEffect(() => {
         setSelectedAccessPoints([]);
         setShowAPDropdown(false);
@@ -63,152 +67,264 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
         }
     };
 
+    // --- DATA FILTERING ---
     const filteredWorkers = useMemo(() => {
         let subset = thirdPartyWorkers;
+        
+        // 1. Filtro de Permissão
         if (currentUser.role === 'manager') {
             if (!allowedWarehouses || allowedWarehouses.length === 0) return [];
             subset = subset.filter(w => allowedWarehouses.includes(w.unit));
         }
-        if (selectedWarehouse !== 'ALL') subset = subset.filter(w => w.unit === selectedWarehouse);
-        if (selectedAccessPoints.length > 0) subset = subset.filter(w => selectedAccessPoints.includes(w.accessPoint));
-        if (startDate) subset = subset.filter(w => w.date >= startDate);
-        if (endDate) subset = subset.filter(w => w.date <= endDate);
+
+        // 2. Filtro de Galpão
+        if (selectedWarehouse !== 'ALL') {
+            subset = subset.filter(w => w.unit === selectedWarehouse);
+        }
+
+        // 3. Filtro de Pontos de Acesso (Múltiplos)
+        if (selectedAccessPoints.length > 0) {
+            subset = subset.filter(w => selectedAccessPoints.includes(w.accessPoint));
+        }
+
+        // 4. Filtro de Data (Período)
+        if (startDate) {
+            subset = subset.filter(w => w.date >= startDate);
+        }
+        if (endDate) {
+            subset = subset.filter(w => w.date <= endDate);
+        }
+
         return subset;
     }, [thirdPartyWorkers, selectedWarehouse, selectedAccessPoints, startDate, endDate, currentUser, allowedWarehouses]);
 
+    // --- ANALYTICS: HEATMAP (Day x Hour) ---
     const heatmapData = useMemo(() => {
         const grid: ProcessedWorker[][][] = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => []));
         filteredWorkers.forEach(w => {
             if (w.date && w.time) {
+                // Criar data garantindo o timezone correto para evitar offset de dia
                 const [year, month, day] = w.date.split('-').map(Number);
                 const dateObj = new Date(year, month - 1, day);
+                
                 if (dateObj && !isNaN(dateObj.getTime())) {
                     const dayOfWeek = dateObj.getDay(); 
                     const hour = parseInt(w.time.split(':')[0], 10);
-                    if (hour >= 0 && hour < 24) grid[dayOfWeek][hour].push(w);
+                    if (hour >= 0 && hour < 24) {
+                        grid[dayOfWeek][hour].push(w);
+                    }
                 }
             }
         });
         return grid;
     }, [filteredWorkers]);
 
-    const daysOfWeek = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+    const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     const hoursOfDay = Array.from({ length: 24 }, (_, i) => i);
 
     const getHeatmapColor = (count: number) => {
-        if (count === 0) return 'bg-slate-100 dark:bg-slate-800/20';
-        if (count < 5) return 'bg-emerald-200 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-400';
-        if (count < 15) return 'bg-emerald-400 dark:bg-emerald-700/40 text-white';
-        if (count < 30) return 'bg-emerald-500 dark:bg-emerald-600 text-white';
+        if (count === 0) return 'bg-slate-100 dark:bg-slate-800/50';
+        if (count < 5) return 'bg-emerald-200 dark:bg-emerald-900/30';
+        if (count < 15) return 'bg-emerald-400 dark:bg-emerald-700/50';
+        if (count < 30) return 'bg-emerald-500 dark:bg-emerald-600';
         return 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20';
     };
 
     const handleHeatmapClick = (dayIdx: number, hour: number) => {
         const people = heatmapData[dayIdx][hour];
         if (people.length > 0) {
-            setHeatmapModalData({ day: daysOfWeek[dayIdx], hour, people });
+            setHeatmapModalData({
+                day: daysOfWeek[dayIdx],
+                hour,
+                people
+            });
         }
     };
 
+    const clearDateFilters = () => {
+        setStartDate('');
+        setEndDate('');
+    };
+
     return (
-        <div className="space-y-4 animate-fade-in pb-12 max-w-7xl mx-auto px-1 md:px-6">
-            {/* Seção de Filtros - Otimizada e Compacta */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-6 shadow-lg space-y-4 relative z-30">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-500/10 rounded-lg shrink-0">
-                        <Activity className="text-emerald-500" size={20} />
-                    </div>
-                    <div>
-                        <h2 className="text-base md:text-xl font-bold text-white leading-tight">Mapa de Calor</h2>
-                        <p className="text-slate-500 text-[9px] md:text-xs uppercase font-bold tracking-wider">Densidade de acessos por período</p>
-                    </div>
+        <div className="space-y-6 animate-fade-in pb-12 max-w-7xl mx-auto p-4 md:p-6">
+            {/* Header com Filtros Avançados */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 relative z-30">
+                <div className="shrink-0">
+                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                        <Activity className="text-emerald-500" />
+                        Mapa de Calor
+                    </h2>
+                    <p className="text-slate-400 text-sm mt-1">
+                        Densidade de acessos por período, unidade e portas.
+                    </p>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3">
-                    {/* Período Compacto */}
-                    <div className="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
-                        <div className="relative flex-1">
-                            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-transparent text-[10px] text-slate-200 font-bold outline-none [color-scheme:dark]" />
+                <div className="flex flex-wrap items-center gap-4 w-full xl:w-auto">
+                    {/* Filtro de Período */}
+                    <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800 shadow-inner">
+                        <div className="relative">
+                            <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                            <input 
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="pl-8 pr-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] text-slate-200 focus:border-emerald-500 outline-none font-bold [color-scheme:dark]"
+                                title="Data Inicial"
+                            />
                         </div>
-                        <span className="text-slate-700 font-black text-[8px]">~</span>
-                        <div className="relative flex-1">
-                            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-transparent text-[10px] text-slate-200 font-bold outline-none [color-scheme:dark]" />
+                        <span className="text-slate-600 font-black text-[10px]">ATÉ</span>
+                        <div className="relative">
+                            <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                            <input 
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="pl-8 pr-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] text-slate-200 focus:border-emerald-500 outline-none font-bold [color-scheme:dark]"
+                                title="Data Final"
+                            />
                         </div>
-                    </div>
-
-                    {/* Unidade */}
-                    <div className="relative">
-                        <select value={selectedWarehouse} onChange={(e) => setSelectedWarehouse(e.target.value)} className="w-full pl-8 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-[10px] font-bold uppercase focus:border-emerald-500 appearance-none cursor-pointer">
-                            <option value="ALL">Todos Galpões</option>
-                            {allowedWarehouses.map(wh => <option key={wh} value={wh}>{wh}</option>)}
-                        </select>
-                        <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
-                    </div>
-
-                    {/* Portas */}
-                    <div className="relative" ref={dropdownRef}>
-                        <button onClick={() => setShowAPDropdown(!showAPDropdown)} className="w-full pl-8 pr-8 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-[10px] font-bold uppercase text-left flex items-center justify-between">
-                            <span className="truncate">
-                                {selectedAccessPoints.length === 0 ? <span className="text-slate-500 text-[9px]">Todas as Portas</span> : `${selectedAccessPoints.length} Portas`}
-                            </span>
-                            <ChevronDown size={12} className={`text-slate-600 transition-transform ${showAPDropdown ? 'rotate-180' : ''}`} />
-                            <DoorClosed className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
-                        </button>
-                        {showAPDropdown && (
-                            <div className="absolute top-full right-0 mt-1 bg-[#0d1117] border border-slate-700 rounded-xl shadow-2xl p-1.5 w-full min-w-[240px] max-h-[250px] overflow-y-auto z-[60] custom-scrollbar animate-fade-in">
-                                <div onClick={toggleAllAccessPoints} className="flex items-center gap-2.5 p-2 hover:bg-emerald-500/10 rounded-lg cursor-pointer border-b border-slate-800 mb-1">
-                                    {selectedAccessPoints.length === availableAccessPoints.length && availableAccessPoints.length > 0 ? <CheckSquare size={14} className="text-emerald-500" /> : <Square size={14} className="text-slate-600" />}
-                                    <span className="text-[9px] font-black text-white uppercase">Selecionar Tudo</span>
-                                </div>
-                                {availableAccessPoints.map(ap => (
-                                    <div key={ap} onClick={() => toggleAccessPoint(ap)} className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-all ${selectedAccessPoints.includes(ap) ? 'bg-emerald-500/5' : 'hover:bg-slate-800'}`}>
-                                        {selectedAccessPoints.includes(ap) ? <CheckSquare size={14} className="text-emerald-500" /> : <Square size={14} className="text-slate-600" />}
-                                        <span className="text-[9px] font-bold text-slate-300 truncate">{ap}</span>
-                                    </div>
-                                ))}
-                            </div>
+                        {(startDate || endDate) && (
+                            <button 
+                                onClick={clearDateFilters}
+                                className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-all"
+                                title="Limpar Datas"
+                            >
+                                <RotateCcw size={14} />
+                            </button>
                         )}
                     </div>
 
-                    {/* Reset */}
-                    <button onClick={() => { setSelectedWarehouse('ALL'); setSelectedAccessPoints([]); setStartDate(''); setEndDate(''); }} className="w-full px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border border-slate-700">
-                        <RotateCcw size={12} /> Limpar
-                    </button>
+                    {/* Filtro Galpão */}
+                    <div className="relative flex-1 min-w-[200px] sm:min-w-[240px]">
+                        <select 
+                            value={selectedWarehouse} 
+                            onChange={(e) => setSelectedWarehouse(e.target.value)} 
+                            className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-200 text-xs font-bold uppercase focus:outline-none focus:border-emerald-500 appearance-none cursor-pointer"
+                        >
+                            <option value="ALL">
+                                {currentUser.role === 'manager' ? 'Meus Galpões Permitidos' : 'Todos os Galpões'}
+                            </option>
+                            {allowedWarehouses.map(wh => (
+                                <option key={wh} value={wh}>{wh}</option>
+                            ))}
+                        </select>
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14} />
+                    </div>
+
+                    {/* Multi-Filtro Ponto de Acesso */}
+                    <div className="relative flex-1 min-w-[220px] sm:min-w-[280px]" ref={dropdownRef}>
+                        <button 
+                            onClick={() => setShowAPDropdown(!showAPDropdown)}
+                            className="w-full pl-9 pr-10 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-200 text-xs font-bold uppercase text-left flex items-center justify-between hover:border-emerald-500 transition-colors"
+                        >
+                            <div className="flex items-center gap-2 truncate">
+                                <DoorClosed className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                                {selectedAccessPoints.length === 0 ? (
+                                    <span className="text-slate-500">Todas as Portas</span>
+                                ) : (
+                                    <span className="text-emerald-400 font-black">{selectedAccessPoints.length} Selecionadas</span>
+                                )}
+                            </div>
+                            <ChevronDown size={16} className={`text-slate-500 transition-transform ${showAPDropdown ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {showAPDropdown && (
+                            <div className="absolute top-full right-0 mt-2 bg-[#0d1117] border border-slate-700 rounded-2xl shadow-2xl p-2 w-[90vw] sm:min-w-[400px] sm:max-w-[500px] max-h-[400px] overflow-y-auto z-[60] custom-scrollbar animate-fade-in ring-4 ring-black/20">
+                                <div 
+                                    className="flex items-center gap-3 p-3 hover:bg-emerald-500/10 rounded-xl cursor-pointer transition-all border-b border-slate-800 mb-2 group"
+                                    onClick={toggleAllAccessPoints}
+                                >
+                                    {selectedAccessPoints.length === availableAccessPoints.length && availableAccessPoints.length > 0 ? (
+                                        <CheckSquare size={18} className="text-emerald-500" />
+                                    ) : (
+                                        <Square size={18} className="text-slate-600 group-hover:text-slate-400" />
+                                    )}
+                                    <span className="text-xs font-black text-white uppercase tracking-[0.1em]">Selecionar / Desmarcar Tudo</span>
+                                </div>
+                                
+                                <div className="space-y-1">
+                                    {availableAccessPoints.map(ap => (
+                                        <div 
+                                            key={ap} 
+                                            className={`grid grid-cols-[24px_1fr] items-start gap-3 p-3 rounded-xl cursor-pointer transition-all ${selectedAccessPoints.includes(ap) ? 'bg-emerald-500/5 border border-emerald-500/20' : 'hover:bg-slate-800 border border-transparent'}`}
+                                            onClick={() => toggleAccessPoint(ap)}
+                                        >
+                                            <div className="mt-0.5">
+                                                {selectedAccessPoints.includes(ap) ? (
+                                                    <CheckSquare size={18} className="text-emerald-500" />
+                                                ) : (
+                                                    <Square size={18} className="text-slate-600" />
+                                                )}
+                                            </div>
+                                            <span className={`text-[11px] font-bold leading-relaxed ${selectedAccessPoints.includes(ap) ? 'text-white' : 'text-slate-400'}`}>
+                                                {ap}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {availableAccessPoints.length === 0 && (
+                                    <div className="p-8 text-center">
+                                        <DoorClosed className="mx-auto text-slate-700 mb-2" size={32} />
+                                        <p className="text-slate-600 text-[10px] uppercase font-black tracking-widest">Sem portas disponíveis neste galpão</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* Heatmap Grid - Redimensionado para Celular */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 md:p-6 shadow-lg overflow-hidden flex flex-col">
-                <div className="flex flex-row justify-between items-center mb-4 px-1">
-                    <h3 className="text-xs md:text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <Clock size={16} className="text-emerald-500" />
-                        Grade Semanal
-                    </h3>
-                    <span className="text-[8px] text-slate-500 italic uppercase font-bold">Clique para detalhes</span>
+            {/* Empty State / Permissions Check */}
+            {currentUser.role === 'manager' && allowedWarehouses.length === 0 ? (
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center">
+                    <AlertCircle className="mx-auto text-amber-500 mb-4" size={48} />
+                    <h3 className="text-xl font-bold text-white">Nenhum Galpão Associado</h3>
+                    <p className="text-slate-400 mt-2">Sem permissões para visualizar dados.</p>
                 </div>
-                
-                <div className="overflow-x-auto no-scrollbar">
-                    <div className="min-w-[480px] md:min-w-full">
-                        {/* Header: Dias (Abbreviated for small screens) */}
-                        <div className="grid grid-cols-[40px_repeat(7,1fr)] gap-0.5 mb-1.5">
-                            <div className="text-[8px] font-black text-slate-500 text-center flex items-end justify-center pb-1">H</div>
-                            {daysOfWeek.map(day => (
-                                <div key={day} className="text-[8px] font-black text-center text-slate-400 uppercase tracking-tighter pb-1 border-b dark:border-slate-800">{day}</div>
-                            ))}
+            ) : (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-lg relative z-10">
+                    <div className="animate-fade-in overflow-x-auto">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                <Clock size={20} className="text-emerald-500" />
+                                Grade Semanal de Intensidade
+                            </h3>
+                            <div className="flex items-center gap-4">
+                                {selectedAccessPoints.length > 0 && (
+                                    <button 
+                                        onClick={() => setSelectedAccessPoints([])}
+                                        className="text-[10px] text-rose-500 font-black uppercase hover:text-rose-400 underline underline-offset-4 tracking-widest"
+                                    >
+                                        Limpar Filtro de Portas
+                                    </button>
+                                )}
+                                <span className="text-xs text-slate-500 italic">Clique em uma célula para detalhes</span>
+                            </div>
                         </div>
+                        
+                        <div className="min-w-[600px]">
+                            {/* Header: Dias da Semana */}
+                            <div className="grid grid-cols-[50px_repeat(7,1fr)] gap-1 mb-2 border-b border-slate-700 pb-2">
+                                <div className="text-xs font-bold text-slate-500 text-center flex items-end justify-center">Hora</div>
+                                {daysOfWeek.map(day => (
+                                    <div key={day} className="text-xs font-black text-center text-slate-400 uppercase tracking-widest">{day}</div>
+                                ))}
+                            </div>
 
-                        {/* Body: Horas (Compact cells) */}
-                        <div className="space-y-0.5">
+                            {/* Body: Horas (Linhas) -> Dias (Colunas) */}
                             {hoursOfDay.map((hour) => (
-                                <div key={hour} className="grid grid-cols-[40px_repeat(7,1fr)] gap-0.5 items-center">
-                                    <div className="text-[8px] font-black text-slate-500 text-center">{hour.toString().padStart(2, '0')}h</div>
+                                <div key={hour} className="grid grid-cols-[50px_repeat(7,1fr)] gap-1 mb-1 items-center hover:bg-slate-800/30 rounded px-1 transition-colors">
+                                    <div className="text-[10px] font-black text-slate-500 text-center">{hour}h</div>
                                     {daysOfWeek.map((_, dayIdx) => {
                                         const count = heatmapData[dayIdx][hour].length;
                                         return (
                                             <div 
                                                 key={`${dayIdx}-${hour}`}
                                                 onClick={() => handleHeatmapClick(dayIdx, hour)}
-                                                className={`h-6 md:h-8 rounded-sm cursor-pointer transition-all active:scale-95 flex items-center justify-center text-[9px] font-bold border border-transparent ${getHeatmapColor(count)}`}
+                                                className={`h-8 rounded-md cursor-pointer transition-all hover:scale-105 hover:z-10 flex items-center justify-center text-[10px] font-black border border-transparent hover:border-slate-500 ${getHeatmapColor(count)}`}
+                                                title={`${count} acessos às ${hour}h em ${daysOfWeek[dayIdx]}`}
                                             >
                                                 {count > 0 ? count : ''}
                                             </div>
@@ -218,48 +334,60 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
                             ))}
                         </div>
                     </div>
-                </div>
-                
-                {/* Legenda Compacta Inferior */}
-                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-3 justify-center">
-                    {[
-                        { label: 'BAIXO', color: 'bg-emerald-200 dark:bg-emerald-900/30' },
-                        { label: 'ALTO', color: 'bg-emerald-400 dark:bg-emerald-700/60' },
-                        { label: 'CRÍTICO', color: 'bg-emerald-600 dark:bg-emerald-500' }
-                    ].map(item => (
-                        <div key={item.label} className="flex items-center gap-1">
-                            <div className={`w-2 h-2 rounded-full ${item.color}`}></div>
-                            <span className="text-[7px] text-slate-500 font-black uppercase tracking-tighter">{item.label}</span>
+                    
+                    {/* Legenda */}
+                    <div className="mt-8 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-6 justify-center">
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Intensidade:</span>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded bg-slate-100 dark:bg-slate-800"></div>
+                            <span className="text-[9px] text-slate-500 font-bold uppercase">Nulo</span>
                         </div>
-                    ))}
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded bg-emerald-200 dark:bg-emerald-900/30"></div>
+                            <span className="text-[9px] text-slate-500 font-bold uppercase">Baixo</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded bg-emerald-400 dark:bg-emerald-700/50"></div>
+                            <span className="text-[9px] text-slate-500 font-bold uppercase">Médio</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded bg-emerald-500 dark:bg-emerald-600"></div>
+                            <span className="text-[9px] text-slate-500 font-bold uppercase">Alto</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded bg-emerald-600 dark:bg-emerald-500 shadow-sm shadow-emerald-500/20"></div>
+                            <span className="text-[9px] text-slate-500 font-bold uppercase">Crítico</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            )}
 
-            {/* Modal de Detalhes - Mobile Responsive */}
+            {/* MODAL DE DETALHES POR CÉLULA */}
             {heatmapModalData && (
-                <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-4 bg-black/90 backdrop-blur-md animate-fade-in">
-                    <div className="bg-slate-900 border-t md:border border-slate-700 rounded-t-[32px] md:rounded-2xl shadow-2xl w-full max-w-md max-h-[75vh] flex flex-col overflow-hidden">
-                        <div className="p-4 border-b border-slate-800 bg-slate-950 flex justify-between items-center">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[80vh] flex flex-col">
+                        <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
                             <div>
-                                <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
-                                    <Clock size={14} className="text-emerald-500" />
-                                    {heatmapModalData.day} • {heatmapModalData.hour}:00h
+                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <Clock size={18} className="text-emerald-500" />
+                                    {heatmapModalData.day}, {heatmapModalData.hour}h:00 - {heatmapModalData.hour}h:59
                                 </h3>
-                                <p className="text-[9px] text-slate-500 font-bold uppercase">{heatmapModalData.people.length} ACESSOS REGISTRADOS</p>
+                                <p className="text-xs text-slate-400">{heatmapModalData.people.length} acessos filtrados</p>
                             </div>
-                            <button onClick={() => setHeatmapModalData(null)} className="p-2 bg-slate-800 hover:bg-rose-600 text-white rounded-full transition-all"><X size={16} /></button>
+                            <button onClick={() => setHeatmapModalData(null)} className="text-slate-500 hover:text-white transition-colors"><X size={20} /></button>
                         </div>
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2 bg-[#05070a]">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
                             {heatmapModalData.people.map(p => (
-                                <div key={p.id} className="bg-slate-900/50 border border-slate-800 p-3 rounded-xl flex justify-between items-center">
-                                    <div className="min-w-0 flex-1 pr-3">
-                                        <p className="text-[11px] font-black text-slate-200 uppercase truncate">{p.name}</p>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <span className="text-[8px] text-emerald-500 font-black uppercase tracking-tighter shrink-0">{p.company}</span>
-                                            <span className="text-[8px] text-slate-500 font-bold truncate">• {p.accessPoint}</span>
+                                <div key={p.id} className="bg-slate-800/50 p-3 rounded border border-slate-700 flex justify-between items-center group hover:border-emerald-500/30 transition-colors">
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-200 group-hover:text-emerald-400 transition-colors">{p.name}</p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-[10px] text-slate-500 font-black uppercase tracking-tighter">{p.company}</span>
+                                            <span className="text-[10px] text-slate-600">•</span>
+                                            <span className="text-[10px] text-slate-500 font-bold truncate max-w-[150px]">{p.accessPoint}</span>
                                         </div>
                                     </div>
-                                    <div className="bg-emerald-500/10 px-2 py-1 rounded text-emerald-400 font-mono text-[9px] font-black">
+                                    <div className="text-emerald-400 font-mono text-xs font-bold bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">
                                         {p.time}
                                     </div>
                                 </div>
