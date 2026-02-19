@@ -4,18 +4,18 @@ import { User, TeamWorker, AttendanceRoster } from '../types';
 import { 
     Users, UserPlus, Calendar, ShieldCheck, FileText, Camera as CameraIcon, 
     Upload, X, CheckCircle2, AlertTriangle, Shield, Smartphone, 
-    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser, Image, Clock, Mail, ChevronDown
+    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser, Image, Clock, Mail, ChevronDown, Info
 } from 'lucide-react';
 import { ref, push, onValue, set, remove, update, get, query, orderByChild, equalTo } from 'firebase/database';
 import { auth, db } from '../services/firebase';
 import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { WAREHOUSE_LIST } from '../constants';
+import Legal from './Legal';
 
 interface RegistrationProps {
   currentUser: User;
 }
 
-// Função de Validação de CPF (Algoritmo Oficial)
 const validateCPF = (cpf: string) => {
     const cleanCPF = cpf.replace(/[^\d]+/g, '');
     if (cleanCPF.length !== 11 || !!cleanCPF.match(/(\d)\1{10}/)) return false;
@@ -58,6 +58,8 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 
     const [showAddModal, setShowAddModal] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [lgpdConsent, setLgpdConsent] = useState(false);
+    const [showLegal, setShowLegal] = useState<any>(null);
     const [isPurging, setIsPurging] = useState(false);
     const [isBatchProcessing, setIsBatchProcessing] = useState(false);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -150,6 +152,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         
         if (!photoPreview) { alert("A foto de perfil é obrigatória."); return; }
         if (!documentData) { alert("O documento (PDF ou Imagem) é obrigatório."); return; }
+        if (!lgpdConsent) { alert("Você precisa aceitar os termos de uso de dados (LGPD) para prosseguir."); return; }
         
         const cleanCPF = formData.cpf.replace(/[^\d]+/g, '');
         if (!validateCPF(cleanCPF)) {
@@ -179,11 +182,14 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 photoUrl: photoPreview,
                 documentUrl: documentData.url,
                 status: 'pending',
+                lgpdAccepted: true,
+                lgpdTimestamp: new Date().toISOString(),
                 createdAt: new Date().toISOString()
             });
             setShowAddModal(false);
             setPhotoPreview(null);
             setDocumentData(null);
+            setLgpdConsent(false);
             setFormData({ name: '', cpf: '' });
         } catch (e) { 
             alert("Erro ao salvar cadastro."); 
@@ -250,7 +256,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         try {
             await Promise.all(promises);
 
-            // --- NOTIFICAÇÃO PARA ADMINS E GESTORES ---
             const usersSnap = await get(ref(db, 'users'));
             if (usersSnap.exists()) {
                 const allUsers = usersSnap.val();
@@ -258,7 +263,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 
                 Object.keys(allUsers).forEach(uid => {
                     const u = allUsers[uid];
-                    // Notifica quem é Admin ou Gestor (se o gestor tiver permissão na unidade alvo)
                     const isAdminUser = u.role === 'admin';
                     const isManagerOfUnit = u.role === 'manager' && hasWarehousePermission(u.allowedWarehouses, targetUnit);
 
@@ -485,7 +489,8 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
 
     return (
         <div className="max-w-[1400px] mx-auto space-y-4 md:space-y-6 animate-fade-in pb-20 px-2 sm:px-0">
-            {/* Header Proeminente - Otimizado Mobile */}
+            {showLegal && <Legal type={showLegal} onClose={() => setShowLegal(null)} />}
+            
             <div className="bg-[#1a1f2e] border border-slate-800 rounded-[20px] md:rounded-[28px] p-5 md:p-10 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6">
                 <div className="flex items-center gap-4 md:gap-8 z-10 w-full md:w-auto">
                     <div className="p-3 md:p-6 bg-slate-900 border border-slate-700 rounded-2xl md:rounded-3xl shadow-inner shrink-0">
@@ -520,10 +525,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                             LIMPAR DADOS INVÁLIDOS
                         </button>
                     )}
-                    <div className="hidden md:flex px-6 py-3 bg-[#eab308]/10 border border-[#eab308]/20 rounded-2xl text-[#eab308] font-black text-[10px] uppercase tracking-[0.3em] items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
-                        MÓDULO OPERACIONAL
-                    </div>
                 </div>
             </div>
 
@@ -593,7 +594,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 </div>
             ) : (
                 <>
-                    {/* Filtros e Stats da Roster - Otimizado Mobile */}
                     <div className="bg-slate-900 border border-slate-800 rounded-[20px] md:rounded-[28px] p-4 md:p-6 shadow-xl flex flex-col lg:flex-row items-center gap-4 md:gap-8 animate-fade-in">
                         <div className="bg-slate-950 p-1.5 md:p-2 rounded-xl md:rounded-2xl border border-slate-800 flex items-center gap-3 md:gap-5 flex-1 w-full lg:w-auto pr-4 md:pr-8">
                             <div className="p-3 md:p-4 bg-amber-500/10 rounded-lg md:rounded-xl text-amber-500 shrink-0">
@@ -649,9 +649,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                         </div>
                     )}
 
-                    {/* Tabela Principal - Adaptada Mobile */}
                     <div className="bg-slate-900 border border-slate-800 rounded-[20px] md:rounded-[32px] shadow-2xl overflow-hidden min-h-[400px]">
-                        {/* Ações da Tabela */}
                         <div className="p-3 md:p-6 border-b border-slate-800/40 bg-slate-950/20 flex flex-col sm:flex-row justify-end gap-2 md:gap-4">
                             <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                                 {selectedRosterIds.size > 0 && (
@@ -683,7 +681,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                             </div>
                         </div>
 
-                        {/* LISTA MOBILE (CARDS) */}
                         <div className="md:hidden p-4 space-y-4">
                             {confirmedTodayFiltered.length === 0 ? (
                                 <div className="p-20 text-center text-slate-600 font-bold uppercase tracking-widest text-[10px]">Vazio</div>
@@ -748,7 +745,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                             })}
                         </div>
 
-                        {/* TABELA DESKTOP */}
                         <div className="hidden md:block overflow-x-auto custom-scrollbar">
                             <table className="w-full text-left">
                                 <thead className="bg-[#05070a] text-slate-500 text-[11px] font-black uppercase tracking-[0.25em] border-b border-slate-800">
@@ -855,7 +851,6 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                 </>
             )}
 
-            {/* MODALS */}
             {showVerifyModal && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-fade-in">
                     <div className="bg-[#0f172a] border border-slate-700 rounded-[32px] md:rounded-[40px] p-8 md:p-12 shadow-2xl max-w-sm w-full relative overflow-hidden">
@@ -961,6 +956,14 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                     <div className="space-y-1.5">
                                         <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2">CPF (SÓ NÚMEROS)</label>
                                         <input required value={formData.cpf} onChange={e => setFormData({...formData, cpf: e.target.value.replace(/\D/g, '')})} className="w-full bg-slate-950 border border-slate-800 rounded-xl md:rounded-2xl px-6 py-4 md:py-5 text-white font-mono text-xs md:text-sm placeholder-slate-900 outline-none focus:border-blue-500 shadow-inner" placeholder="000.000.000-00" maxLength={11} />
+                                    </div>
+                                    <div className="pt-2">
+                                        <label className="flex items-start gap-3 cursor-pointer group bg-slate-950 p-4 rounded-2xl border border-slate-800 hover:border-blue-500/50 transition-all">
+                                            <input type="checkbox" checked={lgpdConsent} onChange={e => setLgpdConsent(e.target.checked)} className="mt-1 w-5 h-5 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-0 focus:ring-offset-0" />
+                                            <span className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                                                Eu aceito os <button type="button" onClick={() => setShowLegal('terms')} className="text-blue-500 hover:underline">Termos de Uso</button> e a <button type="button" onClick={() => setShowLegal('privacy')} className="text-blue-500 hover:underline">Política de Privacidade</button>. Estou ciente de que meus dados biométricos e documentos serão tratados conforme a LGPD para fins de segurança.
+                                            </span>
+                                        </label>
                                     </div>
                                 </div>
                                 <button type="submit" disabled={isSaving} className="w-full py-5 md:py-6 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl md:rounded-3xl uppercase tracking-[0.3em] text-[10px] md:text-xs shadow-2xl active:scale-[0.98] transition-all disabled:opacity-30">

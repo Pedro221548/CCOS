@@ -1,6 +1,6 @@
 {
   "name": "ControlVision",
-  "description": "A comprehensive real-time monitoring dashboard for security cameras and access control systems, featuring analytics, alerts, and detailed reporting.",
+  "description": "A comprehensive real-time monitoring dashboard for security cameras and access control systems. LGPD Compliant data handling for personnel registration and operational audits.",
   "requestFramePermissions": [
     "camera"
   ]
