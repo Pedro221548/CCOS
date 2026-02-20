@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { ProcessedWorker, ThirdPartyPayment, User } from '../types';
-import { AlertTriangle, CheckCircle2, Search, Calendar, User as UserIcon, Building2, ArrowRight, Filter, Download, Clock } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Search, Calendar, User as UserIcon, Building2, ArrowRight, Filter, Download, Clock, FileSpreadsheet } from 'lucide-react';
 
 interface FinanceAuditProps {
     workers: ProcessedWorker[];
@@ -82,6 +82,29 @@ const FinanceAudit: React.FC<FinanceAuditProps> = ({ workers, payments, currentU
         return { totalPresence, totalMissing, percentage };
     }, [auditData]);
 
+    const handleExportExcel = () => {
+        if (!window.XLSX) {
+            alert("Biblioteca de exportação não carregada.");
+            return;
+        }
+
+        const exportData = filteredMissing.map(item => ({
+            'Colaborador': item.worker.name,
+            'ID/CPF': item.worker.id,
+            'Empresa': item.worker.company,
+            'Unidade': item.worker.unit,
+            'Data Presença': new Date(item.date).toLocaleDateString('pt-BR'),
+            'Status Financeiro': 'Não Localizado'
+        }));
+
+        const ws = window.XLSX.utils.json_to_sheet(exportData);
+        const wb = window.XLSX.utils.book_new();
+        window.XLSX.utils.book_append_sheet(wb, ws, "Divergências Financeiras");
+        
+        const fileName = `Auditoria_Financeira_${startDate}_a_${endDate}.xlsx`;
+        window.XLSX.writeFile(wb, fileName);
+    };
+
     return (
         <div className="space-y-6 animate-fade-in pb-20">
             {/* Header & Stats */}
@@ -159,9 +182,17 @@ const FinanceAudit: React.FC<FinanceAuditProps> = ({ workers, payments, currentU
                         <AlertTriangle className="text-amber-500" size={16} />
                         Divergências Encontradas ({filteredMissing.length})
                     </h3>
-                    <button className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1.5 hover:text-amber-400 transition-colors">
-                        <Download size={14} /> Exportar PDF
-                    </button>
+                    <div className="flex items-center gap-4">
+                        <button 
+                            onClick={handleExportExcel}
+                            className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1.5 hover:text-emerald-400 transition-colors"
+                        >
+                            <FileSpreadsheet size={14} /> Exportar Excel
+                        </button>
+                        <button className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1.5 hover:text-amber-400 transition-colors">
+                            <Download size={14} /> Exportar PDF
+                        </button>
+                    </div>
                 </div>
 
                 <div className="overflow-x-auto">
