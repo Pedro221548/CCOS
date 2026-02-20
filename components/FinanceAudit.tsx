@@ -10,13 +10,20 @@ interface FinanceAuditProps {
 }
 
 const FinanceAudit: React.FC<FinanceAuditProps> = ({ workers, payments, currentUser }) => {
-    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [searchTerm, setSearchTerm] = useState('');
 
     const auditData = useMemo(() => {
+        // Names registered in finance
+        const namesInFinance = new Set(payments.map(p => p.workerName.toLowerCase().trim()));
+
+        // Filter workers: only those who have at least one payment record in the system
+        const registeredWorkers = workers.filter(w => namesInFinance.has(w.name.toLowerCase().trim()));
+
         // Group workers by date and name to identify presence
         const presenceMap = new Map<string, ProcessedWorker[]>();
-        workers.forEach(w => {
+        registeredWorkers.forEach(w => {
             const key = `${w.date}_${w.name.toLowerCase().trim()}`;
             if (!presenceMap.has(key)) {
                 presenceMap.set(key, []);
@@ -39,7 +46,7 @@ const FinanceAudit: React.FC<FinanceAuditProps> = ({ workers, payments, currentU
 
         // We only care about unique worker-date pairs for the audit
         const uniquePresences = new Map<string, ProcessedWorker>();
-        workers.forEach(w => {
+        registeredWorkers.forEach(w => {
             const key = `${w.date}_${w.name.toLowerCase().trim()}`;
             if (!uniquePresences.has(key)) {
                 uniquePresences.set(key, w);
@@ -60,13 +67,13 @@ const FinanceAudit: React.FC<FinanceAuditProps> = ({ workers, payments, currentU
 
     const filteredMissing = useMemo(() => {
         return auditData.missing.filter(m => {
-            const matchesDate = !selectedDate || m.date === selectedDate;
+            const matchesDate = (!startDate || m.date >= startDate) && (!endDate || m.date <= endDate);
             const matchesSearch = !searchTerm || 
                 m.worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 m.worker.company.toLowerCase().includes(searchTerm.toLowerCase());
             return matchesDate && matchesSearch;
         }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [auditData.missing, selectedDate, searchTerm]);
+    }, [auditData.missing, startDate, endDate, searchTerm]);
 
     const stats = useMemo(() => {
         const totalPresence = auditData.missing.length + auditData.found.length;
@@ -109,7 +116,7 @@ const FinanceAudit: React.FC<FinanceAuditProps> = ({ workers, payments, currentU
             </div>
 
             {/* Filters */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex flex-col md:flex-row gap-4 items-center">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex flex-col lg:flex-row gap-4 items-center">
                 <div className="relative flex-1 w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                     <input 
@@ -120,16 +127,27 @@ const FinanceAudit: React.FC<FinanceAuditProps> = ({ workers, payments, currentU
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:border-amber-500 outline-none transition-all"
                     />
                 </div>
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                    <Calendar className="text-slate-500" size={18} />
-                    <input 
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-amber-500 outline-none transition-all"
-                    />
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">De:</span>
+                        <input 
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:border-amber-500 outline-none transition-all w-full sm:w-auto"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Até:</span>
+                        <input 
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:border-amber-500 outline-none transition-all w-full sm:w-auto"
+                        />
+                    </div>
                 </div>
-                <button className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-all" title="Limpar Filtros" onClick={() => { setSelectedDate(''); setSearchTerm(''); }}>
+                <button className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-all" title="Limpar Filtros" onClick={() => { setStartDate(''); setEndDate(''); setSearchTerm(''); }}>
                     <Filter size={18} />
                 </button>
             </div>
