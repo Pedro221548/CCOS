@@ -60,9 +60,10 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'registration' | 'registration-history' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'finance-audit' | 'manual' | 'organizer' | 'data' | 'users'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'registration' | 'registration-history' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users'>('dashboard');
   const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'alarms' | 'access'>('cameras');
   const [thirdPartySubTab, setThirdPartySubTab] = useState<'status' | 'access-mgmt' | 'heatmap'>('status');
+  const [financeSubTab, setFinanceSubTab] = useState<'payments' | 'audit'>('payments');
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
@@ -89,6 +90,7 @@ const App: React.FC = () => {
   
   useEffect(() => { if(user) localStorage.setItem('cv_mon_tab', monitoringSubTab); }, [monitoringSubTab, user]);
   useEffect(() => { if(user) localStorage.setItem('cv_tp_tab', thirdPartySubTab); }, [thirdPartySubTab, user]);
+  useEffect(() => { if(user) localStorage.setItem('cv_fin_tab', financeSubTab); }, [financeSubTab, user]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -125,8 +127,10 @@ const App: React.FC = () => {
           
           const savedMon = localStorage.getItem('cv_mon_tab') as any;
           const savedTp = localStorage.getItem('cv_tp_tab') as any;
+          const savedFin = localStorage.getItem('cv_fin_tab') as any;
           if (savedMon) setMonitoringSubTab(savedMon);
           if (savedTp) setThirdPartySubTab(savedTp);
+          if (savedFin) setFinanceSubTab(savedFin);
       }
       
       setAuthLoading(false);
@@ -338,7 +342,6 @@ const App: React.FC = () => {
           {user.role !== 'provider' && (
               <>
                 <button onClick={() => handleTabChange('finance')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'finance' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><DollarSign size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Financeiro</span></button>
-                <button onClick={() => handleTabChange('finance-audit')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'finance-audit' ? 'bg-rose-600 text-white shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><AlertTriangle size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Auditoria</span></button>
                 {user?.role !== 'manager' && (
                     <button onClick={() => handleTabChange('work-mgmt')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'work-mgmt' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><ClipboardList size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Operacional</span></button>
                 )}
@@ -437,8 +440,20 @@ const App: React.FC = () => {
           <div className="max-w-[1600px] mx-auto space-y-8">
             <Suspense fallback={<LoadingFallback />}>
                 {activeTab === 'dashboard' && <Dashboard data={data} thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
-                {activeTab === 'finance' && <Payments payments={paymentRecords} currentUser={user} />}
-                {activeTab === 'finance-audit' && <FinanceAudit workers={thirdPartyWorkers} payments={paymentRecords} currentUser={user} />}
+                {activeTab === 'finance' && (
+                  <div className="space-y-6 animate-fade-in">
+                    <div className="px-4 md:px-6">
+                        <div className="bg-slate-900/50 p-1 rounded-2xl border border-slate-800/50 shadow-sm overflow-hidden">
+                            <div className="flex bg-[#020408] border border-slate-800 p-1.5 rounded-xl shadow-inner w-full overflow-x-auto no-scrollbar scroll-smooth gap-2">
+                                <button onClick={() => setFinanceSubTab('payments')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${financeSubTab === 'payments' ? 'bg-amber-600 text-slate-950 font-bold shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>FREQUÊNCIA</button>
+                                <button onClick={() => setFinanceSubTab('audit')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${financeSubTab === 'audit' ? 'bg-amber-600 text-slate-950 font-bold shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>AUDITORIA</button>
+                            </div>
+                        </div>
+                    </div>
+                    {financeSubTab === 'payments' && <Payments payments={paymentRecords} workers={thirdPartyWorkers} currentUser={user} />}
+                    {financeSubTab === 'audit' && <FinanceAudit workers={thirdPartyWorkers} payments={paymentRecords} currentUser={user} />}
+                  </div>
+                )}
                 {activeTab === 'registration' && <Registration currentUser={user} />}
                 {activeTab === 'registration-history' && <RegistrationHistory currentUser={user} />}
                 {activeTab === 'monitoring' && (

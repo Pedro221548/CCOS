@@ -1,10 +1,12 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, Filter, Calendar, Users, Warehouse, X, CheckSquare, ListChecks, ChevronRight, LayoutGrid, Download, CalendarRange, RotateCcw, Briefcase } from 'lucide-react';
-import { ThirdPartyPayment, User } from '../types';
+import { Search, Filter, Calendar, Users, Warehouse, X, CheckSquare, ListChecks, ChevronRight, LayoutGrid, Download, CalendarRange, RotateCcw, Briefcase, TrendingUp } from 'lucide-react';
+import { ThirdPartyPayment, User, ProcessedWorker } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
+import Reports from './Reports';
 
 interface PaymentsProps {
     payments: ThirdPartyPayment[];
+    workers: ProcessedWorker[];
     currentUser: User;
 }
 
@@ -151,11 +153,12 @@ const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehou
     });
 };
 
-const Payments: React.FC<PaymentsProps> = ({ payments, currentUser }) => {
+const Payments: React.FC<PaymentsProps> = ({ payments, workers, currentUser }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [warehouseFilter, setWarehouseFilter] = useState('ALL');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [isReportsOpen, setIsReportsOpen] = useState(false);
 
     const allowedWarehouses = useMemo(() => {
         if (currentUser.role === 'admin') return WAREHOUSE_LIST;
@@ -246,34 +249,41 @@ const Payments: React.FC<PaymentsProps> = ({ payments, currentUser }) => {
                         <ListChecks className="text-emerald-500" size={28} />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">Central de Frequência</h2>
-                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">
+                        <h2 className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter italic">Central de Frequência</h2>
+                        <p className="text-slate-500 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mt-1">
                             Controle nominal de diárias e presença de terceiros
                         </p>
                     </div>
                 </div>
 
-                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full xl:w-auto">
+                <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full xl:w-auto">
+                    <button 
+                        onClick={() => setIsReportsOpen(true)}
+                        className="flex items-center justify-center gap-2 px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-slate-950 font-black rounded-xl shadow-lg shadow-amber-900/20 transition-all active:scale-95 uppercase text-[10px] tracking-widest whitespace-nowrap"
+                    >
+                        <TrendingUp size={16} /> Relatórios
+                    </button>
+
                     {/* Filtro de Período */}
-                    <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800 shadow-inner">
-                        <div className="relative">
+                    <div className="flex flex-wrap items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800 shadow-inner min-w-fit">
+                        <div className="relative flex-1 min-w-[120px]">
                             <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                             <input 
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className="pl-8 pr-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] text-slate-200 focus:border-emerald-500 outline-none font-bold [color-scheme:dark]"
+                                className="w-full pl-8 pr-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] text-slate-200 focus:border-emerald-500 outline-none font-bold [color-scheme:dark]"
                                 title="Data Inicial"
                             />
                         </div>
-                        <span className="text-slate-600 font-black text-[10px]">ATÉ</span>
-                        <div className="relative">
+                        <span className="text-slate-600 font-black text-[10px] px-1">ATÉ</span>
+                        <div className="relative flex-1 min-w-[120px]">
                             <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                             <input 
                                 type="date"
                                 value={endDate}
                                 onChange={(e) => setEndDate(e.target.value)}
-                                className="pl-8 pr-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] text-slate-200 focus:border-emerald-500 outline-none font-bold [color-scheme:dark]"
+                                className="w-full pl-8 pr-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] text-slate-200 focus:border-emerald-500 outline-none font-bold [color-scheme:dark]"
                                 title="Data Final"
                             />
                         </div>
@@ -288,20 +298,20 @@ const Payments: React.FC<PaymentsProps> = ({ payments, currentUser }) => {
                         )}
                     </div>
 
-                    <div className="relative flex-1 sm:flex-none">
+                    <div className="relative flex-1 lg:flex-none">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                         <input 
                             type="text"
                             placeholder="Buscar colaborador..."
-                            className="w-full sm:w-64 pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-200 focus:border-emerald-500 outline-none transition-all font-bold uppercase"
+                            className="w-full lg:w-64 pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-200 focus:border-emerald-500 outline-none transition-all font-bold uppercase"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <div className="relative flex-1 sm:flex-none">
+                    <div className="relative flex-1 lg:flex-none">
                         <Warehouse className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                         <select 
-                            className="w-full sm:w-56 pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-300 focus:border-emerald-500 outline-none appearance-none cursor-pointer font-bold uppercase"
+                            className="w-full lg:w-56 pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-300 focus:border-emerald-500 outline-none appearance-none cursor-pointer font-bold uppercase"
                             value={warehouseFilter}
                             onChange={(e) => setWarehouseFilter(e.target.value)}
                         >
@@ -333,6 +343,13 @@ const Payments: React.FC<PaymentsProps> = ({ payments, currentUser }) => {
                     />
                 ))
             )}
+
+            <Reports 
+                isOpen={isReportsOpen} 
+                onClose={() => setIsReportsOpen(false)} 
+                payments={payments} 
+                workers={workers}
+            />
         </div>
     );
 };

@@ -288,40 +288,40 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
 
     return (
         <div className="space-y-6 animate-fade-in pb-24 max-w-7xl mx-auto p-4 md:p-6 relative">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 md:p-6 shadow-lg flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                    <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
                         <Activity className="text-purple-500" />
                         Gestão de Acessos
                     </h2>
-                    <p className="text-slate-400 text-sm mt-1">
+                    <p className="text-slate-400 text-xs md:text-sm mt-1">
                         Histórico detalhado de fluxo de pessoas. Use o modo Relatório para calcular permanência.
                     </p>
                 </div>
                 
-                <div className="flex flex-col sm:flex-row gap-3 items-center">
+                <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
                     {isAuthorizedForReport && (
-                        <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+                        <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800 w-full sm:w-auto">
                             <button 
                                 onClick={() => setActiveTab('history')}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'history' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                                className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'history' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-white'}`}
                             >
                                 Histórico
                             </button>
                             <button 
                                 onClick={() => setActiveTab('report')}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'report' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                                className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2 ${activeTab === 'report' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
                             >
                                 <FileText size={14} /> Relatórios
                             </button>
                         </div>
                     )}
 
-                    <div className="relative z-20">
+                    <div className="relative z-20 w-full sm:w-auto">
                         <select 
                             value={selectedWarehouse} 
                             onChange={(e) => setSelectedWarehouse(e.target.value)} 
-                            className="pl-9 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-purple-500 appearance-none cursor-pointer min-w-[200px]"
+                            className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-purple-500 appearance-none cursor-pointer min-w-full sm:min-w-[200px]"
                         >
                             <option value="ALL">
                                 {currentUser.role === 'manager' ? 'Todos os meus galpões' : 'Todos os Galpões'}
@@ -350,34 +350,34 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                 {activeTab === 'report' ? 'Selecione entradas e saídas' : 'Histórico por Pessoa'}
                             </h3>
                             
-                            <div className="flex flex-wrap xl:flex-nowrap gap-3 w-full md:w-auto items-center">
+                            <div className="flex flex-wrap lg:flex-nowrap gap-3 w-full md:w-auto items-center">
                                 {/* Filtro de Período - NOVO */}
-                                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 p-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-inner">
-                                    <div className="relative">
+                                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 bg-slate-50 dark:bg-slate-950 p-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-inner w-full sm:w-auto">
+                                    <div className="relative flex-1 sm:flex-none">
                                         <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                                         <input 
                                             type="date"
                                             value={startDate}
                                             onChange={(e) => setStartDate(e.target.value)}
-                                            className="pl-8 pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] text-slate-700 dark:text-slate-200 focus:border-purple-500 outline-none font-bold [color-scheme:light] dark:[color-scheme:dark]"
+                                            className="w-full sm:w-auto pl-8 pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] text-slate-700 dark:text-slate-200 focus:border-purple-500 outline-none font-bold [color-scheme:light] dark:[color-scheme:dark]"
                                             title="Data Inicial"
                                         />
                                     </div>
-                                    <span className="text-slate-400 font-black text-[10px]">ATÉ</span>
-                                    <div className="relative">
+                                    <span className="text-slate-400 font-black text-[10px] w-full sm:w-auto text-center sm:text-left">ATÉ</span>
+                                    <div className="relative flex-1 sm:flex-none">
                                         <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                                         <input 
                                             type="date"
                                             value={endDate}
                                             onChange={(e) => setEndDate(e.target.value)}
-                                            className="pl-8 pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] text-slate-700 dark:text-slate-200 focus:border-purple-500 outline-none font-bold [color-scheme:light] dark:[color-scheme:dark]"
+                                            className="w-full sm:w-auto pl-8 pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] text-slate-700 dark:text-slate-200 focus:border-purple-500 outline-none font-bold [color-scheme:light] dark:[color-scheme:dark]"
                                             title="Data Final"
                                         />
                                     </div>
                                     {(startDate || endDate) && (
                                         <button 
                                             onClick={clearDateFilters}
-                                            className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-all"
+                                            className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-all ml-auto sm:ml-0"
                                             title="Limpar Datas"
                                         >
                                             <RotateCcw size={14} />
@@ -386,7 +386,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                 </div>
 
                                 {/* FILTRO MULTI-SELEÇÃO DE PORTAS */}
-                                <div className="relative z-[50]" ref={apDropdownRef}>
+                                <div className="relative z-[50] w-full sm:w-auto" ref={apDropdownRef}>
                                     <button 
                                         onClick={() => setShowAPDropdown(!showAPDropdown)}
                                         className="w-full xl:w-64 pl-10 pr-10 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-200 text-xs font-bold text-left flex items-center justify-between hover:border-purple-500 transition-all shadow-sm"

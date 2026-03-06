@@ -106,7 +106,7 @@ const FinanceAudit: React.FC<FinanceAuditProps> = ({ workers, payments, currentU
     };
 
     return (
-        <div className="space-y-6 animate-fade-in pb-20">
+        <div className="space-y-6 animate-fade-in pb-12 max-w-full mx-auto p-4 md:p-6">
             {/* Header & Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg flex items-center gap-4">

@@ -149,45 +149,45 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
     return (
         <div className="space-y-6 animate-fade-in pb-12 max-w-7xl mx-auto p-4 md:p-6">
             {/* Header com Filtros Avançados */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 relative z-30">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 md:p-6 shadow-lg flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 relative z-30">
                 <div className="shrink-0">
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                    <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
                         <Activity className="text-emerald-500" />
                         Mapa de Calor
                     </h2>
-                    <p className="text-slate-400 text-sm mt-1">
+                    <p className="text-slate-400 text-xs md:text-sm mt-1">
                         Densidade de acessos por período, unidade e portas.
                     </p>
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-4 w-full xl:w-auto">
                     {/* Filtro de Período */}
-                    <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800 shadow-inner">
-                        <div className="relative">
+                    <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800 shadow-inner w-full sm:w-auto">
+                        <div className="relative flex-1 sm:flex-none">
                             <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                             <input 
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className="pl-8 pr-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] text-slate-200 focus:border-emerald-500 outline-none font-bold [color-scheme:dark]"
+                                className="w-full sm:w-auto pl-8 pr-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] text-slate-200 focus:border-emerald-500 outline-none font-bold [color-scheme:dark]"
                                 title="Data Inicial"
                             />
                         </div>
-                        <span className="text-slate-600 font-black text-[10px]">ATÉ</span>
-                        <div className="relative">
+                        <span className="text-slate-600 font-black text-[10px] w-full sm:w-auto text-center sm:text-left">ATÉ</span>
+                        <div className="relative flex-1 sm:flex-none">
                             <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                             <input 
                                 type="date"
                                 value={endDate}
                                 onChange={(e) => setEndDate(e.target.value)}
-                                className="pl-8 pr-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] text-slate-200 focus:border-emerald-500 outline-none font-bold [color-scheme:dark]"
+                                className="w-full sm:w-auto pl-8 pr-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] text-slate-200 focus:border-emerald-500 outline-none font-bold [color-scheme:dark]"
                                 title="Data Final"
                             />
                         </div>
                         {(startDate || endDate) && (
                             <button 
                                 onClick={clearDateFilters}
-                                className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-all"
+                                className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-all ml-auto sm:ml-0"
                                 title="Limpar Datas"
                             >
                                 <RotateCcw size={14} />
