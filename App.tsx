@@ -122,7 +122,7 @@ const App: React.FC = () => {
       setUser(currentUser);
       
       if (currentUser) {
-          setActiveTab('dashboard');
+          setActiveTab(currentUser.role === 'provider' ? 'registration' : 'dashboard');
           setSidebarOpen(false);
           
           const savedMon = localStorage.getItem('cv_mon_tab') as any;
@@ -169,7 +169,7 @@ const App: React.FC = () => {
   };
 
   const handleTabChange = useCallback((tab: typeof activeTab) => {
-    if (user?.role === 'provider' && !['registration', 'registration-history', 'dashboard'].includes(tab)) return;
+    if (user?.role === 'provider' && !['registration', 'registration-history'].includes(tab)) return;
     if (['data', 'users'].includes(tab) && !isAdmin) return;
     setActiveTab(tab);
     if (window.innerWidth < 1024) setSidebarOpen(false);
@@ -350,7 +350,9 @@ const App: React.FC = () => {
             </div>
         </div>
         <nav className="p-4 space-y-1 flex-1 overflow-y-auto custom-scrollbar border-t border-slate-800/50 mt-4">
-          <button onClick={() => handleTabChange('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><LayoutDashboard size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Dashboard</span></button>
+          {user.role !== 'provider' && (
+              <button onClick={() => handleTabChange('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><LayoutDashboard size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Dashboard</span></button>
+          )}
           
           {user.role !== 'provider' && (
               <>
