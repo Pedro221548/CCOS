@@ -4,13 +4,15 @@ import { User, TeamWorker, AttendanceRoster } from '../types';
 import { 
     Users, UserPlus, Calendar, ShieldCheck, FileText, Camera as CameraIcon, 
     Upload, X, CheckCircle2, AlertTriangle, Shield, Smartphone, 
-    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser, Image, Clock, Mail, ChevronDown, Info
+    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser, Image, Clock, Mail, ChevronDown, Info, FolderDown
 } from 'lucide-react';
 import { ref, push, onValue, set, remove, update, get, query, orderByChild, equalTo } from 'firebase/database';
 import { auth, db } from '../services/firebase';
 import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { WAREHOUSE_LIST } from '../constants';
 import Legal from './Legal';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 interface RegistrationProps {
   currentUser: User;
@@ -74,7 +76,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [verifying, setVerifying] = useState(false);
     const [targetWorker, setTargetWorker] = useState<TeamWorker | null>(null);
-    const [requestedDownloadType, setRequestedDownloadType] = useState<'photo' | 'document' | 'batch_photo' | null>(null);
+    const [requestedDownloadType, setRequestedDownloadType] = useState<'photo' | 'document' | 'batch_photo' | 'batch_zip' | null>(null);
     const [errorVerify, setErrorVerify] = useState('');
     const [copySuccess, setCopySuccess] = useState(false);
     const [copyEmailSuccess, setCopyEmailSuccess] = useState(false);
@@ -412,6 +414,15 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
         setErrorVerify('');
     };
 
+    const startBatchZipDownload = () => {
+        if (confirmedTodayFiltered.length === 0) return;
+        setRequestedDownloadType('batch_zip');
+        setTargetWorker(null);
+        setShowVerifyModal(true);
+        setVerifyPassword('');
+        setErrorVerify('');
+    };
+
     const handleVerifyAndAction = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!auth.currentUser) return;
@@ -431,6 +442,45 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                         await new Promise(r => setTimeout(r, 600)); 
                     }
                 }
+                setIsBatchProcessing(false);
+            } else if (requestedDownloadType === 'batch_zip') {
+                setIsBatchProcessing(true);
+                setShowVerifyModal(false);
+                
+                const zip = new JSZip();
+                const fotosFolder = zip.folder("fotos");
+                const docsFolder = zip.folder("documentos");
+                
+                for (const roster of confirmedTodayFiltered) {
+                    const worker = workers.find(w => w.id === roster.workerId);
+                    if (worker) {
+                        const safeName = worker.name.replace(/\s+/g, '_');
+                        if (worker.photoUrl && fotosFolder) {
+                            try {
+                                const response = await fetch(worker.photoUrl);
+                                const blob = await response.blob();
+                                fotosFolder.file(`FOTO_${safeName}.jpg`, blob);
+                            } catch (e) {
+                                console.error("Erro ao baixar foto", e);
+                            }
+                        }
+                        if (worker.documentUrl && docsFolder) {
+                            try {
+                                const response = await fetch(worker.documentUrl);
+                                const blob = await response.blob();
+                                let ext = 'pdf';
+                                if (worker.documentUrl.includes('data:image/png')) ext = 'png';
+                                else if (worker.documentUrl.includes('data:image/jpeg')) ext = 'jpg';
+                                docsFolder.file(`DOC_${safeName}.${ext}`, blob);
+                            } catch (e) {
+                                console.error("Erro ao baixar documento", e);
+                            }
+                        }
+                    }
+                }
+                
+                const content = await zip.generateAsync({ type: "blob" });
+                saveAs(content, `Arquivos_${selectedDate}.zip`);
                 setIsBatchProcessing(false);
             } else if (targetWorker) {
                 if (requestedDownloadType === 'photo') {
@@ -667,6 +717,18 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                         E-MAIL
                                     </button>
                                 )}
+                                {isProvider && (
+                                    <button 
+                                        onClick={startBatchZipDownload} 
+                                        disabled={isBatchProcessing || confirmedTodayFiltered.length === 0}
+                                        className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-[9px] md:text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-xl border
+                                            ${isBatchProcessing ? 'bg-indigo-600/20 text-indigo-400 border-indigo-500/40 opacity-70 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500'}
+                                        `}
+                                    >
+                                        {isBatchProcessing ? <Loader2 className="animate-spin" size={14} /> : <FolderDown size={14} />}
+                                        BAIXAR TUDO
+                                    </button>
+                                )}
                                 <button 
                                     onClick={startBatchPhotoDownload} 
                                     disabled={isBatchProcessing || confirmedTodayFiltered.length === 0}
@@ -861,6 +923,8 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                             <p className="text-slate-400 text-[10px] md:text-[11px] font-bold uppercase tracking-widest mt-3 leading-relaxed">
                                 {requestedDownloadType === 'batch_photo' ? 
                                     <>Confirme sua senha para baixar <br/><span className="text-emerald-500">{confirmedTodayFiltered.length} fotos</span></> : 
+                                 requestedDownloadType === 'batch_zip' ?
+                                    <>Confirme sua senha para baixar <br/><span className="text-indigo-500">{confirmedTodayFiltered.length} cadastros completos</span></> :
                                     <>Digite sua senha para baixar o arquivo de <br/><span className="text-white">{targetWorker?.name}</span></>}
                             </p>
                         </div>
