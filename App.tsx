@@ -184,9 +184,9 @@ const App: React.FC = () => {
 
   const handleImportData = async (cameras: Camera[], accessPoints: AccessPoint[]) => {
       try {
-          // Merge existing recordingTime
+          // Merge existing recordingTime based on ID and Name since UUID changes on import
           const mergedCameras = cameras.map(newCam => {
-              const existingCam = data.cameras.find(c => c.uuid === newCam.uuid);
+              const existingCam = data.cameras.find(c => c.id === newCam.id && c.name === newCam.name);
               if (existingCam && existingCam.recordingTime) {
                   return { ...newCam, recordingTime: existingCam.recordingTime };
               }
