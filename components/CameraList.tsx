@@ -14,6 +14,7 @@ interface CameraListProps {
   onDelete?: (uuid: string) => void;
   readOnly?: boolean;
   allowedWarehouses?: string[]; // New prop for filtering
+  userRole?: string;
 }
 
 // Reuse logic (should ideally be in a util)
@@ -32,7 +33,7 @@ const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehou
     });
 };
 
-const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetWarehouseStatus, onAdd, onEdit, onDelete, readOnly = false, allowedWarehouses }) => {
+const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetWarehouseStatus, onAdd, onEdit, onDelete, readOnly = false, allowedWarehouses, userRole }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ONLINE' | 'OFFLINE'>('ALL');
   const [moduleFilter, setModuleFilter] = useState<string>('ALL');
@@ -359,14 +360,16 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                                     {cam.status}
                                 </div>
                                 
-                                {!readOnly && (
+                                {(!readOnly || userRole === 'operator') && (
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button onClick={() => openEditModal(cam)} className="p-1 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded">
                                             <Edit2 size={12} />
                                         </button>
-                                        <button onClick={() => onDelete && onDelete(cam.uuid)} className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded">
-                                            <Trash2 size={12} />
-                                        </button>
+                                        {!readOnly && (
+                                            <button onClick={() => onDelete && onDelete(cam.uuid)} className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded">
+                                                <Trash2 size={12} />
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -427,7 +430,7 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
       )}
 
       {/* Modal */}
-      {showModal && !readOnly && (
+      {showModal && (!readOnly || userRole === 'operator') && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
               <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-lg p-6 animate-fade-in">
                   <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
@@ -442,27 +445,27 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                       <div className="grid grid-cols-2 gap-4">
                           <div className="col-span-2">
                               <label className="block text-xs text-slate-400 mb-1">Nome</label>
-                              <input type="text" required value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" />
+                              <input type="text" required value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} disabled={readOnly && userRole === 'operator'} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm disabled:opacity-50" />
                           </div>
                           <div>
                               <label className="block text-xs text-slate-400 mb-1">ID / IP</label>
-                              <input type="text" required value={formData.id || ''} onChange={e => setFormData({...formData, id: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" />
+                              <input type="text" required value={formData.id || ''} onChange={e => setFormData({...formData, id: e.target.value})} disabled={readOnly && userRole === 'operator'} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm disabled:opacity-50" />
                           </div>
                           <div>
                               <label className="block text-xs text-slate-400 mb-1">Galpão</label>
-                              <input type="text" value={formData.warehouse || ''} onChange={e => setFormData({...formData, warehouse: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" />
+                              <input type="text" value={formData.warehouse || ''} onChange={e => setFormData({...formData, warehouse: e.target.value})} disabled={readOnly && userRole === 'operator'} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm disabled:opacity-50" />
                           </div>
                           <div className="col-span-2">
                               <label className="block text-xs text-slate-400 mb-1">Localização Detalhada</label>
-                              <input type="text" value={formData.location || ''} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" />
+                              <input type="text" value={formData.location || ''} onChange={e => setFormData({...formData, location: e.target.value})} disabled={readOnly && userRole === 'operator'} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm disabled:opacity-50" />
                           </div>
                           <div>
                               <label className="block text-xs text-slate-400 mb-1">Módulo</label>
-                              <input type="text" value={formData.module || ''} onChange={e => setFormData({...formData, module: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" />
+                              <input type="text" value={formData.module || ''} onChange={e => setFormData({...formData, module: e.target.value})} disabled={readOnly && userRole === 'operator'} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm disabled:opacity-50" />
                           </div>
                           <div>
                               <label className="block text-xs text-slate-400 mb-1">Responsável</label>
-                              <input type="text" value={formData.responsible || ''} onChange={e => setFormData({...formData, responsible: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" />
+                              <input type="text" value={formData.responsible || ''} onChange={e => setFormData({...formData, responsible: e.target.value})} disabled={readOnly && userRole === 'operator'} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm disabled:opacity-50" />
                           </div>
                           <div className="col-span-2">
                               <label className="block text-xs text-slate-400 mb-1">Tempo de Gravação (ex: 30 DIAS)</label>

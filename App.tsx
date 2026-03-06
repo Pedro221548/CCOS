@@ -65,6 +65,10 @@ const App: React.FC = () => {
   const [thirdPartySubTab, setThirdPartySubTab] = useState<'status' | 'access-mgmt' | 'heatmap'>('status');
   const [financeSubTab, setFinanceSubTab] = useState<'payments' | 'audit'>('payments');
 
+  const [passwordPromptTab, setPasswordPromptTab] = useState<'data' | 'users' | null>(null);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [isUnlocked, setIsUnlocked] = useState(false);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -171,9 +175,16 @@ const App: React.FC = () => {
   const handleTabChange = useCallback((tab: typeof activeTab) => {
     if (user?.role === 'provider' && !['registration', 'registration-history'].includes(tab)) return;
     if (['data', 'users'].includes(tab) && !isAdmin) return;
+
+    if (['data', 'users'].includes(tab) && !isUnlocked) {
+      setPasswordPromptTab(tab as 'data' | 'users');
+      setPasswordInput('');
+      return;
+    }
+
     setActiveTab(tab);
     if (window.innerWidth < 1024) setSidebarOpen(false);
-  }, [isAdmin, user]);
+  }, [isAdmin, user, isUnlocked]);
 
   const handleLogout = useCallback(() => { 
     authService.logout(); 
@@ -570,6 +581,47 @@ const App: React.FC = () => {
       {showProfileModal && <ProfileModal user={user} onClose={() => setShowProfileModal(false)} />}
       {showFeedbackModal && <FeedbackModal user={user} onClose={() => setShowFeedbackModal(false)} />}
       {showTour && <OnboardingTour role={user.role} onFinish={() => setShowTour(false)} />}
+      {passwordPromptTab && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+              <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">
+                  <h3 className="text-xl font-bold text-white mb-4">Acesso Restrito</h3>
+                  <p className="text-sm text-slate-400 mb-4">Digite a senha para acessar esta área.</p>
+                  <input 
+                      type="password" 
+                      value={passwordInput}
+                      onChange={e => setPasswordInput(e.target.value)}
+                      onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                              if (passwordInput === 'Só eu sei a senha') {
+                                  setIsUnlocked(true);
+                                  setActiveTab(passwordPromptTab);
+                                  setPasswordPromptTab(null);
+                                  if (window.innerWidth < 1024) setSidebarOpen(false);
+                              } else {
+                                  addToast('Senha incorreta!', 'alert');
+                              }
+                          }
+                      }}
+                      className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm mb-4"
+                      placeholder="Senha"
+                      autoFocus
+                  />
+                  <div className="flex gap-3">
+                      <button onClick={() => setPasswordPromptTab(null)} className="flex-1 px-4 py-2 bg-slate-800 text-slate-300 rounded hover:bg-slate-700">Cancelar</button>
+                      <button onClick={() => {
+                          if (passwordInput === 'Só eu sei a senha') {
+                              setIsUnlocked(true);
+                              setActiveTab(passwordPromptTab);
+                              setPasswordPromptTab(null);
+                              if (window.innerWidth < 1024) setSidebarOpen(false);
+                          } else {
+                              addToast('Senha incorreta!', 'alert');
+                          }
+                      }} className="flex-1 px-4 py-2 bg-amber-600 text-slate-950 rounded hover:bg-amber-500 font-bold">Acessar</button>
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 };

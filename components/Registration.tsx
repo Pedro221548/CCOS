@@ -343,6 +343,30 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                workers.some(w => !w.companyName || w.companyName.trim().toUpperCase() === 'NÃO IDENTIFICADO');
     }, [dailyRoster, workers, isAdmin, isManager]);
 
+    const inactiveWorkers = useMemo(() => {
+        if (!isProvider) return [];
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+        return workers.filter(w => {
+            const workerRosters = dailyRoster.filter(r => r.workerId === w.id);
+            if (workerRosters.length === 0) {
+                // If never rostered, check if created more than 30 days ago
+                return w.createdAt && w.createdAt < thirtyDaysAgoStr;
+            }
+            // Find the most recent roster date
+            const lastRosterDate = workerRosters.reduce((latest, r) => r.date > latest ? r.date : latest, '');
+            return lastRosterDate < thirtyDaysAgoStr;
+        });
+    }, [workers, dailyRoster, isProvider]);
+
+    const activeWorkers = useMemo(() => {
+        if (!isProvider) return workers;
+        const inactiveIds = new Set(inactiveWorkers.map(w => w.id));
+        return workers.filter(w => !inactiveIds.has(w.id));
+    }, [workers, inactiveWorkers, isProvider]);
+
     const handleSelectAllRoster = () => {
         if (selectedRosterIds.size === confirmedTodayFiltered.length) {
             setSelectedRosterIds(new Set());
@@ -612,7 +636,45 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6">
-                        {workers.map(w => {
+                        {inactiveWorkers.length > 0 && (
+                            <div className="col-span-full mb-4">
+                                <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 flex items-start gap-4">
+                                    <div className="p-2 bg-rose-500/20 rounded-xl">
+                                        <AlertTriangle className="text-rose-500 w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-rose-500 font-black uppercase text-sm tracking-widest mb-1">Atenção: Cadastros Inativos</h4>
+                                        <p className="text-slate-400 text-xs leading-relaxed">
+                                            Os funcionários abaixo não são escalados há mais de 30 dias. Recomendamos a exclusão destes cadastros para manter sua lista atualizada e organizada.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6 mt-4">
+                                    {inactiveWorkers.map(w => {
+                                        const isSelected = selectedWorkerIds.has(w.id);
+                                        return (
+                                            <div key={w.id} onClick={() => toggleWorkerSelection(w.id)} className={`relative cursor-pointer bg-slate-950 border rounded-[20px] md:rounded-[32px] p-4 md:p-6 transition-all group overflow-hidden ${isSelected ? 'border-rose-500 bg-rose-500/5 shadow-2xl shadow-rose-900/20' : 'border-rose-500/30 hover:border-rose-500/50'}`}>
+                                                <div className="absolute top-0 right-0 bg-rose-500 text-white text-[8px] font-black px-3 py-1 rounded-bl-xl uppercase tracking-widest">Inativo &gt; 30 dias</div>
+                                                <div className="flex items-center gap-4 md:gap-5 relative z-10 mt-2">
+                                                    <div className="relative shrink-0">
+                                                        <img src={w.photoUrl} className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-[20px] object-cover border-2 border-slate-800" />
+                                                        <div className={`absolute -top-1.5 -left-1.5 p-1 rounded-lg border shadow-lg transition-all ${isSelected ? 'bg-rose-600 border-rose-400 scale-110' : 'bg-slate-800 border-slate-700'}`}>
+                                                            {isSelected ? <CheckSquare size={14} className="text-white" /> : <Square size={14} className="text-slate-600" />}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="text-white font-black uppercase text-[11px] md:text-sm tracking-widest truncate">{w.name}</h4>
+                                                        <p className="text-slate-500 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] mt-0.5 md:mt-1 truncate">CPF: {w.cpf}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                        
+                        {activeWorkers.map(w => {
                             const isSelected = selectedWorkerIds.has(w.id);
                             return (
                                 <div key={w.id} onClick={() => toggleWorkerSelection(w.id)} className={`relative cursor-pointer bg-slate-950 border rounded-[20px] md:rounded-[32px] p-4 md:p-6 transition-all group overflow-hidden ${isSelected ? 'border-blue-500 bg-blue-500/5 shadow-2xl shadow-blue-900/20' : 'border-slate-800 hover:border-slate-700'}`}>
