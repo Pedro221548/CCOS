@@ -69,6 +69,7 @@ export interface Camera {
   observation?: string; 
   channelType: ChannelType;
   lastLog?: string; 
+  recordingTime?: string;
 }
 
 export interface AccessPoint {

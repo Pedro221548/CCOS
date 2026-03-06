@@ -285,8 +285,16 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                         <div className="flex justify-between items-start mb-3 gap-2">
                             <div className="overflow-hidden">
                                 <h3 className="font-semibold text-white text-base leading-tight truncate" title={cam.name}>{cam.name}</h3>
-                                <div className="mt-1 inline-flex items-center px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px] font-mono border border-slate-700">
-                                    {cam.id}
+                                <div className="flex items-center gap-2 mt-1">
+                                    <div className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px] font-mono border border-slate-700">
+                                        {cam.id}
+                                    </div>
+                                    {cam.recordingTime && (
+                                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-bold border border-blue-500/20 uppercase tracking-widest" title="Tempo de Gravação">
+                                            <Clock size={10} />
+                                            {cam.recordingTime}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             
@@ -403,6 +411,10 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                           <div>
                               <label className="block text-xs text-slate-400 mb-1">Responsável</label>
                               <input type="text" value={formData.responsible || ''} onChange={e => setFormData({...formData, responsible: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" />
+                          </div>
+                          <div className="col-span-2">
+                              <label className="block text-xs text-slate-400 mb-1">Tempo de Gravação (ex: 30 DIAS)</label>
+                              <input type="text" value={formData.recordingTime || ''} onChange={e => setFormData({...formData, recordingTime: e.target.value})} placeholder="Ex: 30 DIAS" className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white text-sm" />
                           </div>
                       </div>
                       <div className="flex gap-3 pt-4 border-t border-slate-800">

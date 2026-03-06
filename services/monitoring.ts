@@ -58,6 +58,13 @@ class MonitoringService {
     await set(ref(db, 'monitoramento/cameras'), newCameras);
   }
 
+  async updateCameraRecordingTime(uuid: string, recordingTime: string, currentCameras: Camera[]) {
+    const newCameras = currentCameras.map(c => 
+        c.uuid === uuid ? { ...c, recordingTime } : c
+    );
+    await set(ref(db, 'monitoramento/cameras'), newCameras);
+  }
+
   async resolveCameraIssue(uuid: string, currentCameras: Camera[]) {
     const target = currentCameras.find(c => c.uuid === uuid);
     if (!target) return;

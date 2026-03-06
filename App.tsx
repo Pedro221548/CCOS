@@ -184,7 +184,15 @@ const App: React.FC = () => {
 
   const handleImportData = async (cameras: Camera[], accessPoints: AccessPoint[]) => {
       try {
-          await monitoringService.importData(cameras, accessPoints);
+          // Merge existing recordingTime
+          const mergedCameras = cameras.map(newCam => {
+              const existingCam = data.cameras.find(c => c.uuid === newCam.uuid);
+              if (existingCam && existingCam.recordingTime) {
+                  return { ...newCam, recordingTime: existingCam.recordingTime };
+              }
+              return newCam;
+          });
+          await monitoringService.importData(mergedCameras, accessPoints);
           addToast("Sistema atualizado!", "success");
       } catch (e) {
           addToast("Erro ao importar dados.", "alert");
@@ -200,6 +208,33 @@ const App: React.FC = () => {
     } catch (e) {
         addToast("Erro ao alterar status da câmera.", "alert");
     }
+  };
+
+  const handleAddCamera = async (cam: Camera) => {
+      try {
+          await monitoringService.addCamera(cam, data.cameras);
+          addToast("Câmera adicionada com sucesso!", "success");
+      } catch (e) {
+          addToast("Erro ao adicionar câmera.", "alert");
+      }
+  };
+
+  const handleEditCamera = async (cam: Camera) => {
+      try {
+          await monitoringService.updateCamera(cam, data.cameras);
+          addToast("Câmera atualizada com sucesso!", "success");
+      } catch (e) {
+          addToast("Erro ao atualizar câmera.", "alert");
+      }
+  };
+
+  const handleDeleteCamera = async (uuid: string) => {
+      try {
+          await monitoringService.deleteCamera(uuid, data.cameras);
+          addToast("Câmera removida com sucesso!", "success");
+      } catch (e) {
+          addToast("Erro ao remover câmera.", "alert");
+      }
   };
 
   const handleToggleAccessStatus = async (uuid: string) => {
@@ -465,8 +500,8 @@ const App: React.FC = () => {
                             <button onClick={() => setMonitoringSubTab('access')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${monitoringSubTab === 'access' ? 'bg-amber-600 text-slate-950 font-bold shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>ACESSO <span className="text-[10px] opacity-80">({counts.access})</span></button>
                         </div>
                     </div>
-                    {monitoringSubTab === 'cameras' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'video')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
-                    {monitoringSubTab === 'alarms' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'alarm')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
+                    {monitoringSubTab === 'cameras' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'video')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} onAdd={handleAddCamera} onEdit={handleEditCamera} onDelete={handleDeleteCamera} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
+                    {monitoringSubTab === 'alarms' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'alarm')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} onAdd={handleAddCamera} onEdit={handleEditCamera} onDelete={handleDeleteCamera} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
                     {monitoringSubTab === 'access' && <AccessControlList accessPoints={data.accessPoints} onToggleStatus={handleToggleAccessStatus} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
                   </div>
                 )}
