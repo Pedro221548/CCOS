@@ -1,7 +1,9 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { Camera, Status } from '../types';
-import { Video, MapPin, User, AlertCircle, Search, X, Filter, Warehouse, Plus, Edit2, Trash2, PowerOff, Power, Clock } from 'lucide-react';
+import { Video, MapPin, User, AlertCircle, Search, X, Filter, Warehouse, Plus, Edit2, Trash2, PowerOff, Power, Clock, Download } from 'lucide-react';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 interface CameraListProps {
   cameras: Camera[];
@@ -114,21 +116,71 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
       setShowModal(false);
   }, [formData, editingCam, onEdit, onAdd]);
 
+  const handleExportExcel = async () => {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Câmeras');
+
+      worksheet.columns = [
+          { header: 'NOME DA CAMERA', key: 'name', width: 40 },
+          { header: 'GALPÃO', key: 'warehouse', width: 25 },
+          { header: 'STATUS ON/OFF', key: 'status', width: 20 },
+          { header: 'TEMPO DE GRAVAÇÃO', key: 'recordingTime', width: 25 },
+          { header: 'RESPONSAVEL', key: 'responsible', width: 30 }
+      ];
+
+      filteredCameras.forEach(cam => {
+          worksheet.addRow({
+              name: cam.name,
+              warehouse: cam.warehouse,
+              status: cam.status,
+              recordingTime: cam.recordingTime || '-',
+              responsible: cam.responsible || '-'
+          });
+      });
+
+      worksheet.eachRow((row, rowNumber) => {
+          row.eachCell((cell) => {
+              cell.alignment = { vertical: 'middle', horizontal: 'center' };
+              if (rowNumber === 1) {
+                  cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                  cell.fill = {
+                      type: 'pattern',
+                      pattern: 'solid',
+                      fgColor: { argb: 'FF1E293B' } // slate-800
+                  };
+              }
+          });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, 'Lista_Cameras.xlsx');
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-8">
       {/* Header Area */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                    <Video className="text-blue-500" />
-                    Lista de Câmeras / Alarmes
-                </h2>
-                {allowedWarehouses && (
-                    <p className="text-xs text-slate-400 mt-1">
-                        Visualizando apenas galpões permitidos.
-                    </p>
-                )}
+            <div className="flex items-center gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                        <Video className="text-blue-500" />
+                        Lista de Câmeras / Alarmes
+                    </h2>
+                    {allowedWarehouses && (
+                        <p className="text-xs text-slate-400 mt-1">
+                            Visualizando apenas galpões permitidos.
+                        </p>
+                    )}
+                </div>
+                <button 
+                    onClick={handleExportExcel}
+                    className="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                    title="Exportar para Excel"
+                >
+                    <Download size={16} /> Exportar
+                </button>
             </div>
             <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                 <div className="flex gap-2">
