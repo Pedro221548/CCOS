@@ -239,6 +239,26 @@ const App: React.FC = () => {
       }
   };
 
+  const handleImportRecordingTimes = async (updates: { name: string; recordingTime: string }[]) => {
+      try {
+          let updatedCount = 0;
+          for (const update of updates) {
+              const cam = data.cameras.find(c => c.name === update.name);
+              if (cam && cam.recordingTime !== update.recordingTime) {
+                  await monitoringService.updateCamera({ ...cam, recordingTime: update.recordingTime }, data.cameras);
+                  updatedCount++;
+              }
+          }
+          if (updatedCount > 0) {
+              addToast(`${updatedCount} câmeras atualizadas com sucesso!`, "success");
+          } else {
+              addToast("Nenhuma câmera precisou ser atualizada.", "info");
+          }
+      } catch (e) {
+          addToast("Erro ao atualizar tempo de gravação.", "alert");
+      }
+  };
+
   const handleDeleteCamera = async (uuid: string) => {
       try {
           await monitoringService.deleteCamera(uuid, data.cameras);
@@ -513,8 +533,8 @@ const App: React.FC = () => {
                             <button onClick={() => setMonitoringSubTab('access')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${monitoringSubTab === 'access' ? 'bg-amber-600 text-slate-950 font-bold shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>ACESSO <span className="text-[10px] opacity-80">({counts.access})</span></button>
                         </div>
                     </div>
-                    {monitoringSubTab === 'cameras' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'video')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} onAdd={handleAddCamera} onEdit={handleEditCamera} onDelete={handleDeleteCamera} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
-                    {monitoringSubTab === 'alarms' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'alarm')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} onAdd={handleAddCamera} onEdit={handleEditCamera} onDelete={handleDeleteCamera} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
+                    {monitoringSubTab === 'cameras' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'video')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} onAdd={handleAddCamera} onEdit={handleEditCamera} onDelete={handleDeleteCamera} onImportRecordingTimes={handleImportRecordingTimes} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} userRole={user.role} />}
+                    {monitoringSubTab === 'alarms' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'alarm')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} onAdd={handleAddCamera} onEdit={handleEditCamera} onDelete={handleDeleteCamera} onImportRecordingTimes={handleImportRecordingTimes} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} userRole={user.role} />}
                     {monitoringSubTab === 'access' && <AccessControlList accessPoints={data.accessPoints} onToggleStatus={handleToggleAccessStatus} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
                   </div>
                 )}

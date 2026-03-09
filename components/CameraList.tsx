@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { Camera, Status } from '../types';
-import { Video, MapPin, User, AlertCircle, Search, X, Filter, Warehouse, Plus, Edit2, Trash2, PowerOff, Power, Clock, Download } from 'lucide-react';
+import { Video, MapPin, User, AlertCircle, Search, X, Filter, Warehouse, Plus, Edit2, Trash2, PowerOff, Power, Clock, Download, Upload } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
@@ -12,6 +12,7 @@ interface CameraListProps {
   onAdd?: (cam: Camera) => void;
   onEdit?: (cam: Camera) => void;
   onDelete?: (uuid: string) => void;
+  onImportRecordingTimes?: (updates: { name: string; recordingTime: string }[]) => void;
   readOnly?: boolean;
   allowedWarehouses?: string[]; // New prop for filtering
   userRole?: string;
@@ -33,7 +34,7 @@ const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehou
     });
 };
 
-const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetWarehouseStatus, onAdd, onEdit, onDelete, readOnly = false, allowedWarehouses, userRole }) => {
+const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetWarehouseStatus, onAdd, onEdit, onDelete, onImportRecordingTimes, readOnly = false, allowedWarehouses, userRole }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ONLINE' | 'OFFLINE'>('ALL');
   const [moduleFilter, setModuleFilter] = useState<string>('ALL');
@@ -43,6 +44,8 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
   const [showModal, setShowModal] = useState(false);
   const [editingCam, setEditingCam] = useState<Camera | null>(null);
   const [formData, setFormData] = useState<Partial<Camera>>({});
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // 1. Initial Permission Filtering
   const permittedCameras = useMemo(() => {
@@ -158,6 +161,40 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
       saveAs(blob, 'Lista_Cameras.xlsx');
   };
 
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      try {
+          const workbook = new ExcelJS.Workbook();
+          await workbook.xlsx.load(await file.arrayBuffer());
+          const worksheet = workbook.getWorksheet(1);
+          
+          if (!worksheet) throw new Error("Planilha vazia");
+
+          const updates: { name: string; recordingTime: string }[] = [];
+
+          worksheet.eachRow((row, rowNumber) => {
+              if (rowNumber === 1) return; // Skip header
+              const name = row.getCell(1).value?.toString() || '';
+              const recordingTime = row.getCell(4).value?.toString() || '';
+              
+              if (name && recordingTime && recordingTime !== '-') {
+                  updates.push({ name, recordingTime });
+              }
+          });
+
+          if (onImportRecordingTimes && updates.length > 0) {
+              onImportRecordingTimes(updates);
+          }
+      } catch (err) {
+          console.error("Erro ao importar planilha:", err);
+          alert("Erro ao importar planilha. Verifique o formato.");
+      } finally {
+          if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-8">
       {/* Header Area */}
@@ -175,13 +212,33 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                         </p>
                     )}
                 </div>
-                <button 
-                    onClick={handleExportExcel}
-                    className="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
-                    title="Exportar para Excel"
-                >
-                    <Download size={16} /> Exportar
-                </button>
+                <div className="flex items-center gap-2">
+                    <button 
+                        onClick={handleExportExcel}
+                        className="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                        title="Exportar para Excel"
+                    >
+                        <Download size={16} /> Exportar
+                    </button>
+                    {!readOnly && onImportRecordingTimes && (
+                        <>
+                            <input 
+                                type="file" 
+                                accept=".xlsx"
+                                ref={fileInputRef}
+                                onChange={handleImportExcel}
+                                className="hidden"
+                            />
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                                title="Importar Tempo de Gravação"
+                            >
+                                <Upload size={16} /> Importar
+                            </button>
+                        </>
+                    )}
+                </div>
             </div>
             <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                 <div className="flex gap-2">
