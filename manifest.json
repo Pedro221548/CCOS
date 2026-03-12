@@ -5,7 +5,7 @@
   "description": "Centro de Controle de Operações e Segurança",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#020408",
+  "background_color": "#1c1e26",
   "theme_color": "#f59e0b",
   "status_bar": "black-translucent",
   "orientation": "portrait",

@@ -111,7 +111,7 @@ const PaymentPendencies: React.FC<PaymentPendenciesProps> = ({ thirdPartyWorkers
             placeholder="Buscar por nome ou empresa..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#020408] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors"
+            className="w-full bg-[#1c1e26] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors"
           />
         </div>
         
@@ -121,7 +121,7 @@ const PaymentPendencies: React.FC<PaymentPendenciesProps> = ({ thirdPartyWorkers
             <select
               value={filterCompany}
               onChange={(e) => setFilterCompany(e.target.value)}
-              className="w-full bg-[#020408] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors appearance-none"
+              className="w-full bg-[#1c1e26] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors appearance-none"
             >
               <option value="all">Todas as Empresas</option>
               {companies.map(c => (
@@ -136,7 +136,7 @@ const PaymentPendencies: React.FC<PaymentPendenciesProps> = ({ thirdPartyWorkers
               type="date"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
-              className="w-full bg-[#020408] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors [color-scheme:dark]"
+              className="w-full bg-[#1c1e26] border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors [color-scheme:dark]"
             />
           </div>
         </div>
@@ -146,7 +146,7 @@ const PaymentPendencies: React.FC<PaymentPendenciesProps> = ({ thirdPartyWorkers
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#020408] border-b border-slate-800">
+              <tr className="bg-[#1c1e26] border-b border-slate-800">
                 <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-wider">Nome do Terceirizado</th>
                 <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-wider">Empresa</th>
                 <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-wider">Unidade</th>

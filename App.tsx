@@ -33,7 +33,7 @@ const RegistrationHistory = lazy(() => import('./components/RegistrationHistory'
 const FinanceAudit = lazy(() => import('./components/FinanceAudit'));
 
 const LoadingFallback = () => (
-  <div className="flex items-center justify-center h-full w-full bg-[#020408]">
+  <div className="flex items-center justify-center h-full w-full bg-[#1c1e26]">
     <div className="flex flex-col items-center gap-4">
         <Loader2 className="animate-spin text-amber-500 w-12 h-12" />
         <span className="text-amber-500/50 text-[10px] font-black uppercase tracking-[0.3em]">Carregando Módulos...</span>
@@ -352,11 +352,11 @@ const App: React.FC = () => {
   const handleAddShiftNote = (note: ShiftNote) => organizerService.addShiftNote(note, data.shiftNotes || []);
   const handleDeleteShiftNote = (id: string) => organizerService.deleteShiftNote(id, data.shiftNotes || []);
 
-  if (authLoading) return <div className="min-h-screen bg-[#020408] flex items-center justify-center"><Loader2 className="animate-spin text-amber-500 w-10 h-10" /></div>;
+  if (authLoading) return <div className="min-h-screen bg-[#1c1e26] flex items-center justify-center"><Loader2 className="animate-spin text-amber-500 w-10 h-10" /></div>;
   if (!user) return <Suspense fallback={<LoadingFallback />}><Login onLogin={() => {}} /></Suspense>;
 
   return (
-    <div className="h-screen w-full bg-slate-200 dark:bg-[#020408] text-slate-900 dark:text-slate-100 flex font-sans overflow-hidden">
+    <div className="h-screen w-full bg-slate-200 dark:bg-[#1c1e26] text-slate-900 dark:text-slate-100 flex font-sans overflow-hidden">
       
       <div className="fixed top-4 right-4 z-[200] flex flex-col gap-3 pointer-events-none">
           {toasts.map(t => (
@@ -448,8 +448,8 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200 dark:bg-[#020408] w-full relative">
-        <header className="h-16 bg-slate-50/80 dark:bg-[#020408]/80 backdrop-blur-md border-b border-slate-300 dark:border-slate-800/50 flex items-center justify-between px-6 sticky top-0 z-20 shrink-0">
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200 dark:bg-[#1c1e26] w-full relative">
+        <header className="h-16 bg-slate-50/80 dark:bg-[#1c1e26]/80 backdrop-blur-md border-b border-slate-300 dark:border-slate-800/50 flex items-center justify-between px-6 sticky top-0 z-20 shrink-0">
           <div className="flex items-center gap-4">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors"><Menu size={24} /></button>
             <div className="hidden sm:flex px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-500 uppercase tracking-widest items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>Operação Ativa</div>
@@ -510,13 +510,21 @@ const App: React.FC = () => {
                 {activeTab === 'dashboard' && <Dashboard data={data} thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
                 {activeTab === 'finance' && (
                   <div className="space-y-6 animate-fade-in">
-                    <div className="px-4 md:px-6">
-                        <div className="bg-slate-900/50 p-1 rounded-2xl border border-slate-800/50 shadow-sm overflow-hidden">
-                            <div className="flex bg-[#020408] border border-slate-800 p-1.5 rounded-xl shadow-inner w-full overflow-x-auto no-scrollbar scroll-smooth gap-2">
-                                <button onClick={() => setFinanceSubTab('payments')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${financeSubTab === 'payments' ? 'bg-amber-600 text-slate-950 font-bold shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>FREQUÊNCIA</button>
-                                <button onClick={() => setFinanceSubTab('audit')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${financeSubTab === 'audit' ? 'bg-amber-600 text-slate-950 font-bold shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>AUDITORIA</button>
-                            </div>
-                        </div>
+                    <div className="flex border-b border-slate-300 dark:border-slate-800/50 overflow-x-auto no-scrollbar">
+                        <button 
+                            onClick={() => setFinanceSubTab('payments')} 
+                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${financeSubTab === 'payments' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                        >
+                            Frequência
+                            {financeSubTab === 'payments' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
+                        </button>
+                        <button 
+                            onClick={() => setFinanceSubTab('audit')} 
+                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${financeSubTab === 'audit' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                        >
+                            Auditoria
+                            {financeSubTab === 'audit' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
+                        </button>
                     </div>
                     {financeSubTab === 'payments' && <Payments payments={paymentRecords} workers={thirdPartyWorkers} currentUser={user} />}
                     {financeSubTab === 'audit' && <FinanceAudit workers={thirdPartyWorkers} payments={paymentRecords} currentUser={user} />}
@@ -526,12 +534,28 @@ const App: React.FC = () => {
                 {activeTab === 'registration-history' && <RegistrationHistory currentUser={user} />}
                 {activeTab === 'monitoring' && (
                   <div className="space-y-8 animate-fade-in">
-                    <div className="bg-slate-900/50 p-1 rounded-2xl border border-slate-800/50 shadow-sm">
-                        <div className="flex bg-[#020408] border border-slate-800 p-1.5 rounded-xl shadow-inner w-full overflow-x-auto no-scrollbar scroll-smooth gap-2">
-                            <button onClick={() => setMonitoringSubTab('cameras')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${monitoringSubTab === 'cameras' ? 'bg-amber-600 text-slate-950 font-bold shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>CÂMERAS <span className="text-[10px] opacity-80">({counts.video})</span></button>
-                            <button onClick={() => setMonitoringSubTab('alarms')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${monitoringSubTab === 'alarms' ? 'bg-[#ea580c] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>ALARMES <span className="text-[10px] opacity-80">({counts.alarm})</span></button>
-                            <button onClick={() => setMonitoringSubTab('access')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${monitoringSubTab === 'access' ? 'bg-amber-600 text-slate-950 font-bold shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>ACESSO <span className="text-[10px] opacity-80">({counts.access})</span></button>
-                        </div>
+                    <div className="flex border-b border-slate-300 dark:border-slate-800/50 overflow-x-auto no-scrollbar">
+                        <button 
+                            onClick={() => setMonitoringSubTab('cameras')} 
+                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${monitoringSubTab === 'cameras' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                        >
+                            Câmeras <span className="text-[10px] opacity-60 ml-1">({counts.video})</span>
+                            {monitoringSubTab === 'cameras' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
+                        </button>
+                        <button 
+                            onClick={() => setMonitoringSubTab('alarms')} 
+                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${monitoringSubTab === 'alarms' ? 'text-orange-600 dark:text-orange-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                        >
+                            Alarmes <span className="text-[10px] opacity-60 ml-1">({counts.alarm})</span>
+                            {monitoringSubTab === 'alarms' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600 dark:bg-orange-500 shadow-[0_0_10px_rgba(234,88,12,0.5)]"></div>}
+                        </button>
+                        <button 
+                            onClick={() => setMonitoringSubTab('access')} 
+                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${monitoringSubTab === 'access' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                        >
+                            Acesso <span className="text-[10px] opacity-60 ml-1">({counts.access})</span>
+                            {monitoringSubTab === 'access' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
+                        </button>
                     </div>
                     {monitoringSubTab === 'cameras' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'video')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} onAdd={handleAddCamera} onEdit={handleEditCamera} onDelete={handleDeleteCamera} onImportRecordingTimes={handleImportRecordingTimes} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} userRole={user.role} />}
                     {monitoringSubTab === 'alarms' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'alarm')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} onAdd={handleAddCamera} onEdit={handleEditCamera} onDelete={handleDeleteCamera} onImportRecordingTimes={handleImportRecordingTimes} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} userRole={user.role} />}
@@ -540,12 +564,28 @@ const App: React.FC = () => {
                 )}
                 {activeTab === 'third-party-mgmt' && (
                   <div className="space-y-6 animate-fade-in">
-                    <div className="bg-slate-900/50 p-1 rounded-2xl border border-slate-800/50 shadow-sm overflow-hidden">
-                        <div className="flex bg-[#020408] border border-slate-800 p-1.5 rounded-xl shadow-inner w-full overflow-x-auto no-scrollbar scroll-smooth gap-2">
-                            <button onClick={() => setThirdPartySubTab('status')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${thirdPartySubTab === 'status' ? 'bg-amber-600 text-slate-950 font-bold shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>STATUS</button>
-                            <button onClick={() => setThirdPartySubTab('access-mgmt')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${thirdPartySubTab === 'access-mgmt' ? 'bg-amber-600 text-slate-950 font-bold shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>RELATÓRIOS</button>
-                            <button onClick={() => setThirdPartySubTab('heatmap')} className={`flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${thirdPartySubTab === 'heatmap' ? 'bg-amber-600 text-slate-950 font-bold shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>MAPA CALOR</button>
-                        </div>
+                    <div className="flex border-b border-slate-300 dark:border-slate-800/50 overflow-x-auto no-scrollbar">
+                        <button 
+                            onClick={() => setThirdPartySubTab('status')} 
+                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${thirdPartySubTab === 'status' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                        >
+                            Status
+                            {thirdPartySubTab === 'status' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
+                        </button>
+                        <button 
+                            onClick={() => setThirdPartySubTab('access-mgmt')} 
+                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${thirdPartySubTab === 'access-mgmt' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                        >
+                            Relatórios
+                            {thirdPartySubTab === 'access-mgmt' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
+                        </button>
+                        <button 
+                            onClick={() => setThirdPartySubTab('heatmap')} 
+                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${thirdPartySubTab === 'heatmap' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                        >
+                            Mapa Calor
+                            {thirdPartySubTab === 'heatmap' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
+                        </button>
                     </div>
                     {thirdPartySubTab === 'status' && <ThirdPartyStatus workers={thirdPartyWorkers} paymentRecords={paymentRecords} currentUser={user} />}
                     {thirdPartySubTab === 'access-mgmt' && <AccessManagement accessPoints={data.accessPoints} thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
@@ -555,12 +595,15 @@ const App: React.FC = () => {
                 {activeTab === 'manual' && <Manual />}
                 {activeTab === 'work-mgmt' && (
                   <div className="space-y-6 animate-fade-in">
-                    <div className="bg-slate-900/50 p-1 rounded-2xl border border-slate-800/50 shadow-sm">
-                        <div className="flex bg-[#020408] border border-slate-800 p-1.5 rounded-xl shadow-inner w-full overflow-x-auto no-scrollbar scroll-smooth gap-2">
-                            <button className="flex-1 min-w-[110px] px-3 py-3 rounded-lg transition-all flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest bg-amber-600 text-slate-950 shadow-lg">
-                                <Calendar size={16} /> AGENDA
-                            </button>
-                        </div>
+                    <div className="flex border-b border-slate-300 dark:border-slate-800/50 overflow-x-auto no-scrollbar">
+                        <button 
+                            className="px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap text-amber-600 dark:text-amber-500"
+                        >
+                            <div className="flex items-center gap-2">
+                                <Calendar size={14} /> Agenda
+                            </div>
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>
+                        </button>
                     </div>
                     <div>
                          <Organizer 

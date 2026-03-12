@@ -30,7 +30,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#020408] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-[#1c1e26] flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {showLegal && <Legal type={showLegal} onClose={() => setShowLegal(null)} />}
       
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
