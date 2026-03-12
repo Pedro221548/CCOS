@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { AccessPoint } from '../types';
-import { ShieldCheck, MapPin, Clock, DoorClosed, AlertTriangle, Warehouse, Activity, RefreshCw, Filter, Search, X, Plus, Edit2, Trash2 } from 'lucide-react';
+import { ShieldCheck, MapPin, Clock, DoorClosed, AlertTriangle, Warehouse, Activity, RefreshCw, Filter, Search, X, Plus, Edit2, Trash2, Download } from 'lucide-react';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 interface AccessControlListProps {
   accessPoints: AccessPoint[];
@@ -130,6 +132,55 @@ const AccessControlList: React.FC<AccessControlListProps> = ({ accessPoints, onT
       setShowModal(false);
   }, [formData, editingAp, onEdit, onAdd]);
 
+  const handleExportExcel = async () => {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Controle de Acesso');
+
+      worksheet.columns = [
+          { header: 'NOME DO DISPOSITIVO', key: 'name', width: 40 },
+          { header: 'GALPÃO', key: 'warehouse', width: 25 },
+          { header: 'STATUS', key: 'status', width: 20 }
+      ];
+
+      filteredPoints.forEach(ap => {
+          worksheet.addRow({
+              name: ap.name,
+              warehouse: ap.warehouse,
+              status: ap.status
+          });
+      });
+
+      // Style the worksheet
+      worksheet.eachRow((row, rowNumber) => {
+          row.eachCell((cell) => {
+              // Alignment: Centralized
+              cell.alignment = { vertical: 'middle', horizontal: 'center' };
+              
+              // Borders: All borders
+              cell.border = {
+                  top: { style: 'thin' },
+                  left: { style: 'thin' },
+                  bottom: { style: 'thin' },
+                  right: { style: 'thin' }
+              };
+
+              if (rowNumber === 1) {
+                  // Header styling
+                  cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                  cell.fill = {
+                      type: 'pattern',
+                      pattern: 'solid',
+                      fgColor: { argb: 'FF1E293B' } // slate-800
+                  };
+              }
+          });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, `Controle_de_Acesso_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.xlsx`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-8">
       {/* Header with Stats */}
@@ -139,6 +190,14 @@ const AccessControlList: React.FC<AccessControlListProps> = ({ accessPoints, onT
                 <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                     <DoorClosed className="text-blue-500" />
                     Controle de Acesso
+                    <button 
+                        onClick={handleExportExcel}
+                        className="ml-4 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                        title="Exportar para Excel"
+                    >
+                        <Download size={16} />
+                        <span className="hidden sm:inline">Exportar</span>
+                    </button>
                 </h2>
                 {allowedWarehouses && (
                     <p className="text-xs text-slate-400 mt-1">
