@@ -352,11 +352,11 @@ const App: React.FC = () => {
   const handleAddShiftNote = (note: ShiftNote) => organizerService.addShiftNote(note, data.shiftNotes || []);
   const handleDeleteShiftNote = (id: string) => organizerService.deleteShiftNote(id, data.shiftNotes || []);
 
-  if (authLoading) return <div className="min-h-screen bg-[#1c1e26] flex items-center justify-center"><Loader2 className="animate-spin text-amber-500 w-10 h-10" /></div>;
+  if (authLoading) return <div className="min-h-screen bg-[#121212] flex items-center justify-center"><Loader2 className="animate-spin text-amber-500 w-10 h-10" /></div>;
   if (!user) return <Suspense fallback={<LoadingFallback />}><Login onLogin={() => {}} /></Suspense>;
 
   return (
-    <div className="h-screen w-full bg-slate-200 dark:bg-[#1c1e26] text-slate-900 dark:text-slate-100 flex font-sans overflow-hidden">
+    <div className="h-screen w-full bg-slate-200 dark:bg-[#121212] text-slate-900 dark:text-slate-100 flex font-sans overflow-hidden">
       
       <div className="fixed top-4 right-4 z-[200] flex flex-col gap-3 pointer-events-none">
           {toasts.map(t => (
@@ -369,60 +369,102 @@ const App: React.FC = () => {
           ))}
       </div>
 
-      <aside className={`fixed inset-y-0 left-0 z-40 bg-slate-50 dark:bg-slate-950 border-r border-slate-300 dark:border-slate-800 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 lg:translate-x-0 lg:static lg:h-full lg:w-64 flex flex-col shadow-2xl lg:shadow-none`}>
-        <div className="flex flex-col items-center justify-center py-10 px-4 shrink-0 select-none">
-            <div onClick={() => handleTabChange('dashboard')} className="flex flex-col items-center group w-full text-center cursor-pointer">
-                <div className="relative mb-4 transform transition-transform group-hover:scale-105 duration-300 mx-auto">
-                    <div className="absolute inset-0 bg-amber-500/20 blur-2xl rounded-full"></div>
-                    <Shield className="w-16 h-16 text-amber-500 relative z-10 fill-amber-500/10 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" strokeWidth={1.5} />
+      <aside className={`fixed inset-y-0 left-0 z-40 bg-slate-50 dark:bg-[#0d0d0d] border-r border-slate-300 dark:border-slate-800 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 lg:translate-x-0 lg:static lg:h-full lg:w-72 flex flex-col shadow-2xl lg:shadow-none`}>
+        <div className="flex flex-col items-center justify-center py-8 px-6 shrink-0 select-none">
+            <div onClick={() => handleTabChange('dashboard')} className="flex items-center gap-3 group w-full cursor-pointer">
+                <div className="relative transform transition-transform group-hover:scale-110 duration-300">
+                    <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full"></div>
+                    <Shield className="w-10 h-10 text-amber-500 relative z-10 fill-amber-500/10" strokeWidth={2} />
                 </div>
-                <h1 className="text-4xl font-black text-amber-500 mb-4 leading-none tracking-tighter drop-shadow-md">CCOS</h1>
-                <div className="px-5 py-1.5 bg-amber-500/5 border border-amber-500/20 rounded-full inline-block mx-auto shadow-inner"><span className="text-[10px] font-black text-amber-600 uppercase tracking-[0.3em]">DEMONSTRAÇÃO</span></div>
+                <div className="flex flex-col">
+                    <h1 className="text-2xl font-black text-amber-500 leading-none tracking-tighter">CCOS</h1>
+                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mt-1">Security Systems</span>
+                </div>
             </div>
         </div>
-        <nav className="p-4 space-y-1 flex-1 overflow-y-auto custom-scrollbar border-t border-slate-800/50 mt-4">
-          {user.role !== 'provider' && (
-              <button onClick={() => handleTabChange('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><LayoutDashboard size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Dashboard</span></button>
-          )}
-          
-          {user.role !== 'provider' && (
-              <>
-                <button onClick={() => handleTabChange('monitoring')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'monitoring' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><Shield size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Monitoramento</span></button>
-                <button onClick={() => handleTabChange('third-party-mgmt')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'third-party-mgmt' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><Users size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Gestão Fluxo</span></button>
-              </>
-          )}
-          
-          <button onClick={() => handleTabChange('registration')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative ${activeTab === 'registration' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
-            <UserPlus size={20} /> 
-            <div className="flex items-center gap-2">
-                <span className="text-sm font-bold uppercase tracking-wider">Cadastro</span>
-                {unreadNotificationsCount > 0 && (
-                    <div className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></span>
-                    </div>
-                )}
+        <nav className="p-4 space-y-8 flex-1 overflow-y-auto custom-scrollbar">
+          {/* GRUPO OPERACIONAL */}
+          <div>
+            <p className="px-4 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] opacity-50">Operacional</p>
+            <div className="space-y-1">
+              {user.role !== 'provider' && (
+                <button onClick={() => handleTabChange('dashboard')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
+                  <LayoutDashboard size={18} /> 
+                  <span className="text-xs font-bold uppercase tracking-wider">Dashboard</span>
+                </button>
+              )}
+              {user.role !== 'provider' && (
+                <button onClick={() => handleTabChange('monitoring')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'monitoring' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
+                  <Shield size={18} /> 
+                  <span className="text-xs font-bold uppercase tracking-wider">Monitoramento</span>
+                </button>
+              )}
+              {user?.role !== 'manager' && user.role !== 'provider' && (
+                <button onClick={() => handleTabChange('work-mgmt')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'work-mgmt' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
+                  <ClipboardList size={18} /> 
+                  <span className="text-xs font-bold uppercase tracking-wider">Plantão</span>
+                </button>
+              )}
             </div>
-          </button>
+          </div>
 
-          <button onClick={() => handleTabChange('registration-history')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'registration-history' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><History size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Histórico</span></button>
-          
-          {user.role !== 'provider' && (
-              <>
-                <button onClick={() => handleTabChange('finance')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'finance' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><DollarSign size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Financeiro</span></button>
-                {user?.role !== 'manager' && (
-                    <button onClick={() => handleTabChange('work-mgmt')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'work-mgmt' ? 'bg-amber-600 text-slate-950 shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><ClipboardList size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Operacional</span></button>
-                )}
-                <button onClick={() => handleTabChange('manual')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'manual' ? 'bg-blue-600 text-white shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}><BookOpen size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Manual</span></button>
-              </>
-          )}
-
-          {isAdmin && (
-            <div className="pt-4 mt-4 border-t border-slate-800/50 shrink-0">
-                <button onClick={() => handleTabChange('data')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'data' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}`}><FileSpreadsheet size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Fonte Dados</span></button>
-                <button onClick={() => handleTabChange('users')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'users' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}`}><Users size={20} /> <span className="text-sm font-bold uppercase tracking-wider">Usuários</span></button>
+          {/* GRUPO GESTÃO */}
+          <div>
+            <p className="px-4 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] opacity-50">Gestão & Fluxo</p>
+            <div className="space-y-1">
+              {user.role !== 'provider' && (
+                <button onClick={() => handleTabChange('third-party-mgmt')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'third-party-mgmt' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
+                  <Users size={18} /> 
+                  <span className="text-xs font-bold uppercase tracking-wider">Fluxo Terceiros</span>
+                </button>
+              )}
+              <button onClick={() => handleTabChange('registration')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all relative ${activeTab === 'registration' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
+                <UserPlus size={18} /> 
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider">Cadastro</span>
+                    {unreadNotificationsCount > 0 && (
+                        <div className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></span>
+                        </div>
+                    )}
+                </div>
+              </button>
+              <button onClick={() => handleTabChange('registration-history')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'registration-history' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
+                <History size={18} /> 
+                <span className="text-xs font-bold uppercase tracking-wider">Histórico</span>
+              </button>
+              {user.role !== 'provider' && (
+                <button onClick={() => handleTabChange('finance')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'finance' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
+                  <DollarSign size={18} /> 
+                  <span className="text-xs font-bold uppercase tracking-wider">Financeiro</span>
+                </button>
+              )}
             </div>
-          )}
+          </div>
+
+          {/* GRUPO SUPORTE & SISTEMA */}
+          <div>
+            <p className="px-4 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] opacity-50">Sistema</p>
+            <div className="space-y-1">
+              <button onClick={() => handleTabChange('manual')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'manual' ? 'bg-blue-600 text-white shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
+                <BookOpen size={18} /> 
+                <span className="text-xs font-bold uppercase tracking-wider">Manual</span>
+              </button>
+              {isAdmin && (
+                <>
+                  <button onClick={() => handleTabChange('data')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'data' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}`}>
+                    <FileSpreadsheet size={18} /> 
+                    <span className="text-xs font-bold uppercase tracking-wider">Fonte Dados</span>
+                  </button>
+                  <button onClick={() => handleTabChange('users')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'users' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}`}>
+                    <Users size={18} /> 
+                    <span className="text-xs font-bold uppercase tracking-wider">Usuários</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
         </nav>
         
         <div className="mt-auto p-4 border-t border-slate-800/50 bg-slate-950/50">
@@ -448,14 +490,39 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200 dark:bg-[#1c1e26] w-full relative">
-        <header className="h-16 bg-slate-50/80 dark:bg-[#1c1e26]/80 backdrop-blur-md border-b border-slate-300 dark:border-slate-800/50 flex items-center justify-between px-6 sticky top-0 z-20 shrink-0">
-          <div className="flex items-center gap-4">
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200 dark:bg-[#121212] w-full relative">
+        <header className="h-20 bg-white/80 dark:bg-[#0d0d0d]/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/50 flex items-center justify-between px-8 sticky top-0 z-20 shrink-0">
+          <div className="flex items-center gap-6">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors"><Menu size={24} /></button>
-            <div className="hidden sm:flex px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-500 uppercase tracking-widest items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>Operação Ativa</div>
+            <div className="hidden md:flex flex-col">
+                <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                    {activeTab === 'dashboard' ? 'Painel de Controle' : 
+                     activeTab === 'monitoring' ? 'Central de Monitoramento' :
+                     activeTab === 'third-party-mgmt' ? 'Gestão de Fluxo' :
+                     activeTab === 'registration' ? 'Cadastro de Acesso' :
+                     activeTab === 'registration-history' ? 'Histórico de Registros' :
+                     activeTab === 'finance' ? 'Gestão Financeira' :
+                     activeTab === 'work-mgmt' ? 'Controle Operacional' :
+                     activeTab === 'manual' ? 'Manual do Sistema' :
+                     activeTab === 'data' ? 'Fonte de Dados' :
+                     activeTab === 'users' ? 'Gestão de Usuários' : 'Sistema'}
+                </h2>
+                <div className="flex items-center gap-2 mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Servidor Online • Latência 12ms</span>
+                </div>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-             <div className="hidden sm:flex items-center bg-slate-950/80 px-4 py-1.5 rounded-xl border border-slate-800 shadow-inner mr-2"><div className="text-sm font-mono font-black text-white tracking-widest flex items-center gap-2"><Clock size={16} className="text-blue-500" />{currentTime.toLocaleTimeString('pt-BR')}</div></div>
+          <div className="flex items-center gap-4">
+             <div className="hidden lg:flex items-center bg-slate-100 dark:bg-slate-950 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-inner">
+                <div className="text-xs font-mono font-black text-slate-600 dark:text-amber-500 tracking-widest flex items-center gap-3">
+                    <Clock size={14} className="text-blue-500" />
+                    {currentTime.toLocaleTimeString('pt-BR')}
+                    <span className="text-slate-300 dark:text-slate-800">|</span>
+                    <Calendar size={14} className="text-purple-500" />
+                    {currentTime.toLocaleDateString('pt-BR')}
+                </div>
+             </div>
              <button onClick={() => setShowFeedbackModal(true)} className="p-2 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all flex items-center gap-1 group" title="Sugerir Melhoria"><MessageSquareHeart size={20} strokeWidth={2.5} /><span className="hidden xl:inline text-[10px] font-black uppercase tracking-widest">Feedback</span></button>
              <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-white transition-colors">{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
              <div className="relative">

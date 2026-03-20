@@ -1,10 +1,17 @@
-
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { AppData, Camera, ProcessedWorker, Status, User } from '../types';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { Video, WifiOff, Users, Box, AlertTriangle, MessageSquare, Copy, ShieldAlert, DoorClosed, ShieldCheck, Ticket, Shield, FileText, Calendar, Briefcase, Save, CheckCircle, Warehouse, Power, Clock, Activity, BellRing, Info, Loader2, Crown, TrendingUp, Building2, History, Edit2, X, Search, User as UserIcon, ArrowDownLeft, ArrowUpRight, CalendarSearch, ChevronDown, CheckSquare, Square } from 'lucide-react';
+import { Shield, Warehouse, FileText, CheckCircle2 } from 'lucide-react';
 import { monitoringService } from '../services/monitoring';
 import { WAREHOUSE_LIST } from '../constants';
+
+// Sub-components
+import StatsGrid from './dashboard/StatsGrid';
+import AccessFlowChart from './dashboard/AccessFlowChart';
+import OfflineDevicesSection from './dashboard/OfflineDevicesSection';
+import DocumentMonitoring from './dashboard/DocumentMonitoring';
+import ShiftNotes from './dashboard/ShiftNotes';
+import PersonalSearch from './dashboard/PersonalSearch';
+import IncidentModal from './dashboard/IncidentModal';
 
 interface DashboardProps {
   data: AppData;
@@ -47,6 +54,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
   const [personalSearch, setPersonalSearch] = useState('');
   const [selectedPersonKey, setSelectedPersonKey] = useState<string | null>(null);
   const [personalDateFilter, setPersonalDateFilter] = useState('');
+  const [offlineTab, setOfflineTab] = useState<'cameras' | 'alarms' | 'access'>('cameras');
 
   const isAdmin = currentUser?.role === 'admin';
   const isManager = currentUser?.role === 'manager';
@@ -201,8 +209,19 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
         if (criticalKeywords.some(k => locUpper.includes(k))) return 'CRÍTICO';
         return 'MODERADO';
       };
-      return visibleDevices.filter(c => c.status === 'OFFLINE').map(c => ({ ...c, priority: getPriority(c.location) })).sort((a, b) => a.priority === 'CRÍTICO' ? -1 : 1);
-  }, [visibleDevices]);
+      return videoDevices.concat(alarmDevices).filter(c => c.status === 'OFFLINE').map(c => ({ ...c, priority: getPriority(c.location) })).sort((a, b) => a.priority === 'CRÍTICO' ? -1 : 1);
+  }, [videoDevices, alarmDevices]);
+
+  const offlineAccessPoints = useMemo(() => {
+      let subset = accessPoints;
+      if (isManager && currentUser?.allowedWarehouses) {
+          subset = accessPoints.filter(a => hasWarehousePermission(currentUser.allowedWarehouses, a.warehouse));
+      }
+      return subset.filter(a => a.status === 'OFFLINE').map(a => ({
+          ...a,
+          priority: 'MODERADO'
+      })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [accessPoints, isManager, currentUser]);
 
   const sortedShiftNotes = useMemo(() => {
       return [...shiftNotes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -291,17 +310,20 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
     if (totalAccess > 0) msg += `🚪 *ACESSOS*\n   Total: ${totalAccess} | 🟢 On: ${accessOnline} | 🔴 Off: ${accessOffline}\n`;
     if (totalPeopleCount > 0) msg += `👷 *PESSOAS*\n   Total Presente: ${totalPeopleCount} (Terceiros: ${uniqueThirdPartyCount})\n`;
     msg += `\n`;
-    if (offlineDevices.length > 0) {
-      msg += `❗ *OCORRÊNCIAS OFFLINE (${stats.offlineVideo + stats.offlineAlarm}):*\n`;
+    if (offlineDevices.length > 0 || offlineAccessPoints.length > 0) {
+      msg += `❗ *OCORRÊNCIAS OFFLINE (${stats.offlineVideo + stats.offlineAlarm + accessOffline}):*\n`;
       offlineDevices.forEach(c => {
         const ticketStr = c.ticket ? ` [Chamado: ${c.ticket}]` : '';
         const obsStr = c.observation ? `\n   📝 Obs: ${c.observation}` : '';
         const typeStr = c.channelType === 'alarm' ? '[ALARME]' : '[CÂMERA]';
         msg += `❌ ${typeStr} *${c.name}*${ticketStr}\n   📍 ${c.location}${obsStr}\n`;
       });
+      offlineAccessPoints.forEach(ap => {
+        msg += `❌ [ACESSO] *${ap.name}*\n   📍 ${ap.location}\n`;
+      });
     }
     return msg;
-  }, [systemState, stats, totalAccess, accessOnline, accessOffline, totalPeopleCount, uniqueThirdPartyCount, offlineDevices]);
+  }, [systemState, stats, totalAccess, accessOnline, accessOffline, totalPeopleCount, uniqueThirdPartyCount, offlineDevices, offlineAccessPoints]);
 
   const copyToClipboard = useCallback(() => {
     navigator.clipboard.writeText(whatsAppMessage);
@@ -310,622 +332,177 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
   }, [whatsAppMessage]);
 
   return (
-    <div className="space-y-4 sm:space-y-6 pb-8">
+    <div className="space-y-6 pb-8 max-w-[1600px] mx-auto">
       
-      {isManager && (
-          <div className="bg-slate-900 p-4 sm:p-6 rounded-xl border border-purple-500/30 mb-2 flex flex-col md:flex-row justify-between items-center shadow-lg shadow-purple-900/10 relative overflow-hidden animate-fade-in gap-4">
-              <div className="absolute top-0 left-0 w-1 sm:w-1.5 h-full bg-purple-500"></div>
-              <div className="w-full md:w-auto text-center md:text-left">
-                  <h2 className="text-white font-bold text-lg sm:text-xl flex items-center justify-center md:justify-start gap-2">
-                      <Shield className="text-purple-500 fill-purple-500/20" size={24} />
-                      Painel do Gestor
-                  </h2>
-                  <div className="flex items-center justify-center md:justify-start gap-2 text-slate-400 text-xs sm:text-sm mt-1">
-                      <Warehouse size={16} className="text-purple-400" />
-                      <span className="font-medium text-slate-300 truncate max-w-[200px] sm:max-w-none">
-                          {currentUser?.allowedWarehouses && currentUser.allowedWarehouses.length > 0 ? currentUser.allowedWarehouses.join(', ') : 'Sem Unidade'}
-                      </span>
-                  </div>
-              </div>
-          </div>
-      )}
+      {/* 1. HEADER: Saúde do Sistema & KPIs Principais */}
+      <StatsGrid 
+        availabilityNum={availabilityNum}
+        systemColor={systemColor}
+        systemState={systemState}
+        stats={stats}
+        offlineDevicesCount={offlineDevices.length}
+        accessOffline={accessOffline}
+        totalPeopleCount={totalPeopleCount}
+        uniqueThirdPartyCount={uniqueThirdPartyCount}
+        topUnitForDate={topUnitForDate}
+        totalAccess={totalAccess}
+        accessOnline={accessOnline}
+        isManager={isManager}
+        currentUser={currentUser || null}
+      />
 
-      {/* KPIs Grid */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${isManager ? 'lg:grid-cols-4' : 'lg:grid-cols-6'} gap-3 sm:gap-4 animate-fade-in`}>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-lg flex flex-col justify-between">
-            <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold tracking-wider">Câmeras de Vídeo</p>
-            <div className="flex justify-between items-end mt-2">
-                <span className="text-3xl font-bold text-slate-800 dark:text-white">{stats.totalVideo}</span>
-                <Video className="text-blue-500" size={24} />
-            </div>
-            <div className="mt-2 text-[9px] font-bold flex gap-2">
-                <span className="text-emerald-500">ON: {stats.onlineVideo}</span>
-                <span className="text-rose-500">OFF: {stats.offlineVideo}</span>
-            </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-lg flex flex-col justify-between">
-            <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold tracking-wider">Canais de Alarme</p>
-            <div className="flex justify-between items-end mt-2">
-                <span className="text-3xl font-bold text-slate-800 dark:text-white">{stats.totalAlarm}</span>
-                <BellRing className="text-amber-500" size={24} />
-            </div>
-            <div className="mt-2 text-[9px] font-bold flex gap-2">
-                <span className="text-emerald-500">ON: {stats.onlineAlarm}</span>
-                <span className="text-rose-500">OFF: {stats.offlineAlarm}</span>
-            </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-lg flex flex-col justify-between relative overflow-hidden">
-            <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold tracking-wider">Pontos de Acesso</p>
-            <div className="flex justify-between items-end mt-2">
-                <span className="text-3xl font-bold text-slate-800 dark:text-white">{totalAccess}</span>
-                <DoorClosed className="text-indigo-500" size={24} />
-            </div>
-            <div className="mt-2 text-[9px] font-bold flex gap-2">
-                <span className="text-emerald-500">ON: {accessOnline}</span>
-                <span className="text-rose-500">OFF: {accessOffline}</span>
-            </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-lg flex flex-col justify-between group">
-            <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold tracking-wider">Presença Nominal</p>
-            <div className="flex items-center gap-4 mt-2">
-                <div className="flex flex-col"><span className="text-2xl font-black text-slate-800 dark:text-white leading-none">{totalPeopleCount}</span><span className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Total</span></div>
-                <div className="h-8 w-px bg-slate-200 dark:bg-slate-800"></div>
-                <div className="flex flex-col"><span className="text-2xl font-black text-blue-600 dark:text-blue-500 leading-none">{uniqueThirdPartyCount}</span><span className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-tighter">Parceiros</span></div>
-            </div>
-        </div>
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        
+        {/* COLUNA PRINCIPAL (3/4) */}
+        <div className="xl:col-span-3 space-y-6">
+          
+          {/* 2. ANALYTICS: Gráfico de Fluxo */}
+          <AccessFlowChart 
+            hourlyData={hourlyData}
+            selectedChartDate={selectedChartDate}
+            setSelectedChartDate={setSelectedChartDate}
+            availableChartDates={availableChartDates}
+            selectedWarehouseChart={selectedWarehouseChart}
+            setSelectedWarehouseChart={setSelectedWarehouseChart}
+            selectedAccessPointsChart={selectedAccessPointsChart}
+            setSelectedAccessPointsChart={setSelectedAccessPointsChart}
+            availableAccessPointsChart={availableAccessPointsChart}
+            WAREHOUSE_LIST={WAREHOUSE_LIST}
+            showAPDropdown={showAPDropdown}
+            setShowAPDropdown={setShowAPDropdown}
+            apDropdownRef={apDropdownRef}
+            isAdmin={isAdmin}
+            isViewer={isViewer}
+            isManager={isManager}
+          />
 
-        {!isManager && (
-            <>
-                <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/30 p-4 rounded-xl shadow-lg flex flex-col justify-between group relative overflow-hidden">
-                    <div className="absolute -right-2 -top-2 opacity-5 group-hover:scale-110 transition-transform duration-500">
-                        <Crown size={60} className="text-amber-500" />
-                    </div>
-                    <p className="text-amber-600 dark:text-amber-500 text-[10px] uppercase font-black tracking-wider flex items-center gap-1.5">
-                        <Crown size={12} /> Líder de Fluxo
-                    </p>
-                    <div className="mt-2">
-                        <span className="text-lg font-black text-slate-800 dark:text-white leading-tight block truncate uppercase tracking-tighter" title={topUnitForDate.name}>
-                            {topUnitForDate.name}
-                        </span>
-                        <div className="flex items-center gap-1.5 mt-1 text-amber-600 dark:text-amber-400">
-                            <TrendingUp size={14} />
-                            <span className="text-sm font-mono font-bold">{topUnitForDate.count}</span>
-                            <span className="text-[9px] font-bold uppercase opacity-70">Acessos</span>
-                        </div>
-                    </div>
-                    <div className="mt-2 text-[8px] text-slate-400 font-bold uppercase tracking-tighter">
-                        Ref: {selectedChartDate ? selectedChartDate.split('-').reverse().join('/') : '-'}
-                    </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-lg flex flex-col justify-between">
-                    <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold tracking-wider">Disponibilidade Vídeo</p>
-                    <div className="flex justify-between items-end mt-2">
-                        <span className={`text-xl font-bold ${systemColor} truncate mr-2`}>{systemState}</span>
-                        <span className="text-2xl font-bold text-blue-500">{stats.availVideo}%</span>
-                    </div>
-                </div>
-            </>
-        )}
-      </div>
-
-      {/* Fluxo de Acessos Section */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-lg animate-fade-in relative z-20">
-          <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6">
-              <h3 className="text-slate-800 dark:text-white font-bold text-lg flex items-center gap-2">
-                  <Clock className="text-blue-500" />
-                  Fluxo de Acessos
-              </h3>
-              
-              <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-                  {!isManager && (isAdmin || isViewer) && (
-                      <div className="relative flex-1 min-w-[180px] sm:flex-none">
-                          <select 
-                              value={selectedWarehouseChart} 
-                              onChange={(e) => setSelectedWarehouseChart(e.target.value)}
-                              className="w-full sm:w-48 pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
-                          >
-                              <option value="ALL">Todos Galpões</option>
-                              {WAREHOUSE_LIST.map(wh => (
-                                  <option key={wh} value={wh}>{wh}</option>
-                              ))}
-                          </select>
-                          <Warehouse className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                      </div>
-                  )}
-
-                  {/* Multi-Filtro Ponto de Acesso no Gráfico */}
-                  <div className="relative flex-1 min-w-[220px] sm:flex-none" ref={apDropdownRef}>
-                      <button 
-                          onClick={() => setShowAPDropdown(!showAPDropdown)}
-                          className="w-full pl-9 pr-10 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300 text-sm text-left flex items-center justify-between hover:border-blue-500 transition-colors"
-                      >
-                          <div className="flex items-center gap-2 truncate">
-                              <DoorClosed className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                              {selectedAccessPointsChart.length === 0 ? (
-                                  <span className="text-slate-500">Todas as Portas</span>
-                              ) : (
-                                  <span className="text-blue-500 font-bold">{selectedAccessPointsChart.length} Portas</span>
-                              )}
-                          </div>
-                          <ChevronDown size={16} className={`text-slate-500 transition-transform ${showAPDropdown ? 'rotate-180' : ''}`} />
-                      </button>
-
-                      {showAPDropdown && (
-                          <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 min-w-[280px] max-w-[400px] max-h-[350px] overflow-y-auto z-[100] custom-scrollbar animate-fade-in ring-4 ring-black/20">
-                              <div 
-                                  className="flex items-center gap-3 p-3 hover:bg-blue-500/10 rounded-xl cursor-pointer transition-all border-b border-slate-800 mb-2 group"
-                                  onClick={toggleAllAPsChart}
-                              >
-                                  {selectedAccessPointsChart.length === availableAccessPointsChart.length ? (
-                                      <CheckSquare size={18} className="text-blue-500" />
-                                  ) : (
-                                      <Square size={18} className="text-slate-600 group-hover:text-slate-400" />
-                                  )}
-                                  <span className="text-[10px] font-black text-white uppercase tracking-widest">Selecionar Tudo</span>
-                              </div>
-                              
-                              <div className="space-y-1">
-                                  {availableAccessPointsChart.map(ap => (
-                                      <div 
-                                          key={ap} 
-                                          className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all ${selectedAccessPointsChart.includes(ap) ? 'bg-blue-500/5' : 'hover:bg-slate-800'}`}
-                                          onClick={() => toggleAPChart(ap)}
-                                      >
-                                          <div className="shrink-0">
-                                              {selectedAccessPointsChart.includes(ap) ? (
-                                                  <CheckSquare size={18} className="text-blue-500" />
-                                              ) : (
-                                                  <Square size={18} className="text-slate-600" />
-                                              )}
-                                          </div>
-                                          <span className={`text-[11px] font-bold ${selectedAccessPointsChart.includes(ap) ? 'text-white' : 'text-slate-400'} truncate`}>
-                                              {ap}
-                                          </span>
-                                      </div>
-                                  ))}
-                              </div>
-
-                              {availableAccessPointsChart.length === 0 && (
-                                  <div className="p-8 text-center">
-                                      <DoorClosed className="mx-auto text-slate-700 mb-2" size={32} />
-                                      <p className="text-slate-600 text-[10px] uppercase font-black tracking-widest">Sem portas disponíveis</p>
-                                  </div>
-                              )}
-                          </div>
-                      )}
-                  </div>
-
-                  <div className="relative flex-1 min-w-[160px] sm:flex-none">
-                      <select 
-                          value={selectedChartDate} 
-                          onChange={(e) => setSelectedChartDate(e.target.value)}
-                          className="w-full sm:w-48 pl-3 pr-10 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
-                      >
-                          {availableChartDates.map(date => (
-                              <option key={date} value={date}>{date.split('-').reverse().join('/')}</option>
-                          ))}
-                      </select>
-                      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                  </div>
-                  
-                  {selectedAccessPointsChart.length > 0 && (
-                      <button 
-                        onClick={() => setSelectedAccessPointsChart([])}
-                        className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all"
-                        title="Limpar filtros de porta"
-                      >
-                        <X size={20} />
-                      </button>
-                  )}
-              </div>
-          </div>
-
-          <div className="h-[300px] w-full mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={hourlyData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.1} />
-                      <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
-                      <Tooltip 
-                          cursor={{ fill: '#3b82f610' }}
-                          contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
-                          itemStyle={{ color: '#60a5fa', fontWeight: 'bold' }}
-                      />
-                      <Bar dataKey="acessos" fill="#7c3aed" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-              </ResponsiveContainer>
-          </div>
-      </div>
-
-      {/* Câmeras Offline Table & Barra Lateral */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in relative z-10">
-        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg overflow-hidden">
-                <div className="bg-slate-50 dark:bg-slate-900/40 p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                    <h3 className="text-slate-800 dark:text-white font-bold text-sm flex items-center gap-2">
-                        <ShieldAlert size={18} className="text-rose-500" /> 
-                        Câmeras Offline
-                    </h3>
-                    <div className="flex gap-2">
-                        <button onClick={copyToClipboard} className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-white rounded-lg text-[10px] font-black uppercase border border-emerald-500/20 transition-all">
-                            {copied ? 'Copiado!' : 'Relatório WhatsApp'}
-                        </button>
-                    </div>
-                </div>
-                <div className="overflow-x-auto max-h-[500px] custom-scrollbar">
-                    {offlineDevices.length === 0 ? (
-                        <div className="p-20 text-center flex flex-col items-center gap-3">
-                            <ShieldCheck size={48} className="text-emerald-500 opacity-20" />
-                            <p className="text-slate-500 italic text-sm">Nenhum incidente ativo. Todos os dispositivos estão online.</p>
-                        </div>
-                    ) : (
-                        <table className="w-full text-left text-xs border-collapse">
-                            <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-[10px] uppercase font-bold sticky top-0 z-10 border-b dark:border-slate-800">
-                                <tr>
-                                    <th className="p-3">Dispositivo / Nome</th>
-                                    <th className="p-3 text-center">Informações</th>
-                                    <th className="p-3">Tempo Offline</th>
-                                    <th className="p-3 text-center">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 text-slate-700 dark:text-slate-300">
-                                {offlineDevices.map((cam) => {
-                                    const hasInfo = !!(cam.ticket || cam.observation);
-                                    return (
-                                        <tr key={cam.uuid} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
-                                            <td className="p-3">
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-slate-900 dark:text-white">{cam.name}</span>
-                                                    <span className="text-[9px] uppercase text-slate-500 font-black tracking-tighter">{cam.warehouse} • {cam.location}</span>
-                                                </div>
-                                            </td>
-                                            <td className="p-3 text-center">
-                                                <button 
-                                                    onClick={() => openInfoModal(cam, false)}
-                                                    className={`p-2 rounded-lg transition-all ${hasInfo ? 'bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white border border-blue-500/20' : 'text-slate-600 cursor-not-allowed'}`}
-                                                    title={hasInfo ? "Ver detalhes do chamado" : "Sem informações registradas"}
-                                                    disabled={!hasInfo}
-                                                >
-                                                    <Info size={18} />
-                                                </button>
-                                            </td>
-                                            <td className="p-3 font-mono text-amber-500 font-bold whitespace-nowrap">
-                                                {cam.lastLog || '-'}
-                                            </td>
-                                            <td className="p-3">
-                                                <div className="flex justify-center gap-2">
-                                                    {canEditOfflineInfo && (
-                                                        <>
-                                                            <button 
-                                                                onClick={() => openInfoModal(cam, true)}
-                                                                className="p-2 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-slate-950 rounded-lg border border-amber-500/20 transition-all"
-                                                                title="Editar informações"
-                                                            >
-                                                                <Edit2 size={16} />
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => handleResolveIssue(cam.uuid)} 
-                                                                className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg border border-emerald-500/20 transition-all" 
-                                                                title="Marcar como Online"
-                                                            >
-                                                                <CheckCircle size={16} />
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-            </div>
-            
-            {/* DOCUMENTOS MONITORADOS */}
-            <div className="bg-[#0d1117] border border-slate-800 rounded-2xl overflow-hidden shadow-xl animate-fade-in">
-                <div className="p-4 border-b border-slate-800 bg-slate-900/40">
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                        <ShieldAlert size={16} className="text-blue-500" />
-                        Documentos Monitorados
-                    </h3>
-                </div>
-                <div className="overflow-x-auto">
-                    {documents.length === 0 ? (
-                        <div className="p-12 text-center text-slate-600 text-xs italic">Nenhum documento cadastrado.</div>
-                    ) : (
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-950 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-800">
-                                <tr>
-                                    <th className="p-4">Documento</th>
-                                    <th className="p-4">Órgão</th>
-                                    <th className="p-4">Validade</th>
-                                    <th className="p-4">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800/50">
-                                {documents.map(doc => {
-                                    const status = getDocStatus(doc.expirationDate);
-                                    return (
-                                        <tr key={doc.uuid} className="hover:bg-slate-800/20 transition-colors group">
-                                            <td className="p-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
-                                                        <FileText size={18} />
-                                                    </div>
-                                                    <span className="font-bold text-slate-200 uppercase">{doc.name}</span>
-                                                </div>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[11px]">
-                                                    <Building2 size={14} className="text-slate-600" />
-                                                    {doc.organ}
-                                                </div>
-                                            </td>
-                                            <td className="p-4 font-mono text-[11px] text-slate-300 font-bold">
-                                                {new Date(doc.expirationDate).toLocaleDateString('pt-BR')}
-                                            </td>
-                                            <td className="p-4">
-                                                <span className={`px-2.5 py-1 rounded text-[10px] font-black border tracking-wider ${status.color}`}>
-                                                    {status.label}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-            </div>
-        </div>
-
-        {/* COLUNA LATERAL - CONSULTA E PLANTÃO */}
-        <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-            
-            {/* CONSULTA RÁPIDA DE ACESSO */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-lg flex flex-col h-[500px] overflow-hidden">
-                <h3 className="text-slate-800 dark:text-slate-200 font-bold text-sm mb-3 flex items-center gap-2 shrink-0">
-                    <Search size={18} className="text-blue-500" /> 
-                    Consulta Rápida de Acesso
-                </h3>
-                
-                {!selectedPersonKey ? (
-                    <div className="space-y-4 flex flex-col flex-1 overflow-hidden">
-                        <div className="relative shrink-0">
-                            <input 
-                                type="text"
-                                placeholder="Pesquisar por nome..."
-                                value={personalSearch}
-                                onChange={(e) => setPersonalSearch(e.target.value)}
-                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg pl-9 pr-4 py-2 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500"
-                            />
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                        </div>
-                        
-                        <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-1">
-                            {personalSearchResults.length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-slate-500 text-[10px] uppercase font-bold tracking-widest text-center px-4">
-                                    {personalSearch.length < 2 ? 'Digite ao menos 2 letras' : 'Nenhum colaborador encontrado'}
-                                </div>
-                            ) : (
-                                personalSearchResults.map(p => (
-                                    <button 
-                                        key={p.key}
-                                        onClick={() => setSelectedPersonKey(p.key)}
-                                        className="w-full text-left bg-slate-50 dark:bg-slate-950/40 p-3 rounded-lg border border-slate-200 dark:border-slate-800/50 hover:border-blue-500/50 transition-all group"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                                                <UserIcon size={14} />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block truncate uppercase">{p.name}</span>
-                                                <span className="text-[9px] text-slate-500 uppercase font-black">{p.company}</span>
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="flex flex-col flex-1 overflow-hidden animate-fade-in">
-                        <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 mb-3 flex justify-between items-start shrink-0">
-                            <div className="flex-1 min-w-0">
-                                <span className="text-xs font-black text-blue-500 uppercase block truncate">{selectedPersonKey.split('|')[0]}</span>
-                                <span className="text-[9px] text-slate-500 font-bold uppercase truncate block">{selectedPersonKey.split('|')[1]}</span>
-                            </div>
-                            <button 
-                                onClick={() => { setSelectedPersonKey(null); setPersonalSearch(''); setPersonalDateFilter(''); }}
-                                className="p-1 text-slate-400 hover:text-rose-500 transition-colors shrink-0 ml-2"
-                            >
-                                <X size={16} />
-                            </button>
-                        </div>
-
-                        {/* FILTRO DE DATA */}
-                        <div className="px-1 mb-3 shrink-0">
-                            <div className="relative group">
-                                <input 
-                                    type="date"
-                                    value={personalDateFilter}
-                                    onChange={(e) => setPersonalDateFilter(e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg pl-9 pr-8 py-1.5 text-[10px] text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 [color-scheme:light] dark:[color-scheme:dark]"
-                                />
-                                <CalendarSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                                {personalDateFilter && (
-                                    <button 
-                                        onClick={() => setPersonalDateFilter('')}
-                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-rose-500"
-                                    >
-                                        <X size={12} />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                        
-                        <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-1">
-                            {selectedPersonHistory.length === 0 ? (
-                                <div className="p-8 text-center text-slate-500 text-[10px] uppercase font-black">
-                                    {personalDateFilter ? 'Sem acessos nesta data' : 'Sem histórico disponível'}
-                                </div>
-                            ) : (
-                                selectedPersonHistory.map(h => (
-                                    <div key={h.id} className="bg-slate-50 dark:bg-slate-950/50 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/50 text-[10px] flex items-center gap-3">
-                                        <div className={`p-1.5 rounded-full shrink-0 ${h.eventType === 'ENTRADA' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                                            {h.eventType === 'ENTRADA' ? <ArrowDownLeft size={12} /> : <ArrowUpRight size={12} />}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-center mb-0.5">
-                                                <span className="font-mono font-bold text-slate-400">{h.date.split('-').reverse().join('/')} {h.time}</span>
-                                                <span className={`font-black text-[8px] px-1 rounded border ${h.eventType === 'ENTRADA' ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-500' : 'bg-rose-500/5 border-rose-500/20 text-rose-500'}`}>
-                                                    {h.eventType}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-1 text-slate-500 font-bold uppercase truncate">
-                                                <Warehouse size={10} className="text-blue-500/50" /> {h.unit} • <span className="opacity-70 truncate">{h.accessPoint}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
+          {/* 3. OPERATIONAL HUB: Abas de Monitoramento */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] shadow-xl overflow-hidden">
+            <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
+                <button 
+                    onClick={() => setOfflineTab('cameras')}
+                    className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${offlineTab === 'cameras' ? 'bg-white dark:bg-slate-900 text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    Incidentes ({offlineDevices.length})
+                </button>
+                <button 
+                    onClick={() => setOfflineTab('access')}
+                    className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${offlineTab === 'access' ? 'bg-white dark:bg-slate-900 text-purple-600 border-b-2 border-purple-600' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    Documentos
+                </button>
+                {!isManager && (
+                    <button 
+                        onClick={() => setOfflineTab('alarms')}
+                        className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${offlineTab === 'alarms' ? 'bg-white dark:bg-slate-900 text-amber-600 border-b-2 border-amber-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        Notas do Plantão
+                    </button>
                 )}
             </div>
 
-            {/* RELATÓRIO DE PLANTÃO RECENTE */}
-            {!isManager && (
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-lg flex flex-col h-[350px] overflow-hidden">
-                    <h3 className="text-slate-800 dark:text-slate-200 font-bold text-sm mb-3 flex items-center gap-2 shrink-0">
-                        <History size={18} className="text-amber-500" /> 
-                        Plantão Recente
-                    </h3>
-                    <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-                        {sortedShiftNotes.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-500 italic text-xs">
-                                <History size={24} className="opacity-20 mb-2" />
-                                Nenhum registro recente.
+            <div className="p-2">
+                {offlineTab === 'cameras' && (
+                    <OfflineDevicesSection 
+                        offlineDevices={offlineDevices}
+                        offlineAccessPoints={offlineAccessPoints}
+                        openInfoModal={openInfoModal}
+                        handleResolveIssue={handleResolveIssue}
+                        savingId={savingId}
+                    />
+                )}
+                {offlineTab === 'access' && (
+                    <DocumentMonitoring 
+                        documents={documents}
+                        getDocStatus={getDocStatus}
+                    />
+                )}
+                {offlineTab === 'alarms' && !isManager && (
+                    <ShiftNotes sortedShiftNotes={sortedShiftNotes} />
+                )}
+            </div>
+          </div>
+        </div>
+
+            {/* SIDEBAR DE FERRAMENTAS (1/4) */}
+            <div className="lg:col-span-1 space-y-6">
+                <PersonalSearch 
+                    personalSearch={personalSearch}
+                    setPersonalSearch={setPersonalSearch}
+                    personalSearchResults={personalSearchResults}
+                    selectedPersonKey={selectedPersonKey}
+                    setSelectedPersonKey={setSelectedPersonKey}
+                    personalDateFilter={personalDateFilter}
+                    setPersonalDateFilter={setPersonalDateFilter}
+                    selectedPersonHistory={selectedPersonHistory}
+                />
+
+                {/* Card de Atalhos Rápidos ou Info Adicional */}
+                <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] shadow-xl text-white relative overflow-hidden group">
+                    <div className="absolute -right-6 -bottom-6 opacity-5 group-hover:scale-110 transition-transform duration-700 text-blue-500">
+                        <Shield size={140} />
+                    </div>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-2 mb-4">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                <FileText size={16} />
                             </div>
-                        ) : (
-                            sortedShiftNotes.slice(0, 10).map(note => (
-                                <div key={note.id} className="bg-slate-50 dark:bg-slate-950/50 p-3 rounded-lg border border-slate-200 dark:border-slate-800/50 space-y-1">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-[10px] font-black text-amber-500 uppercase truncate max-w-[120px]">{note.author}</span>
-                                        <span className="text-[9px] text-slate-500 font-mono">{new Date(note.createdAt).toLocaleDateString('pt-BR')} {new Date(note.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                                    </div>
-                                    <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-3 leading-relaxed whitespace-pre-wrap">{note.content}</p>
-                                </div>
-                            ))
-                        )}
+                            <h4 className="text-[10px] font-black uppercase tracking-widest">Relatório Operacional</h4>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mb-6 leading-relaxed">Gere um resumo instantâneo de todas as ocorrências e status do sistema para compartilhamento.</p>
+                        <button 
+                            onClick={copyToClipboard}
+                            className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
+                        >
+                            {copied ? (
+                                <>
+                                    <CheckCircle2 size={14} />
+                                    Copiado!
+                                </>
+                            ) : (
+                                <>
+                                    <Shield size={14} />
+                                    Gerar Relatório
+                                </>
+                            )}
+                        </button>
                     </div>
                 </div>
-            )}
+
+                {/* Status do Sistema - Sidebar Widget */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-[2rem] shadow-sm">
+                    <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-4">Integridade do Sistema</h4>
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">Servidores</span>
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">Banco de Dados</span>
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">API Gateway</span>
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
 
-      {/* MODAL UNIFICADO DE INFORMAÇÕES / CHAMADO */}
-      {selectedCamForInfo && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-              <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-in-right">
-                  <div className="p-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
-                      <div className="flex flex-col">
-                        <h3 className="text-white font-black text-xs uppercase tracking-widest flex items-center gap-2">
-                            {isEditingModal ? <Edit2 size={14} className="text-amber-500" /> : <Info size={14} className="text-blue-500" />}
-                            {isEditingModal ? 'Registrar Chamado' : 'Detalhes do Incidente'}
-                        </h3>
-                        <span className="text-[9px] text-slate-500 font-bold uppercase">{selectedCamForInfo.name}</span>
-                      </div>
-                      <button onClick={closeInfoModal} className="text-slate-500 hover:text-white"><X size={20}/></button>
-                  </div>
-                  
-                  <div className="p-6 space-y-6">
-                      <div className="space-y-4">
-                          <div className="space-y-1">
-                              <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Nº do Chamado</label>
-                              {isEditingModal ? (
-                                  <input 
-                                      type="text" 
-                                      value={localTicket}
-                                      onChange={e => setLocalTicket(e.target.value)}
-                                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-amber-500 outline-none transition-all font-mono"
-                                      placeholder="Ex: TKT-12345"
-                                  />
-                              ) : (
-                                  <div className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-blue-400 font-mono font-bold">
-                                      {selectedCamForInfo.ticket || 'Não registrado'}
-                                  </div>
-                              )}
-                          </div>
-
-                          <div className="space-y-1">
-                              <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Observação / Justificativa</label>
-                              {isEditingModal ? (
-                                  <textarea 
-                                      rows={4}
-                                      value={localObs}
-                                      onChange={e => setLocalObs(e.target.value)}
-                                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-amber-500 outline-none transition-all resize-none italic"
-                                      placeholder="Descreva o motivo da queda ou status da manutenção..."
-                                  />
-                              ) : (
-                                  <div className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300 italic leading-relaxed min-h-[80px]">
-                                      {selectedCamForInfo.observation || 'Nenhuma observação registrada.'}
-                                  </div>
-                              )}
-                          </div>
-
-                          {!isEditingModal && (
-                              <div className="grid grid-cols-2 gap-4">
-                                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                                      <span className="text-[9px] font-black text-slate-500 uppercase block mb-1">Localização</span>
-                                      <span className="text-xs text-slate-300 font-bold uppercase">{selectedCamForInfo.location}</span>
-                                  </div>
-                                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                                      <span className="text-[9px] font-black text-slate-500 uppercase block mb-1">Status Desde</span>
-                                      <span className="text-xs text-amber-500 font-mono font-bold">{selectedCamForInfo.lastLog || '-'}</span>
-                                  </div>
-                              </div>
-                          )}
-                      </div>
-
-                      <div className="flex gap-3">
-                          {isEditingModal ? (
-                              <>
-                                <button onClick={closeInfoModal} className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">Cancelar</button>
-                                <button 
-                                    onClick={handleSaveInfo}
-                                    disabled={!!savingId}
-                                    className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
-                                >
-                                    {savingId ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                                    Salvar Dados
-                                </button>
-                              </>
-                          ) : (
-                              <>
-                                <button 
-                                    onClick={() => handleResolveIssue(selectedCamForInfo.uuid)} 
-                                    className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center justify-center gap-2"
-                                >
-                                    <CheckCircle size={14} /> Resolvido
-                                </button>
-                                <button 
-                                    onClick={() => setIsEditingModal(true)}
-                                    className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center justify-center gap-2"
-                                >
-                                    <Edit2 size={14} /> Editar Info
-                                </button>
-                              </>
-                          )}
-                      </div>
-                  </div>
-              </div>
-          </div>
-      )}
+      {/* Modal Unificado */}
+      <IncidentModal 
+        selectedCamForInfo={selectedCamForInfo}
+        closeInfoModal={closeInfoModal}
+        localTicket={localTicket}
+        setLocalTicket={setLocalTicket}
+        localObs={localObs}
+        setLocalObs={setLocalObs}
+        isEditingModal={isEditingModal}
+        handleSaveInfo={handleSaveInfo}
+        handleResolveIssue={handleResolveIssue}
+        savingId={savingId}
+      />
     </div>
   );
 };
