@@ -547,12 +547,12 @@ const App: React.FC = () => {
 
           {/* GRUPO GESTÃO */}
           <div>
-            <p className="px-4 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] opacity-50">Gestão & Fluxo</p>
+            <p className="px-4 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] opacity-50">Gestão & Acesso</p>
             <div className="space-y-1">
               {user.role !== 'provider' && (
                 <button onClick={() => handleTabChange('third-party-mgmt')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'third-party-mgmt' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
                   <Users size={18} /> 
-                  <span className="text-xs font-bold uppercase tracking-wider">Fluxo Terceiros</span>
+                  <span className="text-xs font-bold uppercase tracking-wider">Fluxo de Acesso</span>
                 </button>
               )}
               <button onClick={() => handleTabChange('registration')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all relative ${activeTab === 'registration' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
@@ -635,7 +635,7 @@ const App: React.FC = () => {
                 <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
                     {activeTab === 'dashboard' ? 'Painel de Controle' : 
                      activeTab === 'monitoring' ? 'Central de Monitoramento' :
-                     activeTab === 'third-party-mgmt' ? 'Gestão de Fluxo' :
+                     activeTab === 'third-party-mgmt' ? 'Gestão de Acesso' :
                      activeTab === 'registration' ? 'Cadastro de Acesso' :
                      activeTab === 'registration-history' ? 'Histórico de Registros' :
                      activeTab === 'finance' ? 'Gestão Financeira' :

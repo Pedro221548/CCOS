@@ -435,7 +435,7 @@ const Importer: React.FC<ImporterProps> = ({
             <div className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-amber-500/50 hover:bg-slate-800/50 transition-all rounded-2xl flex flex-col items-center justify-center gap-4 group min-h-[250px] shadow-lg relative p-8">
                 <div onClick={() => thirdPartyInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer w-full text-center">
                     <div className="p-5 bg-slate-800 rounded-full group-hover:bg-amber-500/20 transition-all group-hover:scale-110 shadow-inner"><Briefcase className="w-10 h-10 text-slate-400 group-hover:text-amber-500" /></div>
-                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors uppercase tracking-tight italic">FLUXO TERCEIRIZADOS</h3><p className="text-slate-500 text-xs mt-2 font-medium">Histórico bruto de catracas</p></div>
+                    <div className="text-center"><h3 className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors uppercase tracking-tight italic">FLUXO DE ACESSO</h3><p className="text-slate-500 text-xs mt-2 font-medium">Histórico bruto de catracas</p></div>
                     <input type="file" accept=".xlsx, .xls" ref={thirdPartyInputRef} className="hidden" onChange={handleThirdPartyUpload} />
                 </div>
                 <button onClick={() => setResetTarget('thirdparty')} className="mt-4 px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
@@ -472,7 +472,7 @@ const Importer: React.FC<ImporterProps> = ({
                 <div className="p-6 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
                     <h3 className="text-white font-bold flex items-center gap-3 text-lg">
                         <Clock size={22} className="text-amber-500" /> 
-                        Fluxo Terceirizados
+                        Fluxo de Acesso
                     </h3>
                     <span className="text-[10px] font-black bg-slate-800 text-slate-400 px-3 py-1.5 rounded-full border border-slate-700 uppercase tracking-widest">{thirdPartyImports.length} Arquivos</span>
                 </div>
@@ -574,7 +574,7 @@ const Importer: React.FC<ImporterProps> = ({
                                 <p>Esta ação removerá permanentemente TODA a base de <br/> <strong className="text-white uppercase tracking-wider">{
                                     resetTarget === 'cameras' ? 'Câmeras' : 
                                     resetTarget === 'access' ? 'Acessos' : 
-                                    resetTarget === 'thirdparty' ? 'Fluxo Terceiros' : 'Frequência'
+                                    resetTarget === 'thirdparty' ? 'Fluxo de Acesso' : 'Frequência'
                                 }</strong>. <br/>Não há como desfazer.</p>
                             ) : (
                                 <p>Deseja realmente excluir o arquivo <br/> <strong className="text-rose-500 font-bold italic tracking-tight">"{itemToDelete?.name}"</strong>?</p>
