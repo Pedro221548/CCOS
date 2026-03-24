@@ -6,7 +6,7 @@ import { Camera, AccessPoint } from '../../types';
 interface OfflineDevicesSectionProps {
     offlineDevices: (Camera & { priority: string })[];
     offlineAccessPoints: (AccessPoint & { priority: string })[];
-    openInfoModal: (cam: Camera, editMode?: boolean) => void;
+    openInfoModal: (device: Camera | AccessPoint, editMode?: boolean) => void;
     handleResolveIssue: (uuid: string) => void;
     savingId: string | null;
 }
@@ -178,17 +178,44 @@ const OfflineDevicesSection: React.FC<OfflineDevicesSectionProps> = ({
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                             {items.accessPoints.map(ap => (
-                                                <div key={ap.uuid} className="flex items-center justify-between p-3 bg-white dark:bg-slate-900/40 rounded-xl border border-slate-100 dark:border-slate-800/50 hover:border-rose-500/20 transition-colors">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-                                                            <DoorClosed size={12} />
+                                                <div key={ap.uuid} className="group relative flex flex-col p-4 bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800/50 hover:border-indigo-500/30 transition-all">
+                                                    <div className="flex items-start justify-between mb-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                                                                <DoorClosed size={14} />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase block truncate leading-none">{ap.name}</span>
+                                                                <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter mt-1 block">Acesso Restrito</span>
+                                                            </div>
                                                         </div>
-                                                        <div className="min-w-0">
-                                                            <span className="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase block truncate leading-none">{ap.name}</span>
-                                                            <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter mt-1 block">Acesso Restrito</span>
-                                                        </div>
+                                                        <span className="text-[8px] font-black text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full uppercase border border-rose-500/10">{ap.location}</span>
                                                     </div>
-                                                    <span className="text-[8px] font-black text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full uppercase border border-rose-500/10">{ap.location}</span>
+                                                    
+                                                    <div className="flex items-center gap-2 pt-3 border-t border-slate-50 dark:border-slate-800/30">
+                                                        <button 
+                                                            onClick={() => openInfoModal(ap)} 
+                                                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-500 hover:bg-blue-500/5 rounded-lg transition-all"
+                                                        >
+                                                            <Info size={12} />
+                                                            Info
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => openInfoModal(ap, true)} 
+                                                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-amber-500 hover:bg-amber-500/5 rounded-lg transition-all"
+                                                        >
+                                                            <Edit size={12} />
+                                                            Editar
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleResolveIssue(ap.uuid)} 
+                                                            disabled={savingId === ap.uuid}
+                                                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/5 rounded-lg transition-all"
+                                                        >
+                                                            {savingId === ap.uuid ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                                                            OK
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>

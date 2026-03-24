@@ -82,6 +82,8 @@ export interface AccessPoint {
   status: Status;
   lastLog: string;
   latency?: string;    
+  ticket?: string;     
+  observation?: string; 
 }
 
 export interface PublicDocument {

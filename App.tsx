@@ -15,7 +15,7 @@ import { useNotificationSounds } from './hooks/useNotificationSounds';
 import ProfileModal from './components/ProfileModal';
 import FeedbackModal from './components/FeedbackModal';
 
-const Dashboard = lazy(() => import('./components/Dashboard'));
+const PainelPrincipal = lazy(() => import('./components/PainelPrincipal'));
 const CameraList = lazy(() => import('./components/CameraList'));
 const AccessControlList = lazy(() => import('./components/AccessControlList'));
 const Importer = lazy(() => import('./components/Importer'));
@@ -527,7 +527,7 @@ const App: React.FC = () => {
               {user.role !== 'provider' && (
                 <button onClick={() => handleTabChange('dashboard')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
                   <LayoutDashboard size={18} /> 
-                  <span className="text-xs font-bold uppercase tracking-wider">Dashboard</span>
+                  <span className="text-xs font-bold uppercase tracking-wider">Painel principal</span>
                 </button>
               )}
               {user.role !== 'provider' && (
@@ -633,7 +633,7 @@ const App: React.FC = () => {
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors"><Menu size={24} /></button>
             <div className="hidden md:flex flex-col">
                 <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                    {activeTab === 'dashboard' ? 'Painel de Controle' : 
+                    {activeTab === 'dashboard' ? 'Painel principal' : 
                      activeTab === 'monitoring' ? 'Central de Monitoramento' :
                      activeTab === 'third-party-mgmt' ? 'Gestão de Acesso' :
                      activeTab === 'registration' ? 'Cadastro de Acesso' :
@@ -711,7 +711,7 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 scroll-smooth custom-scrollbar" ref={mainContentRef} onScroll={handleScroll}>
           <div className="max-w-[1600px] mx-auto space-y-8">
             <Suspense fallback={<LoadingFallback />}>
-                {activeTab === 'dashboard' && <Dashboard data={data} thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
+                {activeTab === 'dashboard' && <PainelPrincipal data={data} thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
                 {activeTab === 'finance' && (
                   <div className="space-y-6 animate-fade-in">
                     <div className="flex border-b border-slate-300 dark:border-slate-800/50 overflow-x-auto no-scrollbar">

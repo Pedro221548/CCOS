@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { AppData, Camera, ProcessedWorker, Status, User } from '../types';
+import { AppData, Camera, AccessPoint, ProcessedWorker, Status, User } from '../types';
 import { Shield, Warehouse, FileText, CheckCircle2 } from 'lucide-react';
 import { monitoringService } from '../services/monitoring';
 import { WAREHOUSE_LIST } from '../constants';
@@ -31,12 +31,12 @@ const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehou
     });
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onSetWarehouseStatus, currentUser }) => {
+const PainelPrincipal: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onSetWarehouseStatus, currentUser }) => {
   const { cameras, accessPoints, documents, shiftNotes = [] } = data;
   const [copied, setCopied] = useState(false);
   
   // States para o novo Modal Unificado
-  const [selectedCamForInfo, setSelectedCamForInfo] = useState<Camera | null>(null);
+  const [selectedDeviceForInfo, setSelectedDeviceForInfo] = useState<Camera | AccessPoint | null>(null);
   const [isEditingModal, setIsEditingModal] = useState(false);
   const [localTicket, setLocalTicket] = useState('');
   const [localObs, setLocalObs] = useState('');
@@ -54,7 +54,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
   const [personalSearch, setPersonalSearch] = useState('');
   const [selectedPersonKey, setSelectedPersonKey] = useState<string | null>(null);
   const [personalDateFilter, setPersonalDateFilter] = useState('');
-  const [offlineTab, setOfflineTab] = useState<'cameras' | 'alarms' | 'access'>('cameras');
+  const [activeHubTab, setActiveHubTab] = useState<'incidents' | 'documents' | 'shift-notes'>('incidents');
 
   const isAdmin = currentUser?.role === 'admin';
   const isManager = currentUser?.role === 'manager';
@@ -260,24 +260,30 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
   }, [thirdPartyWorkers, selectedPersonKey, personalDateFilter]);
 
   // Handlers para o novo Modal
-  const openInfoModal = (cam: Camera, editMode: boolean = false) => {
-      setSelectedCamForInfo(cam);
-      setLocalTicket(cam.ticket || '');
-      setLocalObs(cam.observation || '');
+  const openInfoModal = (device: Camera | AccessPoint, editMode: boolean = false) => {
+      setSelectedDeviceForInfo(device);
+      setLocalTicket(device.ticket || '');
+      setLocalObs(device.observation || '');
       setIsEditingModal(editMode);
   };
 
   const closeInfoModal = () => {
-      setSelectedCamForInfo(null);
+      setSelectedDeviceForInfo(null);
       setIsEditingModal(false);
   };
 
   const handleSaveInfo = async () => {
-      if (!selectedCamForInfo) return;
-      setSavingId(selectedCamForInfo.uuid);
+      if (!selectedDeviceForInfo) return;
+      setSavingId(selectedDeviceForInfo.uuid);
       try {
-          await monitoringService.updateCameraTicket(selectedCamForInfo.uuid, localTicket, cameras);
-          await monitoringService.updateCameraObservation(selectedCamForInfo.uuid, localObs, cameras);
+          const isCamera = 'channelType' in selectedDeviceForInfo;
+          if (isCamera) {
+              await monitoringService.updateCameraTicket(selectedDeviceForInfo.uuid, localTicket, cameras);
+              await monitoringService.updateCameraObservation(selectedDeviceForInfo.uuid, localObs, cameras);
+          } else {
+              await monitoringService.updateAccessPointTicket(selectedDeviceForInfo.uuid, localTicket, accessPoints);
+              await monitoringService.updateAccessPointObservation(selectedDeviceForInfo.uuid, localObs, accessPoints);
+          }
           closeInfoModal();
       } catch (e) {
           alert("Erro ao salvar.");
@@ -288,8 +294,13 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
 
   const handleResolveIssue = async (uuid: string) => {
       if (window.confirm("Marcar dispositivo como ONLINE? Isso limpará chamado e observação.")) {
-          await monitoringService.resolveCameraIssue(uuid, cameras);
-          if (selectedCamForInfo?.uuid === uuid) closeInfoModal();
+          const isCamera = cameras.some(c => c.uuid === uuid);
+          if (isCamera) {
+              await monitoringService.resolveCameraIssue(uuid, cameras);
+          } else {
+              await monitoringService.resolveAccessPointIssue(uuid, accessPoints);
+          }
+          if (selectedDeviceForInfo?.uuid === uuid) closeInfoModal();
       }
   };
 
@@ -334,7 +345,19 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
   return (
     <div className="space-y-6 pb-8 max-w-[1600px] mx-auto">
       
-      {/* 1. HEADER: Saúde do Sistema & KPIs Principais */}
+      {/* HEADER DA PÁGINA */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+          <div>
+              <h1 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight italic">Painel Principal</h1>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Visão geral do ecossistema de segurança</p>
+          </div>
+          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 px-4 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Sistema Operacional</span>
+          </div>
+      </div>
+      
+      {/* 1. Saúde do Sistema & KPIs Principais */}
       <StatsGrid 
         availabilityNum={availabilityNum}
         systemColor={systemColor}
@@ -379,23 +402,23 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-xl overflow-hidden">
             <div className="flex border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/30 p-2">
                 <button 
-                    onClick={() => setOfflineTab('cameras')}
-                    className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 rounded-[1.5rem] ${offlineTab === 'cameras' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-lg shadow-blue-500/5 border border-slate-100 dark:border-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 dark:hover:bg-slate-800/50'}`}
+                    onClick={() => setActiveHubTab('incidents')}
+                    className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 rounded-[1.5rem] ${activeHubTab === 'incidents' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-lg shadow-blue-500/5 border border-slate-100 dark:border-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 dark:hover:bg-slate-800/50'}`}
                 >
                     <div className={`w-2 h-2 rounded-full ${offlineDevices.length > 0 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
-                    Incidentes ({offlineDevices.length})
+                    Incidentes ({offlineDevices.length + offlineAccessPoints.length})
                 </button>
                 <button 
-                    onClick={() => setOfflineTab('access')}
-                    className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 rounded-[1.5rem] ${offlineTab === 'access' ? 'bg-white dark:bg-slate-800 text-purple-600 shadow-lg shadow-purple-500/5 border border-slate-100 dark:border-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 dark:hover:bg-slate-800/50'}`}
+                    onClick={() => setActiveHubTab('documents')}
+                    className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 rounded-[1.5rem] ${activeHubTab === 'documents' ? 'bg-white dark:bg-slate-800 text-purple-600 shadow-lg shadow-purple-500/5 border border-slate-100 dark:border-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 dark:hover:bg-slate-800/50'}`}
                 >
                     <FileText size={14} />
                     Documentos
                 </button>
                 {!isManager && (
                     <button 
-                        onClick={() => setOfflineTab('alarms')}
-                        className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 rounded-[1.5rem] ${offlineTab === 'alarms' ? 'bg-white dark:bg-slate-800 text-amber-600 shadow-lg shadow-amber-500/5 border border-slate-100 dark:border-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 dark:hover:bg-slate-800/50'}`}
+                        onClick={() => setActiveHubTab('shift-notes')}
+                        className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 rounded-[1.5rem] ${activeHubTab === 'shift-notes' ? 'bg-white dark:bg-slate-800 text-amber-600 shadow-lg shadow-amber-500/5 border border-slate-100 dark:border-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 dark:hover:bg-slate-800/50'}`}
                     >
                         <CheckCircle2 size={14} />
                         Notas do Plantão
@@ -404,7 +427,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
             </div>
 
             <div className="p-6">
-                {offlineTab === 'cameras' && (
+                {activeHubTab === 'incidents' && (
                     <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
                         <OfflineDevicesSection 
                             offlineDevices={offlineDevices}
@@ -415,7 +438,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                         />
                     </div>
                 )}
-                {offlineTab === 'access' && (
+                {activeHubTab === 'documents' && (
                     <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
                         <DocumentMonitoring 
                             documents={documents}
@@ -423,7 +446,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                         />
                     </div>
                 )}
-                {offlineTab === 'alarms' && !isManager && (
+                {activeHubTab === 'shift-notes' && !isManager && (
                     <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
                         <ShiftNotes sortedShiftNotes={sortedShiftNotes} />
                     </div>
@@ -516,7 +539,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
 
       {/* Modal Unificado */}
       <IncidentModal 
-        selectedCamForInfo={selectedCamForInfo}
+        selectedDeviceForInfo={selectedDeviceForInfo}
         closeInfoModal={closeInfoModal}
         localTicket={localTicket}
         setLocalTicket={setLocalTicket}
@@ -531,4 +554,4 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
   );
 };
 
-export default React.memo(Dashboard);
+export default React.memo(PainelPrincipal);

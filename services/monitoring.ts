@@ -113,6 +113,31 @@ class MonitoringService {
     return { name: target.name, newStatus };
   }
 
+  async updateAccessPointTicket(uuid: string, ticket: string, currentAccess: AccessPoint[]) {
+    const newAccess = currentAccess.map(a => 
+        a.uuid === uuid ? { ...a, ticket } : a
+    );
+    await set(ref(db, 'monitoramento/access_points'), newAccess);
+  }
+
+  async updateAccessPointObservation(uuid: string, observation: string, currentAccess: AccessPoint[]) {
+    const newAccess = currentAccess.map(a => 
+        a.uuid === uuid ? { ...a, observation } : a
+    );
+    await set(ref(db, 'monitoramento/access_points'), newAccess);
+  }
+
+  async resolveAccessPointIssue(uuid: string, currentAccess: AccessPoint[]) {
+    const target = currentAccess.find(a => a.uuid === uuid);
+    if (!target) return;
+
+    const lastLog = getNowFormatted();
+    const newAccess = currentAccess.map(a => 
+        a.uuid === uuid ? { ...a, status: 'ONLINE', ticket: '', observation: '', lastLog } : a
+    );
+    await set(ref(db, 'monitoramento/access_points'), newAccess);
+  }
+
   // --- Documents ---
   async addDocument(doc: PublicDocument, currentDocs: PublicDocument[]) {
     const newDocs = [...currentDocs, doc];
