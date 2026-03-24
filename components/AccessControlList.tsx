@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { AccessPoint } from '../types';
-import { ShieldCheck, MapPin, Clock, DoorClosed, AlertTriangle, Warehouse, Activity, RefreshCw, Filter, Search, X, Plus, Edit2, Trash2, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { ShieldCheck, MapPin, Clock, DoorClosed, AlertTriangle, Warehouse, Activity, RefreshCw, Filter, Search, X, Plus, Edit2, Trash2, Download, Upload, ChevronDown, ChevronUp } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
@@ -11,6 +11,7 @@ interface AccessControlListProps {
   onAdd?: (ap: AccessPoint) => void;
   onEdit?: (ap: AccessPoint) => void;
   onDelete?: (uuid: string) => void;
+  onImport?: (updates: { name: string; warehouse?: string }[]) => void;
   readOnly?: boolean;
   allowedWarehouses?: string[]; // New prop for filtering
 }
@@ -31,10 +32,12 @@ const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehou
     });
 };
 
-const AccessControlList: React.FC<AccessControlListProps> = ({ accessPoints, onToggleStatus, onAdd, onEdit, onDelete, readOnly = false, allowedWarehouses }) => {
+const AccessControlList: React.FC<AccessControlListProps> = ({ accessPoints, onToggleStatus, onAdd, onEdit, onDelete, onImport, readOnly = false, allowedWarehouses }) => {
   const [countdown, setCountdown] = useState(30);
   const [isScanning, setIsScanning] = useState(false);
   const [lastScanTime, setLastScanTime] = useState<string>('-');
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -209,6 +212,40 @@ const AccessControlList: React.FC<AccessControlListProps> = ({ accessPoints, onT
       saveAs(blob, `Controle_de_Acesso_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.xlsx`);
   };
 
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      try {
+          const workbook = new ExcelJS.Workbook();
+          await workbook.xlsx.load(await file.arrayBuffer());
+          const worksheet = workbook.getWorksheet(1);
+          
+          if (!worksheet) throw new Error("Planilha vazia");
+
+          const updates: { name: string; warehouse?: string }[] = [];
+
+          worksheet.eachRow((row, rowNumber) => {
+              if (rowNumber === 1) return; // Skip header
+              const name = row.getCell(1).value?.toString() || '';
+              const warehouse = row.getCell(2).value?.toString() || '';
+              
+              if (name && warehouse && warehouse !== '-') {
+                  updates.push({ name, warehouse });
+              }
+          });
+
+          if (onImport && updates.length > 0) {
+              onImport(updates);
+          }
+      } catch (err) {
+          console.error("Erro ao importar planilha:", err);
+          alert("Erro ao importar planilha. Verifique o formato.");
+      } finally {
+          if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-8">
       {/* Header with Stats */}
@@ -226,6 +263,25 @@ const AccessControlList: React.FC<AccessControlListProps> = ({ accessPoints, onT
                         <Download size={16} />
                         <span className="hidden sm:inline">Exportar</span>
                     </button>
+                    {!readOnly && onImport && (
+                        <>
+                            <input 
+                                type="file" 
+                                accept=".xlsx"
+                                ref={fileInputRef}
+                                onChange={handleImportExcel}
+                                className="hidden"
+                            />
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                                title="Importar Dados (Excel)"
+                            >
+                                <Upload size={16} />
+                                <span className="hidden sm:inline">Importar</span>
+                            </button>
+                        </>
+                    )}
                 </h2>
                 {allowedWarehouses && (
                     <p className="text-xs text-slate-400 mt-1">
@@ -346,18 +402,27 @@ const AccessControlList: React.FC<AccessControlListProps> = ({ accessPoints, onT
         <div className="space-y-6">
             {Object.entries(groupedByWarehouse).map(([warehouse, points]) => {
                 const isExpanded = expandedWarehouses.has(warehouse);
+                const isUnassigned = !warehouse || warehouse === 'Sem Galpão' || warehouse === 'Geral';
+
                 return (
-                    <div key={warehouse} className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden">
+                    <div key={warehouse} className={`border rounded-xl overflow-hidden transition-all duration-300 ${isUnassigned ? 'border-rose-500/30 bg-rose-500/5 shadow-[0_0_15px_rgba(239,68,68,0.05)]' : 'bg-slate-900/40 border-slate-800'}`}>
                         <button 
                             onClick={() => toggleWarehouse(warehouse)}
-                            className="w-full flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors group"
+                            className={`w-full flex items-center justify-between p-4 transition-colors group ${isUnassigned ? 'hover:bg-rose-500/10' : 'hover:bg-slate-800/50'}`}
                         >
                             <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 group-hover:scale-110 transition-transform">
+                                <div className={`p-2 rounded-lg group-hover:scale-110 transition-transform ${isUnassigned ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'bg-indigo-500/10 text-indigo-400'}`}>
                                     <Warehouse size={20} />
                                 </div>
                                 <div className="text-left">
-                                    <h3 className="text-lg font-bold text-slate-200">{warehouse}</h3>
+                                    <h3 className={`text-lg font-bold flex items-center gap-2 ${isUnassigned ? 'text-rose-500' : 'text-slate-200'}`}>
+                                        {warehouse}
+                                        {isUnassigned && (
+                                            <span className="px-2 py-0.5 bg-rose-500 text-white text-[10px] rounded-full animate-pulse font-black uppercase tracking-widest">
+                                                Ação Necessária
+                                            </span>
+                                        )}
+                                    </h3>
                                     <span className="text-xs font-medium text-slate-500">
                                         {points.length} {points.length === 1 ? 'Dispositivo' : 'Dispositivos'}
                                     </span>

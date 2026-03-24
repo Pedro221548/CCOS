@@ -12,7 +12,7 @@ interface CameraListProps {
   onAdd?: (cam: Camera) => void;
   onEdit?: (cam: Camera) => void;
   onDelete?: (uuid: string) => void;
-  onImportRecordingTimes?: (updates: { name: string; recordingTime: string }[]) => void;
+  onImportCameraData?: (updates: { name: string; recordingTime?: string; warehouse?: string }[]) => void;
   readOnly?: boolean;
   allowedWarehouses?: string[]; // New prop for filtering
   userRole?: string;
@@ -34,7 +34,7 @@ const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehou
     });
 };
 
-const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetWarehouseStatus, onAdd, onEdit, onDelete, onImportRecordingTimes, readOnly = false, allowedWarehouses, userRole }) => {
+const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetWarehouseStatus, onAdd, onEdit, onDelete, onImportCameraData, readOnly = false, allowedWarehouses, userRole }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ONLINE' | 'OFFLINE'>('ALL');
   const [moduleFilter, setModuleFilter] = useState<string>('ALL');
@@ -204,20 +204,25 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
           
           if (!worksheet) throw new Error("Planilha vazia");
 
-          const updates: { name: string; recordingTime: string }[] = [];
+          const updates: { name: string; recordingTime?: string; warehouse?: string }[] = [];
 
           worksheet.eachRow((row, rowNumber) => {
               if (rowNumber === 1) return; // Skip header
               const name = row.getCell(1).value?.toString() || '';
+              const warehouse = row.getCell(2).value?.toString() || '';
               const recordingTime = row.getCell(4).value?.toString() || '';
               
-              if (name && recordingTime && recordingTime !== '-') {
-                  updates.push({ name, recordingTime });
+              if (name) {
+                  updates.push({ 
+                      name, 
+                      recordingTime: (recordingTime && recordingTime !== '-') ? recordingTime : undefined,
+                      warehouse: (warehouse && warehouse !== '-') ? warehouse : undefined
+                  });
               }
           });
 
-          if (onImportRecordingTimes && updates.length > 0) {
-              onImportRecordingTimes(updates);
+          if (onImportCameraData && updates.length > 0) {
+              onImportCameraData(updates);
           }
       } catch (err) {
           console.error("Erro ao importar planilha:", err);
@@ -252,7 +257,7 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                     >
                         <Download size={16} /> Exportar
                     </button>
-                    {!readOnly && onImportRecordingTimes && (
+                    {!readOnly && onImportCameraData && (
                         <>
                             <input 
                                 type="file" 
@@ -264,7 +269,7 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                             <button 
                                 onClick={() => fileInputRef.current?.click()}
                                 className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
-                                title="Importar Tempo de Gravação"
+                                title="Importar Dados (Excel)"
                             >
                                 <Upload size={16} /> Importar
                             </button>
@@ -419,18 +424,27 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
         <div className="space-y-6">
             {Object.entries(groupedByWarehouse).map(([warehouse, cams]) => {
                 const isExpanded = expandedWarehouses.has(warehouse);
+                const isUnassigned = !warehouse || warehouse === 'Sem Galpão' || warehouse === 'Geral';
+                
                 return (
-                    <div key={warehouse} className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden">
+                    <div key={warehouse} className={`border rounded-xl overflow-hidden transition-all duration-300 ${isUnassigned ? 'border-rose-500/30 bg-rose-500/5 shadow-[0_0_15px_rgba(239,68,68,0.05)]' : 'bg-slate-900/40 border-slate-800'}`}>
                         <button 
                             onClick={() => toggleWarehouse(warehouse)}
-                            className="w-full flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors group"
+                            className={`w-full flex items-center justify-between p-4 transition-colors group ${isUnassigned ? 'hover:bg-rose-500/10' : 'hover:bg-slate-800/50'}`}
                         >
                             <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 group-hover:scale-110 transition-transform">
+                                <div className={`p-2 rounded-lg group-hover:scale-110 transition-transform ${isUnassigned ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'bg-indigo-500/10 text-indigo-400'}`}>
                                     <Warehouse size={20} />
                                 </div>
                                 <div className="text-left">
-                                    <h3 className="text-lg font-bold text-slate-200">{warehouse}</h3>
+                                    <h3 className={`text-lg font-bold flex items-center gap-2 ${isUnassigned ? 'text-rose-500' : 'text-slate-200'}`}>
+                                        {warehouse}
+                                        {isUnassigned && (
+                                            <span className="px-2 py-0.5 bg-rose-500 text-white text-[10px] rounded-full animate-pulse font-black uppercase tracking-widest">
+                                                Ação Necessária
+                                            </span>
+                                        )}
+                                    </h3>
                                     <span className="text-xs font-medium text-slate-500">
                                         {cams.length} {cams.length === 1 ? itemLabel : itemLabelPlural}
                                     </span>

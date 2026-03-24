@@ -195,15 +195,42 @@ const App: React.FC = () => {
 
   const handleImportData = async (cameras: Camera[], accessPoints: AccessPoint[]) => {
       try {
-          // Merge existing recordingTime based on ID and Name since UUID changes on import
+          // Merge existing recordingTime and warehouse based on ID and Name since UUID changes on import
           const mergedCameras = cameras.map(newCam => {
               const existingCam = data.cameras.find(c => c.id === newCam.id && c.name === newCam.name);
-              if (existingCam && existingCam.recordingTime) {
-                  return { ...newCam, recordingTime: existingCam.recordingTime };
+              if (existingCam) {
+                  const merged = { ...newCam };
+                  // Preserve recording time
+                  if (existingCam.recordingTime) merged.recordingTime = existingCam.recordingTime;
+                  
+                  // Preserve warehouse if existing is identified and new is unassigned
+                  const isNewUnassigned = !newCam.warehouse || newCam.warehouse === 'Geral' || newCam.warehouse === 'Sem Galpão';
+                  const isExistingAssigned = existingCam.warehouse && existingCam.warehouse !== 'Geral' && existingCam.warehouse !== 'Sem Galpão';
+                  
+                  if (isNewUnassigned && isExistingAssigned) {
+                      merged.warehouse = existingCam.warehouse;
+                  }
+                  return merged;
               }
               return newCam;
           });
-          await monitoringService.importData(mergedCameras, accessPoints);
+
+          const mergedAccess = accessPoints.map(newAp => {
+              const existingAp = data.accessPoints.find(a => a.id === newAp.id && a.name === newAp.name);
+              if (existingAp) {
+                  const merged = { ...newAp };
+                  const isNewUnassigned = !newAp.warehouse || newAp.warehouse === 'Geral' || newAp.warehouse === 'Sem Galpão';
+                  const isExistingAssigned = existingAp.warehouse && existingAp.warehouse !== 'Geral' && existingAp.warehouse !== 'Sem Galpão';
+                  
+                  if (isNewUnassigned && isExistingAssigned) {
+                      merged.warehouse = existingAp.warehouse;
+                  }
+                  return merged;
+              }
+              return newAp;
+          });
+
+          await monitoringService.importData(mergedCameras, mergedAccess);
           addToast("Sistema atualizado!", "success");
       } catch (e) {
           addToast("Erro ao importar dados.", "alert");
@@ -239,23 +266,133 @@ const App: React.FC = () => {
       }
   };
 
-  const handleImportRecordingTimes = async (updates: { name: string; recordingTime: string }[]) => {
+  const handleImportCameraData = async (updates: { name: string; recordingTime?: string; warehouse?: string }[]) => {
       try {
           let updatedCount = 0;
+          const currentCameras = [...data.cameras];
+          
           for (const update of updates) {
-              const cam = data.cameras.find(c => c.name === update.name);
-              if (cam && cam.recordingTime !== update.recordingTime) {
-                  await monitoringService.updateCamera({ ...cam, recordingTime: update.recordingTime }, data.cameras);
-                  updatedCount++;
-              }
+              // Find all cameras with the same name
+              currentCameras.forEach((cam, idx) => {
+                  if (cam.name === update.name) {
+                      let needsUpdate = false;
+                      const newCam = { ...cam };
+                      
+                      if (update.recordingTime && cam.recordingTime !== update.recordingTime) {
+                          newCam.recordingTime = update.recordingTime;
+                          needsUpdate = true;
+                      }
+                      
+                      if (update.warehouse) {
+                          // Normalize warehouse name if it's a short version
+                          let finalWarehouse = update.warehouse.toUpperCase().trim();
+                          if (finalWarehouse === 'G2') finalWarehouse = 'GALPÃO G2';
+                          else if (finalWarehouse === 'G3') finalWarehouse = 'GALPÃO G3';
+                          else if (finalWarehouse === 'G5') finalWarehouse = 'GALPÃO G5';
+                          else if (finalWarehouse === 'SP') finalWarehouse = 'GALPÃO SP';
+                          else if (finalWarehouse === 'LSP') finalWarehouse = 'GALPÃO LSP';
+                          else if (finalWarehouse === 'PAVUNA') finalWarehouse = 'GALPÃO PAVUNA';
+                          else if (finalWarehouse === 'MERITI') finalWarehouse = 'GALPÃO MERITI';
+
+                          if (cam.warehouse !== finalWarehouse) {
+                              newCam.warehouse = finalWarehouse;
+                              needsUpdate = true;
+                          }
+                      }
+
+                      if (needsUpdate) {
+                          currentCameras[idx] = newCam;
+                          updatedCount++;
+                      }
+                  }
+              });
           }
+          
           if (updatedCount > 0) {
-              addToast(`${updatedCount} câmeras atualizadas com sucesso!`, "success");
+              await monitoringService.importData(currentCameras, data.accessPoints);
+              addToast(`${updatedCount} itens atualizados com sucesso!`, "success");
           } else {
-              addToast("Nenhuma câmera precisou ser atualizada.", "info");
+              addToast("Nenhum item precisou ser atualizado.", "info");
           }
       } catch (e) {
-          addToast("Erro ao atualizar tempo de gravação.", "alert");
+          console.error(e);
+          addToast("Erro ao atualizar dados via Excel.", "alert");
+      }
+  };
+
+  const handleImportAccessPoints = async (updates: { name: string; warehouse?: string }[]) => {
+      try {
+          let updatedCount = 0;
+          const currentAccess = [...data.accessPoints];
+
+          for (const update of updates) {
+              // Find all access points with the same name
+              currentAccess.forEach((ap, idx) => {
+                  if (ap.name === update.name) {
+                      let needsUpdate = false;
+                      const newAp = { ...ap };
+                      
+                      if (update.warehouse) {
+                          // Normalize warehouse name
+                          let finalWarehouse = update.warehouse.toUpperCase().trim();
+                          if (finalWarehouse === 'G2') finalWarehouse = 'GALPÃO G2';
+                          else if (finalWarehouse === 'G3') finalWarehouse = 'GALPÃO G3';
+                          else if (finalWarehouse === 'G5') finalWarehouse = 'GALPÃO G5';
+                          else if (finalWarehouse === 'SP') finalWarehouse = 'GALPÃO SP';
+                          else if (finalWarehouse === 'LSP') finalWarehouse = 'GALPÃO LSP';
+                          else if (finalWarehouse === 'PAVUNA') finalWarehouse = 'GALPÃO PAVUNA';
+                          else if (finalWarehouse === 'MERITI') finalWarehouse = 'GALPÃO MERITI';
+
+                          if (ap.warehouse !== finalWarehouse) {
+                              newAp.warehouse = finalWarehouse;
+                              needsUpdate = true;
+                          }
+                      }
+
+                      if (needsUpdate) {
+                          currentAccess[idx] = newAp;
+                          updatedCount++;
+                      }
+                  }
+              });
+          }
+          
+          if (updatedCount > 0) {
+              await monitoringService.importData(data.cameras, currentAccess);
+              addToast(`${updatedCount} acessos atualizados com sucesso!`, "success");
+          } else {
+              addToast("Nenhum acesso precisou ser atualizado.", "info");
+          }
+      } catch (e) {
+          console.error(e);
+          addToast("Erro ao atualizar dados de acesso via Excel.", "alert");
+      }
+  };
+
+  const handleAddAccessPoint = async (ap: AccessPoint) => {
+      try {
+          await monitoringService.addAccessPoint(ap, data.accessPoints);
+          addToast("Acesso adicionado com sucesso!", "success");
+      } catch (e) {
+          addToast("Erro ao adicionar acesso.", "alert");
+      }
+  };
+
+  const handleEditAccessPoint = async (ap: AccessPoint) => {
+      try {
+          await monitoringService.updateAccessPoint(ap, data.accessPoints);
+          addToast("Acesso atualizado com sucesso!", "success");
+      } catch (e) {
+          addToast("Erro ao atualizar acesso.", "alert");
+      }
+  };
+
+  const handleDeleteAccessPoint = async (uuid: string) => {
+      try {
+          await monitoringService.deleteAccessPoint(uuid, data.accessPoints);
+          addToast("Acesso removido com sucesso!", "success");
+      } catch (e) {
+          addToast("Erro ao remover acesso.", "alert");
       }
   };
 
@@ -624,9 +761,9 @@ const App: React.FC = () => {
                             {monitoringSubTab === 'access' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
                         </button>
                     </div>
-                    {monitoringSubTab === 'cameras' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'video')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} onAdd={handleAddCamera} onEdit={handleEditCamera} onDelete={handleDeleteCamera} onImportRecordingTimes={handleImportRecordingTimes} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} userRole={user.role} />}
-                    {monitoringSubTab === 'alarms' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'alarm')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} onAdd={handleAddCamera} onEdit={handleEditCamera} onDelete={handleDeleteCamera} onImportRecordingTimes={handleImportRecordingTimes} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} userRole={user.role} />}
-                    {monitoringSubTab === 'access' && <AccessControlList accessPoints={data.accessPoints} onToggleStatus={handleToggleAccessStatus} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
+                    {monitoringSubTab === 'cameras' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'video')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} onAdd={handleAddCamera} onEdit={handleEditCamera} onDelete={handleDeleteCamera} onImportCameraData={handleImportCameraData} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} userRole={user.role} />}
+                    {monitoringSubTab === 'alarms' && <CameraList cameras={data.cameras.filter(c => c.channelType === 'alarm')} onToggleStatus={handleToggleCameraStatus} onSetWarehouseStatus={handleSetWarehouseStatus} onAdd={handleAddCamera} onEdit={handleEditCamera} onDelete={handleDeleteCamera} onImportCameraData={handleImportCameraData} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} userRole={user.role} />}
+                    {monitoringSubTab === 'access' && <AccessControlList accessPoints={data.accessPoints} onToggleStatus={handleToggleAccessStatus} onAdd={handleAddAccessPoint} onEdit={handleEditAccessPoint} onDelete={handleDeleteAccessPoint} onImport={handleImportAccessPoints} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
                   </div>
                 )}
                 {activeTab === 'third-party-mgmt' && (
