@@ -141,13 +141,18 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
 
       if (editingCam) {
           // Edit
-          if (onEdit) onEdit({ ...editingCam, ...formData } as Camera);
+          const updatedCam = { ...editingCam, ...formData };
+          if (formData.warehouse !== undefined && formData.warehouse !== editingCam.warehouse) {
+              updatedCam.warehouseManuallyEdited = true;
+          }
+          if (onEdit) onEdit(updatedCam as Camera);
       } else {
           // Add
           if (onAdd) onAdd({
               ...formData,
               uuid: `cam-${Date.now()}`,
-              status: formData.status || 'ONLINE'
+              status: formData.status || 'ONLINE',
+              warehouseManuallyEdited: !!(formData.warehouse && formData.warehouse !== 'Geral' && formData.warehouse !== 'Sem Galpão')
           } as Camera);
       }
       setShowModal(false);

@@ -151,13 +151,18 @@ const AccessControlList: React.FC<AccessControlListProps> = ({ accessPoints, onT
       if (!formData.name || !formData.id) return;
 
       if (editingAp) {
-          if (onEdit) onEdit({ ...editingAp, ...formData } as AccessPoint);
+          const updatedAp = { ...editingAp, ...formData };
+          if (formData.warehouse !== undefined && formData.warehouse !== editingAp.warehouse) {
+              updatedAp.warehouseManuallyEdited = true;
+          }
+          if (onEdit) onEdit(updatedAp as AccessPoint);
       } else {
           if (onAdd) onAdd({
               ...formData,
               uuid: `access-${Date.now()}`,
               status: formData.status || 'ONLINE',
-              lastLog: new Date().toISOString()
+              lastLog: new Date().toISOString(),
+              warehouseManuallyEdited: !!(formData.warehouse && formData.warehouse !== 'Geral' && formData.warehouse !== 'Sem Galpão')
           } as AccessPoint);
       }
       setShowModal(false);

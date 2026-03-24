@@ -120,6 +120,7 @@ const mapJsonToDevices = (jsonData: any[], type: 'camera' | 'access'): any[] => 
             const module = getValue(obj, ['Módulo', 'Modulo', 'MODULO', 'Setor']);
             let warehouseRaw = getValue(obj, ['Galpão', 'Galpao', 'Warehouse']);
             const warehouse = normalizeWarehouse(warehouseRaw, location, module, name, deviceName, id);
+            const warehouseManuallyEdited = !!(warehouseRaw && warehouseRaw.toString().trim());
             const responsibleRaw = getValue(obj, ['Responsável', 'Responsavel', 'Resp', 'Tecnico']);
             const responsible = getResponsibleByWarehouse(warehouse, responsibleRaw);
             const lastLogRaw = getValue(obj, ['Última alteraçãoStatus', 'Última alteração Status', 'UltimaAlteracaoStatus', 'DataStatus', 'Data']);
@@ -132,7 +133,7 @@ const mapJsonToDevices = (jsonData: any[], type: 'camera' | 'access'): any[] => 
             const offlineKeywords = ['OFFLINE', 'OFF', 'SEM SINAL', 'NO SIGNAL', 'ERRO', 'FALHA', 'DESLIGADO', 'INATIVO', '0', 'FALSE', 'NAO', 'NO', 'PERDA'];
             if (offlineKeywords.some(k => statusRaw.includes(k))) status = 'OFFLINE';
             if (!name) return null;
-            return { uuid, id: id || 'N/A', name: name || 'Sem Nome', location: location || 'N/A', module: module || 'Geral', warehouse, responsible, status, channelType, lastLog } as Camera;
+            return { uuid, id: id || 'N/A', name: name || 'Sem Nome', location: location || 'N/A', module: module || 'Geral', warehouse, responsible, status, channelType, lastLog, warehouseManuallyEdited } as Camera;
         } else {
             const name = getValue(obj, ['Nome do canal', 'Nome do dispositivo', 'Nome', 'Name', 'Dispositivo', 'Equipamento']);
             const id = getValue(obj, ['IP', 'ID', 'Id', 'Cod', 'Código', 'Serial', 'IP do Dispositivo']);
@@ -144,11 +145,12 @@ const mapJsonToDevices = (jsonData: any[], type: 'camera' | 'access'): any[] => 
             const finalName = name || id || 'Dispositivo Sem Nome';
             const finalId = id || finalName; 
             const warehouse = normalizeWarehouse(warehouseRaw, location, null, name, name, id);
+            const warehouseManuallyEdited = !!(warehouseRaw && warehouseRaw.toString().trim());
             const statusRaw = getValue(obj, ['Status On-line/Off-line', 'Status', 'STATUS', 'Estado', 'Situação', 'Conexão'])?.toUpperCase() || '';
             let status: Status = 'ONLINE';
             const offlineKeywords = ['OFFLINE', 'OFF', 'INATIVO', 'DESLIGADO', 'FALHA', 'ERRO', 'ERROR', 'DOWN', 'DISCONNECTED', '0', 'FALSE', 'NAO', 'NÃO', 'RUIM', 'PARADO'];
             if (offlineKeywords.some(k => statusRaw === k || statusRaw.includes(k))) status = 'OFFLINE';
-            return { uuid, id: finalId, name: finalName, type: 'Controle de Acesso', location: location || 'N/A', warehouse, status, lastLog, latency: '-' } as AccessPoint;
+            return { uuid, id: finalId, name: finalName, type: 'Controle de Acesso', location: location || 'N/A', warehouse, status, lastLog, latency: '-', warehouseManuallyEdited } as AccessPoint;
         }
     }).filter(Boolean);
 };

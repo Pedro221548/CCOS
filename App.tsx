@@ -203,12 +203,18 @@ const App: React.FC = () => {
                   // Preserve recording time
                   if (existingCam.recordingTime) merged.recordingTime = existingCam.recordingTime;
                   
-                  // Preserve warehouse if existing is identified and new is unassigned
-                  const isNewUnassigned = !newCam.warehouse || newCam.warehouse === 'Geral' || newCam.warehouse === 'Sem Galpão';
-                  const isExistingAssigned = existingCam.warehouse && existingCam.warehouse !== 'Geral' && existingCam.warehouse !== 'Sem Galpão';
-                  
-                  if (isNewUnassigned && isExistingAssigned) {
+                  // Preserve warehouse if it was manually edited in the app
+                  if (existingCam.warehouseManuallyEdited) {
                       merged.warehouse = existingCam.warehouse;
+                      merged.warehouseManuallyEdited = true;
+                  } else {
+                      // Standard merge logic: preserve if new is unassigned
+                      const isNewUnassigned = !newCam.warehouse || newCam.warehouse === 'Geral' || newCam.warehouse === 'Sem Galpão';
+                      const isExistingAssigned = existingCam.warehouse && existingCam.warehouse !== 'Geral' && existingCam.warehouse !== 'Sem Galpão';
+                      
+                      if (isNewUnassigned && isExistingAssigned) {
+                          merged.warehouse = existingCam.warehouse;
+                      }
                   }
                   return merged;
               }
@@ -219,11 +225,18 @@ const App: React.FC = () => {
               const existingAp = data.accessPoints.find(a => a.id === newAp.id && a.name === newAp.name);
               if (existingAp) {
                   const merged = { ...newAp };
-                  const isNewUnassigned = !newAp.warehouse || newAp.warehouse === 'Geral' || newAp.warehouse === 'Sem Galpão';
-                  const isExistingAssigned = existingAp.warehouse && existingAp.warehouse !== 'Geral' && existingAp.warehouse !== 'Sem Galpão';
                   
-                  if (isNewUnassigned && isExistingAssigned) {
+                  // Preserve warehouse if it was manually edited in the app
+                  if (existingAp.warehouseManuallyEdited) {
                       merged.warehouse = existingAp.warehouse;
+                      merged.warehouseManuallyEdited = true;
+                  } else {
+                      const isNewUnassigned = !newAp.warehouse || newAp.warehouse === 'Geral' || newAp.warehouse === 'Sem Galpão';
+                      const isExistingAssigned = existingAp.warehouse && existingAp.warehouse !== 'Geral' && existingAp.warehouse !== 'Sem Galpão';
+                      
+                      if (isNewUnassigned && isExistingAssigned) {
+                          merged.warehouse = existingAp.warehouse;
+                      }
                   }
                   return merged;
               }
@@ -296,6 +309,7 @@ const App: React.FC = () => {
 
                           if (cam.warehouse !== finalWarehouse) {
                               newCam.warehouse = finalWarehouse;
+                              newCam.warehouseManuallyEdited = true;
                               needsUpdate = true;
                           }
                       }
@@ -345,6 +359,7 @@ const App: React.FC = () => {
 
                           if (ap.warehouse !== finalWarehouse) {
                               newAp.warehouse = finalWarehouse;
+                              newAp.warehouseManuallyEdited = true;
                               needsUpdate = true;
                           }
                       }

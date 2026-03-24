@@ -70,6 +70,7 @@ export interface Camera {
   channelType: ChannelType;
   lastLog?: string; 
   recordingTime?: string;
+  warehouseManuallyEdited?: boolean;
 }
 
 export interface AccessPoint {
@@ -84,6 +85,7 @@ export interface AccessPoint {
   latency?: string;    
   ticket?: string;     
   observation?: string; 
+  warehouseManuallyEdited?: boolean;
 }
 
 export interface PublicDocument {
