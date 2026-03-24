@@ -2,7 +2,8 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { User, ProcessedWorker, AccessPoint } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
-import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, CheckSquare, Square, MessageCircle, Mail, X, ArrowUpRight, ArrowDownLeft, GripHorizontal, DoorClosed, Clock, Hourglass, RotateCcw, Briefcase } from 'lucide-react';
+import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, MessageCircle, Mail, X, ArrowUpRight, ArrowDownLeft, GripHorizontal, DoorClosed, Clock, Hourglass, RotateCcw, Briefcase } from 'lucide-react';
+import Checkbox from './ui/Checkbox';
 
 interface AccessManagementProps {
     accessPoints: AccessPoint[];
@@ -434,11 +435,10 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                                 className="flex items-center gap-3 p-3 hover:bg-purple-500/10 rounded-xl cursor-pointer transition-all border-b border-slate-800 mb-2 group"
                                                 onClick={toggleAllAccessPoints}
                                             >
-                                                {selectedAccessPoints.length === availableAccessPoints.length && availableAccessPoints.length > 0 ? (
-                                                    <CheckSquare size={18} className="text-purple-500" />
-                                                ) : (
-                                                    <Square size={18} className="text-slate-600 group-hover:text-slate-400" />
-                                                )}
+                                                <Checkbox 
+                                                    checked={selectedAccessPoints.length === availableAccessPoints.length && availableAccessPoints.length > 0}
+                                                    onChange={toggleAllAccessPoints}
+                                                />
                                                 <span className="text-[11px] font-black text-white uppercase tracking-widest">Selecionar / Limpar Tudo</span>
                                             </div>
                                             
@@ -450,11 +450,10 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                                         onClick={() => toggleAccessPoint(ap)}
                                                     >
                                                         <div className="shrink-0">
-                                                            {selectedAccessPoints.includes(ap) ? (
-                                                                <CheckSquare size={18} className="text-purple-500" />
-                                                            ) : (
-                                                                <Square size={18} className="text-slate-600" />
-                                                            )}
+                                                            <Checkbox 
+                                                                checked={selectedAccessPoints.includes(ap)}
+                                                                onChange={() => toggleAccessPoint(ap)}
+                                                            />
                                                         </div>
                                                         <span className={`text-[11px] font-bold leading-tight ${selectedAccessPoints.includes(ap) ? 'text-white' : 'text-slate-400'} truncate`}>
                                                             {ap}
@@ -549,12 +548,11 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                                                     <div className="flex items-center gap-3">
                                                                         {activeTab === 'report' && (
                                                                             <div className="selection-checkbox" onClick={(e) => e.stopPropagation()}>
-                                                                                <button 
-                                                                                    onClick={() => handleSelectPersonGroup(person.history)}
-                                                                                    className={`p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${isAllSelected || isPartialSelected ? 'text-purple-500' : 'text-slate-400'}`}
-                                                                                >
-                                                                                    {isAllSelected ? <CheckSquare size={20} /> : isPartialSelected ? <div className="relative"><Square size={20} /><div className="absolute inset-0 m-auto w-2.5 h-2.5 bg-purple-500 rounded-sm"></div></div> : <Square size={20} />}
-                                                                                </button>
+                                                                                <Checkbox 
+                                                                                    checked={isAllSelected}
+                                                                                    indeterminate={isPartialSelected}
+                                                                                    onChange={() => handleSelectPersonGroup(person.history)}
+                                                                                />
                                                                             </div>
                                                                         )}
                                                                         <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-500 font-black text-xs">
@@ -600,9 +598,10 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                                                                             >
                                                                                                 {activeTab === 'report' && (
                                                                                                     <td className="py-2">
-                                                                                                        <button className={`text-purple-500 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-20 hover:opacity-100'}`}>
-                                                                                                            {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
-                                                                                                        </button>
+                                                                                                        <Checkbox 
+                                                                                                            checked={isSelected}
+                                                                                                            onChange={() => handleSelectRecord(record.id)}
+                                                                                                        />
                                                                                                     </td>
                                                                                                 )}
                                                                                                 <td className="py-2 font-mono text-slate-500 font-bold">

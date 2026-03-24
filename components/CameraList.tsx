@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Camera, Status } from '../types';
 import { Video, MapPin, User, AlertCircle, Search, X, Filter, Warehouse, Plus, Edit2, Trash2, PowerOff, Power, Clock, Download, Upload, ChevronDown, ChevronUp } from 'lucide-react';
+import Checkbox from './ui/Checkbox';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
@@ -542,21 +543,19 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                                                          </div>
                                                      )}
                                                 </div>
-                                                <label className={`relative inline-flex items-center group ${readOnly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`} title={readOnly ? "Modo visualização" : "Forçar status Offline"}>
-                                                    <input 
-                                                        type="checkbox" 
-                                                        className="sr-only peer"
-                                                        checked={cam.status === 'OFFLINE'}
-                                                        onChange={() => !readOnly && onToggleStatus(cam.uuid)}
-                                                        disabled={readOnly}
-                                                    />
-                                                    <div className="w-8 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-rose-500"></div>
+                                                <div className="flex items-center gap-2">
                                                     {!readOnly && (
-                                                        <span className="ml-2 text-[10px] text-slate-500 group-hover:text-slate-300 transition-colors select-none">
+                                                        <span className="text-[10px] text-slate-500 group-hover:text-slate-300 transition-colors select-none">
                                                             Flag Off
                                                         </span>
                                                     )}
-                                                </label>
+                                                    <Checkbox 
+                                                        checked={cam.status === 'OFFLINE'}
+                                                        onChange={() => !readOnly && onToggleStatus(cam.uuid)}
+                                                        disabled={readOnly}
+                                                        size="sm"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     ))}

@@ -2,7 +2,8 @@
 import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Warehouse, DoorClosed, ChevronDown, CheckSquare, Square, Calendar, X } from 'lucide-react';
+import { Clock, Warehouse, DoorClosed, ChevronDown, Calendar, X } from 'lucide-react';
+import Checkbox from '../ui/Checkbox';
 
 interface AccessFlowChartProps {
     hourlyData: any[];
@@ -132,8 +133,11 @@ const AccessFlowChart: React.FC<AccessFlowChartProps> = ({
                                                 onClick={() => toggleAPChart(ap)}
                                                 className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors group"
                                             >
-                                                <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${selectedAccessPointsChart.includes(ap) ? 'bg-purple-500 border-purple-500 text-white shadow-lg shadow-purple-500/20' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-700 text-transparent'}`}>
-                                                    <CheckSquare size={12} />
+                                                <div className="shrink-0">
+                                                    <Checkbox 
+                                                        checked={selectedAccessPointsChart.includes(ap)}
+                                                        onChange={() => toggleAPChart(ap)}
+                                                    />
                                                 </div>
                                                 <span className={`text-[10px] font-black uppercase tracking-tight transition-colors ${selectedAccessPointsChart.includes(ap) ? 'text-slate-800 dark:text-white' : 'text-slate-400 group-hover:text-slate-600'}`}>
                                                     {ap}

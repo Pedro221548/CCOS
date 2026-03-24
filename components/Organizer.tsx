@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { Note, ShiftNote, User as AppUser } from '../types';
 // Added Loader2 to the import list
-import { Calendar, Clock, CheckSquare, Square, Trash2, Plus, NotebookPen, History, Save, X, Edit2, Loader2 } from 'lucide-react';
+import { Calendar, Clock, Trash2, Plus, NotebookPen, History, Save, X, Edit2, Loader2 } from 'lucide-react';
+import Checkbox from './ui/Checkbox';
 import { push, ref, get } from 'firebase/database';
 import { db } from '../services/firebase';
 
@@ -131,7 +132,14 @@ const Organizer: React.FC<OrganizerProps> = ({
               {notes.length === 0 && <div className="text-center text-slate-600 text-xs italic py-20">Vazio.</div>}
               {notes.map(note => (
                 <div key={note.id} className={`p-4 rounded-xl border transition-all group ${note.completed ? 'bg-slate-950/50 border-slate-800 opacity-60' : 'bg-slate-800/40 border-slate-700 hover:border-blue-500/50'}`}>
-                   <div className="flex items-start gap-4"><button onClick={() => onToggleNote(note.id)} className={`mt-0.5 shrink-0 ${note.completed ? 'text-emerald-500' : 'text-slate-500 hover:text-white'}`}>{note.completed ? <CheckSquare size={22} /> : <Square size={22} />}</button><div className="flex-1 min-w-0">{editingNoteId === note.id ? <div className="flex gap-2"><input value={editingNoteText} onChange={(e) => setEditingNoteText(e.target.value)} className="w-full bg-slate-950 text-white text-sm p-2 rounded border border-blue-500 focus:outline-none" autoFocus onKeyDown={(e) => e.key === 'Enter' && saveEditedNote(note.id)} /><button onClick={() => saveEditedNote(note.id)} className="text-emerald-500 p-1"><Save size={20}/></button></div> : <p className={`text-sm break-words leading-relaxed ${note.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>{note.content}</p>}</div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">{editingNoteId !== note.id && <button onClick={() => startEditingNote(note)} className="text-slate-500 hover:text-blue-400 p-1.5"><Edit2 size={16} /></button>}<button onClick={() => onDeleteNote(note.id)} className="text-slate-500 hover:text-rose-500 p-1.5"><Trash2 size={16} /></button></div></div>
+                   <div className="flex items-start gap-4">
+                     <div className="mt-0.5 shrink-0">
+                       <Checkbox 
+                         checked={note.completed}
+                         onChange={() => onToggleNote(note.id)}
+                       />
+                     </div>
+                     <div className="flex-1 min-w-0">{editingNoteId === note.id ? <div className="flex gap-2"><input value={editingNoteText} onChange={(e) => setEditingNoteText(e.target.value)} className="w-full bg-slate-950 text-white text-sm p-2 rounded border border-blue-500 focus:outline-none" autoFocus onKeyDown={(e) => e.key === 'Enter' && saveEditedNote(note.id)} /><button onClick={() => saveEditedNote(note.id)} className="text-emerald-500 p-1"><Save size={20}/></button></div> : <p className={`text-sm break-words leading-relaxed ${note.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>{note.content}</p>}</div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">{editingNoteId !== note.id && <button onClick={() => startEditingNote(note)} className="text-slate-500 hover:text-blue-400 p-1.5"><Edit2 size={16} /></button>}<button onClick={() => onDeleteNote(note.id)} className="text-slate-500 hover:text-rose-500 p-1.5"><Trash2 size={16} /></button></div></div>
                 </div>
               ))}
            </div>

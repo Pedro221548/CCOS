@@ -8,6 +8,7 @@ import {
     MessageSquareHeart, Search, MoreVertical, ShieldCheck, Mail, ShieldAlert,
     Building2, Filter, Key, ChevronDown
 } from 'lucide-react';
+import Checkbox from './ui/Checkbox';
 import { WAREHOUSE_LIST } from '../constants';
 import { ref, onValue, update, off } from 'firebase/database';
 import { db } from '../services/firebase';
@@ -264,7 +265,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                                 <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar pr-2">
                                     {WAREHOUSE_LIST.map(wh => (
                                         <label key={wh} className="flex items-center gap-3 cursor-pointer hover:bg-slate-900 p-2 rounded-xl transition-colors group">
-                                            <input type="checkbox" checked={newUser.allowedWarehouses.includes(wh)} onChange={() => toggleWarehouse(wh)} className="rounded-lg border-slate-700 bg-slate-900 text-blue-600 focus:ring-offset-0 focus:ring-0" />
+                                            <Checkbox 
+                                                checked={newUser.allowedWarehouses.includes(wh)}
+                                                onChange={() => toggleWarehouse(wh)}
+                                            />
                                             <span className="text-[11px] font-bold text-slate-400 group-hover:text-white uppercase truncate">{wh}</span>
                                         </label>
                                     ))}
@@ -477,9 +481,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                                         <Warehouse size={16} className={tempPermissions.includes(wh) ? 'text-blue-400' : 'text-slate-600'} />
                                         <span className={`text-xs font-bold uppercase tracking-tight ${tempPermissions.includes(wh) ? 'text-white' : 'text-slate-400'}`}>{wh}</span>
                                     </div>
-                                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${tempPermissions.includes(wh) ? 'bg-blue-500 border-blue-500 text-white' : 'border-slate-800 text-transparent'}`}>
-                                        <Check size={14} strokeWidth={4} />
-                                    </div>
+                                    <Checkbox 
+                                        checked={tempPermissions.includes(wh)}
+                                        onChange={() => {}} // Handled by parent label click
+                                    />
                                 </label>
                             ))}
                         </div>

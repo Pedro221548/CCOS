@@ -2,7 +2,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { User, ProcessedWorker } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
-import { Activity, Clock, Filter, X, AlertCircle, DoorClosed, CheckSquare, Square, ChevronDown, Calendar, RotateCcw } from 'lucide-react';
+import { Activity, Clock, Filter, X, AlertCircle, DoorClosed, ChevronDown, Calendar, RotateCcw } from 'lucide-react';
+import Checkbox from './ui/Checkbox';
 
 interface HeatmapProps {
     thirdPartyWorkers: ProcessedWorker[];
@@ -235,11 +236,10 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
                                     className="flex items-center gap-3 p-3 hover:bg-emerald-500/10 rounded-xl cursor-pointer transition-all border-b border-slate-800 mb-2 group"
                                     onClick={toggleAllAccessPoints}
                                 >
-                                    {selectedAccessPoints.length === availableAccessPoints.length && availableAccessPoints.length > 0 ? (
-                                        <CheckSquare size={18} className="text-emerald-500" />
-                                    ) : (
-                                        <Square size={18} className="text-slate-600 group-hover:text-slate-400" />
-                                    )}
+                                    <Checkbox 
+                                        checked={selectedAccessPoints.length === availableAccessPoints.length && availableAccessPoints.length > 0}
+                                        onChange={toggleAllAccessPoints}
+                                    />
                                     <span className="text-xs font-black text-white uppercase tracking-[0.1em]">Selecionar / Desmarcar Tudo</span>
                                 </div>
                                 
@@ -251,11 +251,10 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
                                             onClick={() => toggleAccessPoint(ap)}
                                         >
                                             <div className="mt-0.5">
-                                                {selectedAccessPoints.includes(ap) ? (
-                                                    <CheckSquare size={18} className="text-emerald-500" />
-                                                ) : (
-                                                    <Square size={18} className="text-slate-600" />
-                                                )}
+                                                <Checkbox 
+                                                    checked={selectedAccessPoints.includes(ap)}
+                                                    onChange={() => toggleAccessPoint(ap)}
+                                                />
                                             </div>
                                             <span className={`text-[11px] font-bold leading-relaxed ${selectedAccessPoints.includes(ap) ? 'text-white' : 'text-slate-400'}`}>
                                                 {ap}

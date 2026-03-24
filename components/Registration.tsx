@@ -4,8 +4,9 @@ import { User, TeamWorker, AttendanceRoster } from '../types';
 import { 
     Users, UserPlus, Calendar, ShieldCheck, FileText, Camera as CameraIcon, 
     Upload, X, CheckCircle2, AlertTriangle, Shield, Smartphone, 
-    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, CheckSquare, Square, ClipboardCheck, Download, Eye, EyeOff, Loader2, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser, Image, Clock, Mail, ChevronDown, Info, FolderDown
+    Lock, LayoutGrid, Warehouse, Building2, ChevronRight, Filter, Search, RotateCcw, Trash2, File, ClipboardCheck, Download, Eye, EyeOff, Loader2, Copy, ImageIcon, Check, Briefcase, Sparkles, Eraser, Image, Clock, Mail, ChevronDown, Info, FolderDown
 } from 'lucide-react';
+import Checkbox from './ui/Checkbox';
 import { ref, push, onValue, set, remove, update, get, query, orderByChild, equalTo } from 'firebase/database';
 import { auth, db } from '../services/firebase';
 import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
@@ -658,8 +659,11 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                 <div className="flex items-center gap-4 md:gap-5 relative z-10 mt-2">
                                                     <div className="relative shrink-0">
                                                         <img src={w.photoUrl} className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-[20px] object-cover border-2 border-slate-800" />
-                                                        <div className={`absolute -top-1.5 -left-1.5 p-1 rounded-lg border shadow-lg transition-all ${isSelected ? 'bg-rose-600 border-rose-400 scale-110' : 'bg-slate-800 border-slate-700'}`}>
-                                                            {isSelected ? <CheckSquare size={14} className="text-white" /> : <Square size={14} className="text-slate-600" />}
+                                                        <div className="absolute -top-1.5 -left-1.5">
+                                                            <Checkbox 
+                                                                checked={isSelected}
+                                                                onChange={() => toggleWorkerSelection(w.id)}
+                                                            />
                                                         </div>
                                                     </div>
                                                     <div className="flex-1 min-w-0">
@@ -681,8 +685,11 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                     <div className="flex items-center gap-4 md:gap-5 relative z-10">
                                         <div className="relative shrink-0">
                                             <img src={w.photoUrl} className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-[20px] object-cover border-2 border-slate-800" />
-                                            <div className={`absolute -top-1.5 -left-1.5 p-1 rounded-lg border shadow-lg transition-all ${isSelected ? 'bg-blue-600 border-blue-400 scale-110' : 'bg-slate-800 border-slate-700'}`}>
-                                                {isSelected ? <CheckSquare size={14} className="text-white" /> : <Square size={14} className="text-slate-600" />}
+                                            <div className="absolute -top-1.5 -left-1.5">
+                                                <Checkbox 
+                                                    checked={isSelected}
+                                                    onChange={() => toggleWorkerSelection(w.id)}
+                                                />
                                             </div>
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -818,8 +825,11 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                         <div className="flex items-start gap-4">
                                             <div className="relative shrink-0" onClick={() => toggleRosterSelection(roster.id)}>
                                                 <img src={worker?.photoUrl || `https://ui-avatars.com/api/?name=${roster.workerName}&background=1e293b&color=475569`} className="w-16 h-16 rounded-xl object-cover border border-slate-800" />
-                                                <div className={`absolute -top-2 -left-2 p-1.5 rounded-lg border shadow-lg ${isSelected ? 'bg-blue-600 border-blue-400' : 'bg-slate-800 border-slate-700'}`}>
-                                                    {isSelected ? <CheckSquare size={14} className="text-white" /> : <Square size={14} className="text-slate-600" />}
+                                                <div className="absolute -top-2 -left-2">
+                                                    <Checkbox 
+                                                        checked={isSelected}
+                                                        onChange={() => toggleRosterSelection(roster.id)}
+                                                    />
                                                 </div>
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -874,13 +884,12 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                 <thead className="bg-[#05070a] text-slate-500 text-[11px] font-black uppercase tracking-[0.25em] border-b border-slate-800">
                                     <tr>
                                         <th className="p-8 w-16">
-                                            <button onClick={handleSelectAllRoster} className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
-                                                {selectedRosterIds.size === confirmedTodayFiltered.length && confirmedTodayFiltered.length > 0 ? (
-                                                    <CheckSquare size={20} className="text-blue-500" />
-                                                ) : (
-                                                    <Square size={20} className="text-slate-600" />
-                                                )}
-                                            </button>
+                                            <div className="flex justify-center">
+                                                <Checkbox 
+                                                    checked={selectedRosterIds.size === confirmedTodayFiltered.length && confirmedTodayFiltered.length > 0}
+                                                    onChange={handleSelectAllRoster}
+                                                />
+                                            </div>
                                         </th>
                                         <th className="p-8">IDENTIFICAÇÃO</th>
                                         <th className="p-8">EMPRESA</th>
@@ -900,13 +909,12 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                         return (
                                             <tr key={roster.id} className={`transition-all group border-l-4 ${isSelected ? 'bg-blue-600/[0.03] border-l-blue-500' : isApproved ? 'bg-emerald-500/[0.01] border-l-emerald-500' : 'hover:bg-slate-800/20 border-l-transparent'}`}>
                                                 <td className="p-8">
-                                                    <button onClick={() => toggleRosterSelection(roster.id)} className="p-2 rounded-lg transition-colors">
-                                                        {isSelected ? (
-                                                            <CheckSquare size={20} className="text-blue-500" />
-                                                        ) : (
-                                                            <Square size={20} className="text-slate-700 group-hover:text-slate-500" />
-                                                        )}
-                                                    </button>
+                                                    <div className="flex justify-center">
+                                                        <Checkbox 
+                                                            checked={isSelected}
+                                                            onChange={() => toggleRosterSelection(roster.id)}
+                                                        />
+                                                    </div>
                                                 </td>
                                                 <td className="p-8">
                                                     <div className="flex items-center gap-5">
@@ -1085,7 +1093,11 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                     </div>
                                     <div className="pt-2">
                                         <label className="flex items-start gap-3 cursor-pointer group bg-slate-950 p-4 rounded-2xl border border-slate-800 hover:border-blue-500/50 transition-all">
-                                            <input type="checkbox" checked={lgpdConsent} onChange={e => setLgpdConsent(e.target.checked)} className="mt-1 w-5 h-5 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-0 focus:ring-offset-0" />
+                                            <Checkbox 
+                                                checked={lgpdConsent}
+                                                onChange={(checked) => setLgpdConsent(checked)}
+                                                className="mt-1"
+                                            />
                                             <span className="text-[10px] text-slate-400 font-medium leading-relaxed">
                                                 Eu aceito os <button type="button" onClick={() => setShowLegal('terms')} className="text-blue-500 hover:underline">Termos de Uso</button> e a <button type="button" onClick={() => setShowLegal('privacy')} className="text-blue-500 hover:underline">Política de Privacidade</button>. Estou ciente de que meus dados biométricos e documentos serão tratados conforme a LGPD para fins de segurança.
                                             </span>
