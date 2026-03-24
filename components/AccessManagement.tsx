@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { User, ProcessedWorker, AccessPoint } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
-import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, CheckSquare, Square, MessageCircle, Mail, X, ArrowUpRight, ArrowDownLeft, GripHorizontal, DoorClosed, Clock, Hourglass, RotateCcw } from 'lucide-react';
+import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, CheckSquare, Square, MessageCircle, Mail, X, ArrowUpRight, ArrowDownLeft, GripHorizontal, DoorClosed, Clock, Hourglass, RotateCcw, Briefcase } from 'lucide-react';
 
 interface AccessManagementProps {
     accessPoints: AccessPoint[];
@@ -31,6 +31,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
     const [endDate, setEndDate] = useState('');
     
     const [expandedPersonKey, setExpandedPersonKey] = useState<string | null>(null);
+    const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [generatedMessage, setGeneratedMessage] = useState('');
     const [stayDuration, setStayDuration] = useState<string | null>(null);
@@ -195,26 +196,51 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         return subset;
     }, [thirdPartyWorkers, selectedWarehouse, selectedAccessPoints, startDate, endDate, currentUser]);
 
-    const groupedPeople = useMemo(() => {
-        const groups: { [key: string]: { id: string, name: string, company: string, history: ProcessedWorker[] } } = {};
+    const groupedByCompany = useMemo(() => {
+        const companyGroups: { [company: string]: { [personKey: string]: { id: string, name: string, company: string, history: ProcessedWorker[] } } } = {};
+        
         filteredWorkers.forEach(w => {
-            const key = `${w.name.trim().toUpperCase()}|${w.company.trim().toUpperCase()}`;
-            if (!groups[key]) {
-                groups[key] = { id: key, name: w.name, company: w.company, history: [] };
+            const company = (w.company || 'Terceiros').trim() || 'Terceiros';
+            if (!companyGroups[company]) {
+                companyGroups[company] = {};
             }
-            groups[key].history.push(w);
+            
+            const personKey = w.name.trim().toUpperCase();
+            if (!companyGroups[company][personKey]) {
+                companyGroups[company][personKey] = { 
+                    id: `${personKey}|${company.toUpperCase()}`, 
+                    name: w.name, 
+                    company: company, 
+                    history: [] 
+                };
+            }
+            companyGroups[company][personKey].history.push(w);
         });
-        return Object.values(groups)
-            .map(person => {
-                person.history.sort((a, b) => {
+
+        return Object.entries(companyGroups).map(([company, peopleMap]) => {
+            const people = Object.values(peopleMap).map(p => {
+                p.history.sort((a, b) => {
                     const tA = `${a.date} ${a.time}`;
                     const tB = `${b.date} ${b.time}`;
                     return tB.localeCompare(tA);
                 });
-                return person;
-            })
-            .sort((a, b) => a.name.localeCompare(b.name));
+                return p;
+            }).sort((a, b) => a.name.localeCompare(b.name));
+            
+            return { company, people };
+        }).sort((a, b) => {
+            if (a.company === 'Terceiros') return 1;
+            if (b.company === 'Terceiros') return -1;
+            return a.company.localeCompare(b.company);
+        });
     }, [filteredWorkers]);
+
+    const toggleCompanyExpand = (company: string) => {
+        const newSet = new Set(expandedCompanies);
+        if (newSet.has(company)) newSet.delete(company);
+        else newSet.add(company);
+        setExpandedCompanies(newSet);
+    };
 
     const togglePersonExpand = (key: string) => {
         setExpandedPersonKey(prev => prev === key ? null : key);
@@ -460,104 +486,151 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                             </div>
                         </div>
 
-                        {/* LISTA DE PESSOAS */}
-                        <div className="space-y-3 pt-2">
-                            {groupedPeople
-                                .filter(p => p.name.toLowerCase().includes(peopleSearch.toLowerCase()))
-                                .map((person) => {
-                                    const allPersonIds = person.history.map(h => h.id);
-                                    const isAllSelected = allPersonIds.length > 0 && allPersonIds.every(id => selectedIds.has(id));
-                                    const isPartialSelected = allPersonIds.some(id => selectedIds.has(id)) && !isAllSelected;
+                        {/* LISTA DE GRUPOS E PESSOAS */}
+                        <div className="space-y-4 pt-2">
+                            {groupedByCompany
+                                .filter(group => {
+                                    if (!peopleSearch.trim()) return true;
+                                    const term = peopleSearch.toLowerCase();
+                                    return group.company.toLowerCase().includes(term) || 
+                                           group.people.some(p => p.name.toLowerCase().includes(term));
+                                })
+                                .map((group) => {
+                                    const isGroupExpanded = expandedCompanies.has(group.company) || peopleSearch.trim() !== '';
+                                    const filteredPeople = group.people.filter(p => 
+                                        p.name.toLowerCase().includes(peopleSearch.toLowerCase())
+                                    );
+
+                                    if (filteredPeople.length === 0 && peopleSearch.trim() !== '') return null;
 
                                     return (
-                                        <div key={person.id} className={`border rounded-xl overflow-hidden transition-all duration-300 ${activeTab === 'report' && (isAllSelected || isPartialSelected) ? 'border-purple-500/50 bg-purple-500/5' : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/20'}`}>
-                                            <div 
-                                                className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                                onClick={(e) => {
-                                                    if ((e.target as HTMLElement).closest('.selection-checkbox')) return;
-                                                    togglePersonExpand(person.id);
-                                                }}
+                                        <div key={group.company} className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden transition-all">
+                                            {/* Cabeçalho do Grupo */}
+                                            <button 
+                                                onClick={() => toggleCompanyExpand(group.company)}
+                                                className="w-full p-4 flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border-b border-transparent data-[expanded=true]:border-slate-200 dark:data-[expanded=true]:border-slate-800"
+                                                data-expanded={isGroupExpanded}
                                             >
                                                 <div className="flex items-center gap-4">
-                                                    {activeTab === 'report' && (
-                                                        <div className="selection-checkbox" onClick={(e) => e.stopPropagation()}>
-                                                            <button 
-                                                                onClick={() => handleSelectPersonGroup(person.history)}
-                                                                className={`p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${isAllSelected || isPartialSelected ? 'text-purple-500' : 'text-slate-400'}`}
-                                                            >
-                                                                {isAllSelected ? <CheckSquare size={22} /> : isPartialSelected ? <div className="relative"><Square size={22} /><div className="absolute inset-0 m-auto w-3 h-3 bg-purple-500 rounded-sm"></div></div> : <Square size={22} />}
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                    <div className="w-11 h-11 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-500 font-black text-sm">
-                                                        {person.name.charAt(0)}
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
+                                                        group.company === 'Terceiros' 
+                                                            ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' 
+                                                            : 'bg-purple-500/10 text-purple-500 border-purple-500/20'
+                                                    }`}>
+                                                        <Briefcase size={20} />
                                                     </div>
-                                                    <div>
-                                                        <h4 className="font-bold text-slate-900 dark:text-white uppercase text-sm tracking-tight">{person.name}</h4>
-                                                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{person.company}</p>
+                                                    <div className="text-left">
+                                                        <h4 className="font-black text-slate-800 dark:text-white uppercase text-xs tracking-widest">{group.company}</h4>
+                                                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tight">{filteredPeople.length} Colaboradores</p>
                                                     </div>
                                                 </div>
-                                                
-                                                <div className="flex items-center gap-6 mt-3 sm:mt-0 w-full sm:w-auto justify-between sm:justify-end">
-                                                    <div className="text-right">
-                                                        <span className="block text-[9px] text-slate-500 font-black uppercase tracking-tighter">Registros Filtrados</span>
-                                                        <span className="block font-mono font-black text-emerald-500 text-lg leading-none">{person.history.length}</span>
-                                                    </div>
-                                                    {expandedPersonKey === person.id ? <ChevronUp size={20} className="text-slate-400"/> : <ChevronDown size={20} className="text-slate-400"/>}
+                                                <div className={`p-1.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500 transition-transform duration-300 ${isGroupExpanded ? 'rotate-180' : ''}`}>
+                                                    <ChevronDown size={16} />
                                                 </div>
-                                            </div>
+                                            </button>
 
-                                            {expandedPersonKey === person.id && (
-                                                <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 p-5 animate-fade-in">
-                                                    <div className="overflow-x-auto">
-                                                        <table className="w-full text-left text-xs">
-                                                            <thead className="text-slate-400 font-black uppercase text-[10px] tracking-widest border-b border-slate-200 dark:border-slate-800">
-                                                                <tr>
-                                                                    {activeTab === 'report' && <th className="pb-3 w-8"></th>}
-                                                                    <th className="pb-3">Data</th>
-                                                                    <th className="pb-3">Horário</th>
-                                                                    <th className="pb-3">Unidade</th>
-                                                                    <th className="pb-3">Ponto de Acesso</th>
-                                                                    <th className="pb-3">Ação</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                                                                {person.history.map((record) => {
-                                                                    const isSelected = selectedIds.has(record.id);
-                                                                    return (
-                                                                        <tr 
-                                                                            key={record.id} 
-                                                                            className={`transition-colors cursor-pointer ${isSelected && activeTab === 'report' ? 'bg-purple-500/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'}`}
-                                                                            onClick={() => activeTab === 'report' && handleSelectRecord(record.id)}
-                                                                        >
-                                                                            {activeTab === 'report' && (
-                                                                                <td className="py-3">
-                                                                                    <button className={`text-purple-500 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-20 hover:opacity-100'}`}>
-                                                                                        {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
-                                                                                    </button>
-                                                                                </td>
-                                                                            )}
-                                                                            <td className="py-3 font-mono text-slate-500 font-bold">
-                                                                                {record.date !== 'N/A' ? record.date.split('-').reverse().join('/') : '-'}
-                                                                            </td>
-                                                                            <td className="py-3 font-mono text-emerald-500 font-black">
-                                                                                {record.time}
-                                                                            </td>
-                                                                            <td className="py-3 text-slate-700 dark:text-slate-300 font-black uppercase text-[10px] tracking-tight">
-                                                                                {record.unit}
-                                                                            </td>
-                                                                            <td className="py-3 text-slate-500 font-bold text-[10px]">
-                                                                                {record.accessPoint}
-                                                                            </td>
-                                                                            <td className="py-3">
-                                                                                {getFlowBadge(record.eventType)}
-                                                                            </td>
-                                                                        </tr>
-                                                                    );
-                                                                })}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
+                                            {/* Lista de Pessoas no Grupo */}
+                                            {isGroupExpanded && (
+                                                <div className="p-3 space-y-2 bg-white dark:bg-slate-950/20">
+                                                    {filteredPeople.map((person) => {
+                                                        const allPersonIds = person.history.map(h => h.id);
+                                                        const isAllSelected = allPersonIds.length > 0 && allPersonIds.every(id => selectedIds.has(id));
+                                                        const isPartialSelected = allPersonIds.some(id => selectedIds.has(id)) && !isAllSelected;
+
+                                                        return (
+                                                            <div key={person.id} className={`border rounded-xl overflow-hidden transition-all duration-300 ${activeTab === 'report' && (isAllSelected || isPartialSelected) ? 'border-purple-500/50 bg-purple-500/5' : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/20'}`}>
+                                                                <div 
+                                                                    className="p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                                                    onClick={(e) => {
+                                                                        if ((e.target as HTMLElement).closest('.selection-checkbox')) return;
+                                                                        togglePersonExpand(person.id);
+                                                                    }}
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        {activeTab === 'report' && (
+                                                                            <div className="selection-checkbox" onClick={(e) => e.stopPropagation()}>
+                                                                                <button 
+                                                                                    onClick={() => handleSelectPersonGroup(person.history)}
+                                                                                    className={`p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${isAllSelected || isPartialSelected ? 'text-purple-500' : 'text-slate-400'}`}
+                                                                                >
+                                                                                    {isAllSelected ? <CheckSquare size={20} /> : isPartialSelected ? <div className="relative"><Square size={20} /><div className="absolute inset-0 m-auto w-2.5 h-2.5 bg-purple-500 rounded-sm"></div></div> : <Square size={20} />}
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                        <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-500 font-black text-xs">
+                                                                            {person.name.charAt(0)}
+                                                                        </div>
+                                                                        <div>
+                                                                            <h4 className="font-bold text-slate-900 dark:text-white uppercase text-[12px] tracking-tight">{person.name}</h4>
+                                                                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{person.company}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    <div className="flex items-center gap-4 mt-2 sm:mt-0 w-full sm:w-auto justify-between sm:justify-end">
+                                                                        <div className="text-right">
+                                                                            <span className="block text-[8px] text-slate-500 font-black uppercase tracking-tighter leading-none">Registros</span>
+                                                                            <span className="block font-mono font-black text-emerald-500 text-sm leading-none">{person.history.length}</span>
+                                                                        </div>
+                                                                        {expandedPersonKey === person.id ? <ChevronUp size={16} className="text-slate-400"/> : <ChevronDown size={16} className="text-slate-400"/>}
+                                                                    </div>
+                                                                </div>
+
+                                                                {expandedPersonKey === person.id && (
+                                                                    <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 p-4 animate-fade-in">
+                                                                        <div className="overflow-x-auto">
+                                                                            <table className="w-full text-left text-[11px]">
+                                                                                <thead className="text-slate-400 font-black uppercase text-[9px] tracking-widest border-b border-slate-200 dark:border-slate-800">
+                                                                                    <tr>
+                                                                                        {activeTab === 'report' && <th className="pb-2 w-7"></th>}
+                                                                                        <th className="pb-2">Data</th>
+                                                                                        <th className="pb-2">Horário</th>
+                                                                                        <th className="pb-2">Unidade</th>
+                                                                                        <th className="pb-2">Ponto de Acesso</th>
+                                                                                        <th className="pb-2">Ação</th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                                                                                    {person.history.map((record) => {
+                                                                                        const isSelected = selectedIds.has(record.id);
+                                                                                        return (
+                                                                                            <tr 
+                                                                                                key={record.id} 
+                                                                                                className={`transition-colors cursor-pointer ${isSelected && activeTab === 'report' ? 'bg-purple-500/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'}`}
+                                                                                                onClick={() => activeTab === 'report' && handleSelectRecord(record.id)}
+                                                                                            >
+                                                                                                {activeTab === 'report' && (
+                                                                                                    <td className="py-2">
+                                                                                                        <button className={`text-purple-500 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-20 hover:opacity-100'}`}>
+                                                                                                            {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
+                                                                                                        </button>
+                                                                                                    </td>
+                                                                                                )}
+                                                                                                <td className="py-2 font-mono text-slate-500 font-bold">
+                                                                                                    {record.date !== 'N/A' ? record.date.split('-').reverse().join('/') : '-'}
+                                                                                                </td>
+                                                                                                <td className="py-2 font-mono text-emerald-500 font-black">
+                                                                                                    {record.time}
+                                                                                                </td>
+                                                                                                <td className="py-2 text-slate-700 dark:text-slate-300 font-black uppercase text-[9px] tracking-tight">
+                                                                                                    {record.unit}
+                                                                                                </td>
+                                                                                                <td className="py-2 text-slate-500 font-bold text-[9px]">
+                                                                                                    {record.accessPoint}
+                                                                                                </td>
+                                                                                                <td className="py-2">
+                                                                                                    {getFlowBadge(record.eventType)}
+                                                                                                </td>
+                                                                                            </tr>
+                                                                                        );
+                                                                                    })}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>

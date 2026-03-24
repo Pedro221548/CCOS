@@ -24,15 +24,17 @@ const PersonalSearch: React.FC<PersonalSearchProps> = ({
     selectedPersonHistory
 }) => {
     return (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col h-[450px] overflow-hidden">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 shrink-0">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] shadow-xl flex flex-col h-[450px] overflow-hidden">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 shrink-0">
                 <h3 className="text-slate-800 dark:text-slate-200 font-black text-[10px] uppercase tracking-widest flex items-center gap-2">
-                    <Search size={14} className="text-blue-500" /> 
+                    <div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
+                        <Search size={12} />
+                    </div>
                     Consulta de Acesso
                 </h3>
             </div>
             
-            <div className="p-4 flex-1 flex flex-col overflow-hidden">
+            <div className="p-6 flex-1 flex flex-col overflow-hidden">
                 {!selectedPersonKey ? (
                     <div className="space-y-4 flex flex-col flex-1 overflow-hidden">
                         <div className="relative shrink-0">
@@ -41,16 +43,16 @@ const PersonalSearch: React.FC<PersonalSearchProps> = ({
                                 placeholder="Nome do colaborador..."
                                 value={personalSearch}
                                 onChange={(e) => setPersonalSearch(e.target.value)}
-                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg pl-9 pr-4 py-2 text-[11px] font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-4 py-3 text-[11px] font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all uppercase"
                             />
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                         </div>
                         
                         <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-1">
                             {personalSearchResults.length === 0 ? (
                                 <div className="h-full flex flex-col items-center justify-center text-slate-400 text-[9px] uppercase font-black tracking-widest text-center px-4 gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                                        <UserIcon size={16} />
+                                    <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
+                                        <UserIcon size={20} className="opacity-20" />
                                     </div>
                                     <p>{personalSearch.length < 2 ? 'Digite para buscar' : 'Nenhum resultado'}</p>
                                 </div>
@@ -59,14 +61,14 @@ const PersonalSearch: React.FC<PersonalSearchProps> = ({
                                     <button 
                                         key={p.key}
                                         onClick={() => setSelectedPersonKey(p.key)}
-                                        className="w-full text-left bg-slate-50 dark:bg-slate-950/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/50 hover:border-blue-500/50 hover:bg-blue-50 dark:hover:bg-blue-500/5 transition-all group"
+                                        className="w-full text-left bg-slate-50 dark:bg-slate-950/30 p-3 rounded-2xl border border-slate-100 dark:border-slate-800/50 hover:border-blue-500/50 hover:bg-blue-50 dark:hover:bg-blue-500/5 transition-all group"
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                                                <UserIcon size={12} />
+                                            <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors border border-blue-500/10">
+                                                <UserIcon size={14} />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block truncate uppercase leading-none mb-0.5">{p.name}</span>
+                                                <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 block truncate uppercase leading-none mb-1">{p.name}</span>
                                                 <span className="text-[8px] text-slate-400 uppercase font-black tracking-tighter">{p.company}</span>
                                             </div>
                                         </div>
@@ -77,14 +79,14 @@ const PersonalSearch: React.FC<PersonalSearchProps> = ({
                     </div>
                 ) : (
                     <div className="flex flex-col flex-1 overflow-hidden animate-fade-in">
-                        <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl p-3 mb-4 flex justify-between items-start shrink-0">
+                        <div className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-4 mb-4 flex justify-between items-start shrink-0">
                             <div className="flex-1 min-w-0">
-                                <span className="text-[11px] font-black text-blue-600 dark:text-blue-400 uppercase block truncate leading-none mb-1">{selectedPersonKey.split('|')[0]}</span>
+                                <span className="text-[12px] font-black text-blue-600 dark:text-blue-400 uppercase block truncate leading-none mb-1.5">{selectedPersonKey.split('|')[0]}</span>
                                 <span className="text-[9px] text-slate-500 font-bold uppercase truncate block tracking-tighter">{selectedPersonKey.split('|')[1]}</span>
                             </div>
                             <button 
                                 onClick={() => { setSelectedPersonKey(null); setPersonalSearch(''); setPersonalDateFilter(''); }}
-                                className="p-1 text-slate-400 hover:text-rose-500 transition-colors shrink-0 ml-2"
+                                className="p-2 bg-white dark:bg-slate-800 rounded-lg text-slate-400 hover:text-rose-500 transition-colors shrink-0 ml-2 shadow-sm"
                             >
                                 <X size={14} />
                             </button>
@@ -96,13 +98,13 @@ const PersonalSearch: React.FC<PersonalSearchProps> = ({
                                     type="date"
                                     value={personalDateFilter}
                                     onChange={(e) => setPersonalDateFilter(e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg pl-9 pr-8 py-2 text-[10px] font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 [color-scheme:light] dark:[color-scheme:dark]"
+                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-8 py-3 text-[10px] font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 [color-scheme:light] dark:[color-scheme:dark]"
                                 />
-                                <CalendarSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                <CalendarSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                                 {personalDateFilter && (
                                     <button 
                                         onClick={() => setPersonalDateFilter('')}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500"
+                                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500"
                                     >
                                         <X size={12} />
                                     </button>
@@ -112,19 +114,22 @@ const PersonalSearch: React.FC<PersonalSearchProps> = ({
                         
                         <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-1">
                             {selectedPersonHistory.length === 0 ? (
-                                <div className="p-8 text-center text-slate-400 text-[9px] uppercase font-black tracking-widest">
-                                    {personalDateFilter ? 'Sem registros' : 'Nenhum histórico'}
+                                <div className="p-12 text-center text-slate-400 text-[9px] uppercase font-black tracking-widest flex flex-col items-center gap-3">
+                                    <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
+                                        <CalendarSearch size={20} className="opacity-20" />
+                                    </div>
+                                    <p>{personalDateFilter ? 'Sem registros nesta data' : 'Nenhum histórico encontrado'}</p>
                                 </div>
                             ) : (
                                 selectedPersonHistory.map(h => (
-                                    <div key={h.id} className="bg-slate-50 dark:bg-slate-950/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/50 flex flex-col gap-2">
+                                    <div key={h.id} className="bg-slate-50 dark:bg-slate-950/30 p-3 rounded-2xl border border-slate-100 dark:border-slate-800/50 flex flex-col gap-2 hover:border-blue-500/20 transition-colors">
                                         <div className="flex justify-between items-center">
-                                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${h.eventType === 'ENTRADA' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${h.eventType === 'ENTRADA' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/10' : 'bg-rose-500/10 text-rose-500 border-rose-500/10'}`}>
                                                 {h.eventType}
                                             </span>
                                             <span className="text-[10px] font-mono font-black text-slate-500">{h.time}</span>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 px-1">
                                             <Warehouse size={10} className="text-slate-400" />
                                             <span className="text-[9px] font-bold text-slate-600 dark:text-slate-400 uppercase truncate">{h.unit}</span>
                                         </div>

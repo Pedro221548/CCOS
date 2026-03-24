@@ -351,10 +351,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
         currentUser={currentUser || null}
       />
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         
-        {/* COLUNA PRINCIPAL (3/4) */}
-        <div className="xl:col-span-3 space-y-6">
+        {/* COLUNA PRINCIPAL (9/12) */}
+        <div className="xl:col-span-9 space-y-6">
           
           {/* 2. ANALYTICS: Gráfico de Fluxo */}
           <AccessFlowChart 
@@ -372,60 +372,68 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
             setShowAPDropdown={setShowAPDropdown}
             apDropdownRef={apDropdownRef}
             isAdmin={isAdmin}
-            isViewer={isViewer}
             isManager={isManager}
+            isViewer={isViewer}
           />
-
           {/* 3. OPERATIONAL HUB: Abas de Monitoramento */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] shadow-xl overflow-hidden">
-            <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-xl overflow-hidden">
+            <div className="flex border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/30 p-2">
                 <button 
                     onClick={() => setOfflineTab('cameras')}
-                    className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${offlineTab === 'cameras' ? 'bg-white dark:bg-slate-900 text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 rounded-[1.5rem] ${offlineTab === 'cameras' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-lg shadow-blue-500/5 border border-slate-100 dark:border-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 dark:hover:bg-slate-800/50'}`}
                 >
+                    <div className={`w-2 h-2 rounded-full ${offlineDevices.length > 0 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
                     Incidentes ({offlineDevices.length})
                 </button>
                 <button 
                     onClick={() => setOfflineTab('access')}
-                    className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${offlineTab === 'access' ? 'bg-white dark:bg-slate-900 text-purple-600 border-b-2 border-purple-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 rounded-[1.5rem] ${offlineTab === 'access' ? 'bg-white dark:bg-slate-800 text-purple-600 shadow-lg shadow-purple-500/5 border border-slate-100 dark:border-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 dark:hover:bg-slate-800/50'}`}
                 >
+                    <FileText size={14} />
                     Documentos
                 </button>
                 {!isManager && (
                     <button 
                         onClick={() => setOfflineTab('alarms')}
-                        className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${offlineTab === 'alarms' ? 'bg-white dark:bg-slate-900 text-amber-600 border-b-2 border-amber-600' : 'text-slate-500 hover:text-slate-700'}`}
+                        className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 rounded-[1.5rem] ${offlineTab === 'alarms' ? 'bg-white dark:bg-slate-800 text-amber-600 shadow-lg shadow-amber-500/5 border border-slate-100 dark:border-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 dark:hover:bg-slate-800/50'}`}
                     >
+                        <CheckCircle2 size={14} />
                         Notas do Plantão
                     </button>
                 )}
             </div>
 
-            <div className="p-2">
+            <div className="p-6">
                 {offlineTab === 'cameras' && (
-                    <OfflineDevicesSection 
-                        offlineDevices={offlineDevices}
-                        offlineAccessPoints={offlineAccessPoints}
-                        openInfoModal={openInfoModal}
-                        handleResolveIssue={handleResolveIssue}
-                        savingId={savingId}
-                    />
+                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <OfflineDevicesSection 
+                            offlineDevices={offlineDevices}
+                            offlineAccessPoints={offlineAccessPoints}
+                            openInfoModal={openInfoModal}
+                            handleResolveIssue={handleResolveIssue}
+                            savingId={savingId}
+                        />
+                    </div>
                 )}
                 {offlineTab === 'access' && (
-                    <DocumentMonitoring 
-                        documents={documents}
-                        getDocStatus={getDocStatus}
-                    />
+                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <DocumentMonitoring 
+                            documents={documents}
+                            getDocStatus={getDocStatus}
+                        />
+                    </div>
                 )}
                 {offlineTab === 'alarms' && !isManager && (
-                    <ShiftNotes sortedShiftNotes={sortedShiftNotes} />
+                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <ShiftNotes sortedShiftNotes={sortedShiftNotes} />
+                    </div>
                 )}
             </div>
           </div>
         </div>
 
-            {/* SIDEBAR DE FERRAMENTAS (1/4) */}
-            <div className="lg:col-span-1 space-y-6">
+            {/* SIDEBAR DE FERRAMENTAS (3/12) */}
+            <div className="xl:col-span-3 space-y-6">
                 <PersonalSearch 
                     personalSearch={personalSearch}
                     setPersonalSearch={setPersonalSearch}
@@ -438,31 +446,31 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                 />
 
                 {/* Card de Atalhos Rápidos ou Info Adicional */}
-                <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] shadow-xl text-white relative overflow-hidden group">
-                    <div className="absolute -right-6 -bottom-6 opacity-5 group-hover:scale-110 transition-transform duration-700 text-blue-500">
-                        <Shield size={140} />
+                <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl text-white relative overflow-hidden group">
+                    <div className="absolute -right-10 -bottom-10 opacity-10 group-hover:scale-110 transition-transform duration-1000 text-blue-500 rotate-12">
+                        <Shield size={200} />
                     </div>
                     <div className="relative z-10">
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
-                                <FileText size={16} />
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-400 border border-blue-500/20">
+                                <FileText size={18} />
                             </div>
-                            <h4 className="text-[10px] font-black uppercase tracking-widest">Relatório Operacional</h4>
+                            <h4 className="text-[11px] font-black uppercase tracking-widest">Relatório Operacional</h4>
                         </div>
-                        <p className="text-[11px] text-slate-400 mb-6 leading-relaxed">Gere um resumo instantâneo de todas as ocorrências e status do sistema para compartilhamento.</p>
+                        <p className="text-[12px] text-slate-400 mb-8 leading-relaxed font-medium">Gere um resumo instantâneo de todas as ocorrências e status do sistema para compartilhamento rápido via WhatsApp.</p>
                         <button 
                             onClick={copyToClipboard}
-                            className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
+                            className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-xl shadow-blue-600/20 flex items-center justify-center gap-3 active:scale-95"
                         >
                             {copied ? (
                                 <>
-                                    <CheckCircle2 size={14} />
-                                    Copiado!
+                                    <CheckCircle2 size={16} />
+                                    Copiado com Sucesso!
                                 </>
                             ) : (
                                 <>
-                                    <Shield size={14} />
-                                    Gerar Relatório
+                                    <Shield size={16} />
+                                    Gerar Relatório Agora
                                 </>
                             )}
                         </button>
@@ -470,20 +478,36 @@ const Dashboard: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [], onS
                 </div>
 
                 {/* Status do Sistema - Sidebar Widget */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-[2rem] shadow-sm">
-                    <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-4">Integridade do Sistema</h4>
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">Servidores</span>
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-[2.5rem] shadow-xl">
+                    <div className="flex items-center justify-between mb-8">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Infraestrutura</h4>
+                        <div className="flex items-center gap-1">
+                            <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
+                            <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
+                            <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
                         </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">Banco de Dados</span>
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                    </div>
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between group">
+                            <div className="flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500 group-hover:animate-ping"></div>
+                                <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-tight">Servidores Cloud</span>
+                            </div>
+                            <span className="text-[9px] font-black text-emerald-500 uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full">Ativo</span>
                         </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">API Gateway</span>
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                        <div className="flex items-center justify-between group">
+                            <div className="flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500 group-hover:animate-ping"></div>
+                                <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-tight">Banco de Dados</span>
+                            </div>
+                            <span className="text-[9px] font-black text-emerald-500 uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full">Ativo</span>
+                        </div>
+                        <div className="flex items-center justify-between group">
+                            <div className="flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500 group-hover:animate-ping"></div>
+                                <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-tight">API Gateway</span>
+                            </div>
+                            <span className="text-[9px] font-black text-emerald-500 uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full">Ativo</span>
                         </div>
                     </div>
                 </div>
