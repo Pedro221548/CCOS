@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { AccessPoint } from '../types';
-import { ShieldCheck, MapPin, Clock, DoorClosed, AlertTriangle, Warehouse, Activity, RefreshCw, Filter, Search, X, Plus, Edit2, Trash2, Download } from 'lucide-react';
+import { ShieldCheck, MapPin, Clock, DoorClosed, AlertTriangle, Warehouse, Activity, RefreshCw, Filter, Search, X, Plus, Edit2, Trash2, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
@@ -101,6 +101,34 @@ const AccessControlList: React.FC<AccessControlListProps> = ({ accessPoints, onT
 
   const totalOnline = useMemo(() => permittedPoints.filter(p => p.status === 'ONLINE').length, [permittedPoints]);
   const totalOffline = useMemo(() => permittedPoints.filter(p => p.status === 'OFFLINE').length, [permittedPoints]);
+
+  // State for expanded warehouses
+  const [expandedWarehouses, setExpandedWarehouses] = useState<Set<string>>(new Set());
+
+  // Group by Warehouse logic
+  const groupedByWarehouse = useMemo(() => {
+    const groups: { [key: string]: AccessPoint[] } = {};
+    filteredPoints.forEach(ap => {
+      const w = ap.warehouse || 'Sem Galpão';
+      if (!groups[w]) groups[w] = [];
+      groups[w].push(ap);
+    });
+    // Sort warehouses alphabetically
+    return Object.keys(groups).sort().reduce((acc, key) => {
+      acc[key] = groups[key];
+      return acc;
+    }, {} as { [key: string]: AccessPoint[] });
+  }, [filteredPoints]);
+
+  const toggleWarehouse = (warehouse: string) => {
+    const newExpanded = new Set(expandedWarehouses);
+    if (newExpanded.has(warehouse)) {
+      newExpanded.delete(warehouse);
+    } else {
+      newExpanded.add(warehouse);
+    }
+    setExpandedWarehouses(newExpanded);
+  };
 
   // CRUD Handlers
   const openAddModal = useCallback(() => {
@@ -315,97 +343,134 @@ const AccessControlList: React.FC<AccessControlListProps> = ({ accessPoints, onT
             <p className="text-slate-300 font-medium">Nenhum resultado encontrado</p>
         </div>
       ) : (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-            <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-950 text-slate-400 text-xs uppercase font-semibold">
-                        <tr>
-                            <th className="p-4 w-12 text-center">#</th>
-                            <th className="p-4">Dispositivo / ID</th>
-                            <th className="p-4">Galpão / Local</th>
-                            <th className="p-4 text-center">Ping (ms)</th>
-                            <th className="p-4 text-center">Status</th>
-                            <th className="p-4 text-center">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/50 text-slate-300">
-                        {filteredPoints.map((ap, idx) => (
-                            <tr key={ap.uuid} className="hover:bg-slate-800/30 transition-colors group">
-                                <td className="p-4 text-center text-slate-600 font-mono text-xs">
-                                    {idx + 1}
-                                </td>
-                                <td className="p-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`p-2 rounded-lg ${ap.status === 'ONLINE' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                                            <ShieldCheck size={20} />
-                                        </div>
-                                        <div>
-                                            <div className="font-medium text-white">{ap.name}</div>
-                                            <div className="text-xs text-slate-500 font-mono mt-0.5">{ap.id}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="p-4">
-                                    <div className="flex flex-col gap-1">
-                                        <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                                            <Warehouse size={12} className="text-indigo-400" />
-                                            <span className="text-indigo-200">{ap.warehouse}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                                            <MapPin size={12} />
-                                            {ap.location}
-                                        </div>
-                                        {/* EXIBIÇÃO DA ÚLTIMA ALTERAÇÃO */}
-                                        <div className="flex items-center gap-1.5 text-[10px] text-amber-500/80 italic">
-                                            <Clock size={10} />
-                                            Ult. Alteração: {ap.lastLog || '-'}
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="p-4 text-center">
-                                    <span className={`font-mono text-xs ${ap.status === 'ONLINE' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                        {getLatency(ap.status)}
+        <div className="space-y-6">
+            {Object.entries(groupedByWarehouse).map(([warehouse, points]) => {
+                const isExpanded = expandedWarehouses.has(warehouse);
+                return (
+                    <div key={warehouse} className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden">
+                        <button 
+                            onClick={() => toggleWarehouse(warehouse)}
+                            className="w-full flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors group"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 group-hover:scale-110 transition-transform">
+                                    <Warehouse size={20} />
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="text-lg font-bold text-slate-200">{warehouse}</h3>
+                                    <span className="text-xs font-medium text-slate-500">
+                                        {points.length} {points.length === 1 ? 'Dispositivo' : 'Dispositivos'}
                                     </span>
-                                </td>
-                                <td className="p-4 text-center">
-                                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border justify-center min-w-[90px]
-                                        ${ap.status === 'ONLINE' 
-                                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                                            : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}
-                                    `}>
-                                        <span className={`w-1.5 h-1.5 rounded-full ${ap.status === 'ONLINE' ? 'bg-emerald-500' : 'bg-rose-500'} animate-pulse`}></span>
-                                        {ap.status}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <div className="flex gap-2">
+                                    <div className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
+                                        ON: {points.filter(p => p.status === 'ONLINE').length}
                                     </div>
-                                </td>
-                                <td className="p-4 text-center">
-                                    <div className="flex items-center justify-center gap-2">
-                                        {!readOnly && (
-                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button onClick={() => openEditModal(ap)} className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded">
-                                                    <Edit2 size={14} />
-                                                </button>
-                                                <button onClick={() => onDelete && onDelete(ap.uuid)} className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded">
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
-                                        )}
-                                        <label className={`relative inline-flex items-center ${readOnly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
-                                            <input 
-                                                type="checkbox" 
-                                                className="sr-only peer"
-                                                checked={ap.status === 'OFFLINE'}
-                                                onChange={() => !readOnly && onToggleStatus(ap.uuid)}
-                                                disabled={readOnly}
-                                            />
-                                            <div className="w-8 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:bg-rose-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all"></div>
-                                        </label>
+                                    <div className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px] font-bold border border-rose-500/20">
+                                        OFF: {points.filter(p => p.status === 'OFFLINE').length}
                                     </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                                </div>
+                                {isExpanded ? <ChevronUp className="text-slate-500" /> : <ChevronDown className="text-slate-500" />}
+                            </div>
+                        </button>
+
+                        {isExpanded && (
+                            <div className="p-4 pt-0 border-t border-slate-800/50">
+                                <div className="bg-slate-950/30 rounded-xl overflow-hidden shadow-lg mt-4">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-sm">
+                                            <thead className="bg-slate-950 text-slate-400 text-xs uppercase font-semibold">
+                                                <tr>
+                                                    <th className="p-4 w-12 text-center">#</th>
+                                                    <th className="p-4">Dispositivo / ID</th>
+                                                    <th className="p-4">Localização</th>
+                                                    <th className="p-4 text-center">Ping (ms)</th>
+                                                    <th className="p-4 text-center">Status</th>
+                                                    <th className="p-4 text-center">Ações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-800/50 text-slate-300">
+                                                {points.map((ap, idx) => (
+                                                    <tr key={ap.uuid} className="hover:bg-slate-800/30 transition-colors group">
+                                                        <td className="p-4 text-center text-slate-600 font-mono text-xs">
+                                                            {idx + 1}
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`p-2 rounded-lg ${ap.status === 'ONLINE' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                                                    <ShieldCheck size={20} />
+                                                                </div>
+                                                                <div>
+                                                                    <div className="font-medium text-white">{ap.name}</div>
+                                                                    <div className="text-xs text-slate-500 font-mono mt-0.5">{ap.id}</div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <div className="flex flex-col gap-1">
+                                                                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                                                                    <MapPin size={12} />
+                                                                    {ap.location}
+                                                                </div>
+                                                                {/* EXIBIÇÃO DA ÚLTIMA ALTERAÇÃO */}
+                                                                <div className="flex items-center gap-1.5 text-[10px] text-amber-500/80 italic">
+                                                                    <Clock size={10} />
+                                                                    Ult. Alteração: {ap.lastLog || '-'}
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 text-center">
+                                                            <span className={`font-mono text-xs ${ap.status === 'ONLINE' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                                {getLatency(ap.status)}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4 text-center">
+                                                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border justify-center min-w-[90px]
+                                                                ${ap.status === 'ONLINE' 
+                                                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                                                                    : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}
+                                                            `}>
+                                                                <span className={`w-1.5 h-1.5 rounded-full ${ap.status === 'ONLINE' ? 'bg-emerald-500' : 'bg-rose-500'} animate-pulse`}></span>
+                                                                {ap.status}
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 text-center">
+                                                            <div className="flex items-center justify-center gap-2">
+                                                                {!readOnly && (
+                                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        <button onClick={() => openEditModal(ap)} className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded">
+                                                                            <Edit2 size={14} />
+                                                                        </button>
+                                                                        <button onClick={() => onDelete && onDelete(ap.uuid)} className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded">
+                                                                            <Trash2 size={14} />
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                                <label className={`relative inline-flex items-center ${readOnly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                                                                    <input 
+                                                                        type="checkbox" 
+                                                                        className="sr-only peer"
+                                                                        checked={ap.status === 'OFFLINE'}
+                                                                        onChange={() => !readOnly && onToggleStatus(ap.uuid)}
+                                                                        disabled={readOnly}
+                                                                    />
+                                                                    <div className="w-8 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:bg-rose-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all"></div>
+                                                                </label>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
         </div>
       )}
 

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { Camera, Status } from '../types';
-import { Video, MapPin, User, AlertCircle, Search, X, Filter, Warehouse, Plus, Edit2, Trash2, PowerOff, Power, Clock, Download, Upload } from 'lucide-react';
+import { Video, MapPin, User, AlertCircle, Search, X, Filter, Warehouse, Plus, Edit2, Trash2, PowerOff, Power, Clock, Download, Upload, ChevronDown, ChevronUp } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
@@ -47,6 +47,10 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const isAlarm = useMemo(() => cameras.length > 0 && cameras[0].channelType === 'alarm', [cameras]);
+  const itemLabel = isAlarm ? 'Alarme' : 'Câmera';
+  const itemLabelPlural = isAlarm ? 'Alarmes' : 'Câmeras';
+
   // 1. Initial Permission Filtering
   const permittedCameras = useMemo(() => {
       if (allowedWarehouses && allowedWarehouses.length > 0) {
@@ -89,6 +93,34 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
   const totalOnline = useMemo(() => permittedCameras.filter(c => c.status === 'ONLINE').length, [permittedCameras]);
   const totalOffline = useMemo(() => permittedCameras.filter(c => c.status === 'OFFLINE').length, [permittedCameras]);
 
+  // State for expanded warehouses
+  const [expandedWarehouses, setExpandedWarehouses] = useState<Set<string>>(new Set());
+
+  // Group by Warehouse logic
+  const groupedByWarehouse = useMemo(() => {
+    const groups: { [key: string]: Camera[] } = {};
+    filteredCameras.forEach(cam => {
+      const w = cam.warehouse || 'Sem Galpão';
+      if (!groups[w]) groups[w] = [];
+      groups[w].push(cam);
+    });
+    // Sort warehouses alphabetically
+    return Object.keys(groups).sort().reduce((acc, key) => {
+      acc[key] = groups[key];
+      return acc;
+    }, {} as { [key: string]: Camera[] });
+  }, [filteredCameras]);
+
+  const toggleWarehouse = (warehouse: string) => {
+    const newExpanded = new Set(expandedWarehouses);
+    if (newExpanded.has(warehouse)) {
+      newExpanded.delete(warehouse);
+    } else {
+      newExpanded.add(warehouse);
+    }
+    setExpandedWarehouses(newExpanded);
+  };
+
   // CRUD Handlers - Memoized
   const openAddModal = useCallback(() => {
       setEditingCam(null);
@@ -122,7 +154,7 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
 
   const handleExportExcel = async () => {
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Câmeras');
+      const worksheet = workbook.addWorksheet(itemLabelPlural);
 
       worksheet.columns = [
           { header: 'NOME DA CAMERA', key: 'name', width: 40 },
@@ -204,7 +236,7 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                 <div>
                     <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                         <Video className="text-blue-500" />
-                        Lista de Câmeras / Alarmes
+                        Lista de {itemLabelPlural}
                     </h2>
                     {allowedWarehouses && (
                         <p className="text-xs text-slate-400 mt-1">
@@ -329,23 +361,23 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                      <div className="flex items-center gap-2">
                          <button
                             onClick={() => {
-                                if (window.confirm(`Deseja LIGAR todas as câmeras de "${warehouseFilter}"?`)) {
+                                if (window.confirm(`Deseja LIGAR todos os ${itemLabelPlural.toLowerCase()} de "${warehouseFilter}"?`)) {
                                     onSetWarehouseStatus(warehouseFilter, 'ONLINE');
                                 }
                             }}
                             className="px-3 py-2 bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-400 hover:text-white border border-emerald-800 rounded-lg transition-colors text-sm flex items-center justify-center gap-2 whitespace-nowrap"
-                            title={`Ligar todas as câmeras de ${warehouseFilter}`}
+                            title={`Ligar todos os ${itemLabelPlural.toLowerCase()} de ${warehouseFilter}`}
                          >
                             <Power size={16} /> <span className="hidden xl:inline">Ligar Galpão</span>
                          </button>
                          <button
                             onClick={() => {
-                                if (window.confirm(`ATENÇÃO: Deseja realmente mudar TODAS as câmeras de "${warehouseFilter}" para OFFLINE?`)) {
+                                if (window.confirm(`ATENÇÃO: Deseja realmente mudar TODOS os ${itemLabelPlural.toLowerCase()} de "${warehouseFilter}" para OFFLINE?`)) {
                                     onSetWarehouseStatus(warehouseFilter, 'OFFLINE');
                                 }
                             }}
                             className="px-3 py-2 bg-rose-900/30 hover:bg-rose-900/50 text-rose-400 hover:text-white border border-rose-800 rounded-lg transition-colors text-sm flex items-center justify-center gap-2 whitespace-nowrap"
-                            title={`Desligar todas as câmeras de ${warehouseFilter}`}
+                            title={`Desligar todos os ${itemLabelPlural.toLowerCase()} de ${warehouseFilter}`}
                          >
                             <PowerOff size={16} /> <span className="hidden xl:inline">Desligar Galpão</span>
                          </button>
@@ -374,9 +406,9 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
       {cameras.length === 0 ? (
             <div className="col-span-full p-12 text-center border-2 border-dashed border-slate-800 rounded-xl">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-900 mb-4">
-                    <Video className="text-slate-600" size={32} />
+                    {isAlarm ? <AlertCircle className="text-slate-600" size={32} /> : <Video className="text-slate-600" size={32} />}
                 </div>
-                <p className="text-slate-400 text-lg">Nenhuma câmera cadastrada</p>
+                <p className="text-slate-400 text-lg">Nenhum {itemLabel.toLowerCase()} cadastrado</p>
                 {readOnly && <p className="text-slate-600 text-sm mt-1">Aguarde o cadastro pelo administrador.</p>}
             </div>
       ) : filteredCameras.length === 0 ? (
@@ -384,105 +416,142 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                 <p className="text-slate-300 font-medium">Nenhum resultado encontrado</p>
             </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-            {filteredCameras.map((cam) => (
-                <div key={cam.uuid} className={`bg-slate-900 border rounded-xl p-5 hover:shadow-lg transition-all relative overflow-hidden group flex flex-col
-                    ${cam.status === 'ONLINE' ? 'border-slate-800 hover:border-emerald-500/30' : 'border-rose-900/50 hover:border-rose-500/50'}
-                `}>
-                    <div className={`absolute top-0 left-0 w-1 h-full transition-colors ${cam.status === 'ONLINE' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-
-                    <div className="pl-3 flex-1">
-                        <div className="flex justify-between items-start mb-3 gap-2">
-                            <div className="overflow-hidden">
-                                <h3 className="font-semibold text-white text-base leading-tight truncate" title={cam.name}>{cam.name}</h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <div className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px] font-mono border border-slate-700">
-                                        {cam.id}
+        <div className="space-y-6">
+            {Object.entries(groupedByWarehouse).map(([warehouse, cams]) => {
+                const isExpanded = expandedWarehouses.has(warehouse);
+                return (
+                    <div key={warehouse} className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden">
+                        <button 
+                            onClick={() => toggleWarehouse(warehouse)}
+                            className="w-full flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors group"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 group-hover:scale-110 transition-transform">
+                                    <Warehouse size={20} />
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="text-lg font-bold text-slate-200">{warehouse}</h3>
+                                    <span className="text-xs font-medium text-slate-500">
+                                        {cams.length} {cams.length === 1 ? itemLabel : itemLabelPlural}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <div className="flex gap-2">
+                                    <div className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
+                                        ON: {cams.filter(c => c.status === 'ONLINE').length}
                                     </div>
-                                    {cam.recordingTime && (
-                                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-bold border border-blue-500/20 uppercase tracking-widest" title="Tempo de Gravação">
-                                            <Clock size={10} />
-                                            {cam.recordingTime}
+                                    <div className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px] font-bold border border-rose-500/20">
+                                        OFF: {cams.filter(c => c.status === 'OFFLINE').length}
+                                    </div>
+                                </div>
+                                {isExpanded ? <ChevronUp className="text-slate-500" /> : <ChevronDown className="text-slate-500" />}
+                            </div>
+                        </button>
+
+                        {isExpanded && (
+                            <div className="p-4 pt-0 border-t border-slate-800/50">
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 mt-4">
+                                    {cams.map((cam) => (
+                                        <div key={cam.uuid} className={`bg-slate-950/50 border rounded-xl p-5 hover:shadow-lg transition-all relative overflow-hidden group flex flex-col
+                                            ${cam.status === 'ONLINE' ? 'border-slate-800 hover:border-emerald-500/30' : 'border-rose-900/50 hover:border-rose-500/50'}
+                                        `}>
+                                            <div className={`absolute top-0 left-0 w-1 h-full transition-colors ${cam.status === 'ONLINE' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+
+                                            <div className="pl-3 flex-1">
+                                                <div className="flex justify-between items-start mb-3 gap-2">
+                                                    <div className="overflow-hidden">
+                                                        <h3 className="font-semibold text-white text-base leading-tight truncate" title={cam.name}>{cam.name}</h3>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <div className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px] font-mono border border-slate-700">
+                                                                {cam.id}
+                                                            </div>
+                                                            {cam.recordingTime && (
+                                                                <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-bold border border-blue-500/20 uppercase tracking-widest" title="Tempo de Gravação">
+                                                                    <Clock size={10} />
+                                                                    {cam.recordingTime}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {/* Actions or Status */}
+                                                    <div className="flex flex-col items-end gap-2">
+                                                        <div className={`px-2 py-1 rounded text-[10px] font-bold border flex items-center gap-1.5 shrink-0 uppercase tracking-wider
+                                                            ${cam.status === 'ONLINE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}
+                                                        `}>
+                                                            <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${cam.status === 'ONLINE' ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                                                            {cam.status}
+                                                        </div>
+                                                        
+                                                        {(!readOnly || userRole === 'operator') && (
+                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <button onClick={() => openEditModal(cam)} className="p-1 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded">
+                                                                    <Edit2 size={12} />
+                                                                </button>
+                                                                {!readOnly && (
+                                                                    <button onClick={() => onDelete && onDelete(cam.uuid)} className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded">
+                                                                        <Trash2 size={12} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2 mt-2 pt-2 border-t border-slate-800/50">
+                                                    <div className="flex items-start gap-2 text-xs text-slate-400">
+                                                        <MapPin size={14} className="text-slate-600 mt-0.5 shrink-0" />
+                                                        <span className="line-clamp-2 leading-relaxed font-bold text-slate-200" title={cam.location}>{cam.location}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                                                        <User size={14} className="text-slate-600 shrink-0" />
+                                                        <span className="truncate">Resp: <span className="text-slate-300 font-medium">{cam.responsible}</span></span>
+                                                    </div>
+                                                    {/* EXIBIÇÃO DA ÚLTIMA ALTERAÇÃO - TIMESTAMP COMPLETO */}
+                                                    <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-950/50 p-2 rounded border border-slate-800/50 mt-1">
+                                                        <Clock size={14} className="text-amber-500 shrink-0" />
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[9px] uppercase font-bold text-slate-500">Última alteração Status</span>
+                                                            <span className="text-amber-200/90 font-mono text-[11px]">{cam.lastLog || 'Aguardando Sinc.'}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-4 pt-3 border-t border-slate-800/50 pl-3 flex justify-between items-center">
+                                                <div className="flex-1">
+                                                     {cam.status === 'OFFLINE' && (
+                                                         <div className="flex items-center gap-1.5 text-rose-400 text-[10px] font-medium">
+                                                            <AlertCircle size={12} />
+                                                            <span>Verificar conexão</span>
+                                                         </div>
+                                                     )}
+                                                </div>
+                                                <label className={`relative inline-flex items-center group ${readOnly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`} title={readOnly ? "Modo visualização" : "Forçar status Offline"}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        className="sr-only peer"
+                                                        checked={cam.status === 'OFFLINE'}
+                                                        onChange={() => !readOnly && onToggleStatus(cam.uuid)}
+                                                        disabled={readOnly}
+                                                    />
+                                                    <div className="w-8 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-rose-500"></div>
+                                                    {!readOnly && (
+                                                        <span className="ml-2 text-[10px] text-slate-500 group-hover:text-slate-300 transition-colors select-none">
+                                                            Flag Off
+                                                        </span>
+                                                    )}
+                                                </label>
+                                            </div>
                                         </div>
-                                    )}
+                                    ))}
                                 </div>
                             </div>
-                            
-                            {/* Actions or Status */}
-                            <div className="flex flex-col items-end gap-2">
-                                <div className={`px-2 py-1 rounded text-[10px] font-bold border flex items-center gap-1.5 shrink-0 uppercase tracking-wider
-                                    ${cam.status === 'ONLINE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}
-                                `}>
-                                    <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${cam.status === 'ONLINE' ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
-                                    {cam.status}
-                                </div>
-                                
-                                {(!readOnly || userRole === 'operator') && (
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => openEditModal(cam)} className="p-1 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded">
-                                            <Edit2 size={12} />
-                                        </button>
-                                        {!readOnly && (
-                                            <button onClick={() => onDelete && onDelete(cam.uuid)} className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded">
-                                                <Trash2 size={12} />
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="space-y-2 mt-2 pt-2 border-t border-slate-800/50">
-                            <div className="flex items-start gap-2 text-xs text-slate-400">
-                                <MapPin size={14} className="text-slate-600 mt-0.5 shrink-0" />
-                                <span className="line-clamp-2 leading-relaxed font-bold text-slate-200" title={cam.location}>{cam.location}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-slate-400">
-                                <Warehouse size={14} className="text-indigo-400/80 shrink-0" />
-                                <span className="text-slate-300">Galpão: {cam.warehouse}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-slate-400">
-                                <User size={14} className="text-slate-600 shrink-0" />
-                                <span className="truncate">Resp: <span className="text-slate-300 font-medium">{cam.responsible}</span></span>
-                            </div>
-                            {/* EXIBIÇÃO DA ÚLTIMA ALTERAÇÃO - TIMESTAMP COMPLETO */}
-                            <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-950/50 p-2 rounded border border-slate-800/50 mt-1">
-                                <Clock size={14} className="text-amber-500 shrink-0" />
-                                <div className="flex flex-col">
-                                    <span className="text-[9px] uppercase font-bold text-slate-500">Última alteração Status</span>
-                                    <span className="text-amber-200/90 font-mono text-[11px]">{cam.lastLog || 'Aguardando Sinc.'}</span>
-                                </div>
-                            </div>
-                        </div>
+                        )}
                     </div>
-
-                    <div className="mt-4 pt-3 border-t border-slate-800/50 pl-3 flex justify-between items-center">
-                        <div className="flex-1">
-                             {cam.status === 'OFFLINE' && (
-                                 <div className="flex items-center gap-1.5 text-rose-400 text-[10px] font-medium">
-                                    <AlertCircle size={12} />
-                                    <span>Verificar conexão</span>
-                                 </div>
-                             )}
-                        </div>
-                        <label className={`relative inline-flex items-center group ${readOnly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`} title={readOnly ? "Modo visualização" : "Forçar status Offline"}>
-                            <input 
-                                type="checkbox" 
-                                className="sr-only peer"
-                                checked={cam.status === 'OFFLINE'}
-                                onChange={() => !readOnly && onToggleStatus(cam.uuid)}
-                                disabled={readOnly}
-                            />
-                            <div className="w-8 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-rose-500"></div>
-                            {!readOnly && (
-                                <span className="ml-2 text-[10px] text-slate-500 group-hover:text-slate-300 transition-colors select-none">
-                                    Flag Off
-                                </span>
-                            )}
-                        </label>
-                    </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
       )}
 
@@ -492,7 +561,7 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
               <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-lg p-6 animate-fade-in">
                   <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
                       <h3 className="text-xl font-bold text-white">
-                          {editingCam ? 'Editar Câmera' : 'Adicionar Câmera'}
+                          {editingCam ? `Editar ${itemLabel}` : `Adicionar ${itemLabel}`}
                       </h3>
                       <button onClick={() => setShowModal(false)} className="text-slate-500 hover:text-white">
                           <X size={20} />
