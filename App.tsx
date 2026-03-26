@@ -198,15 +198,48 @@ const App: React.FC = () => {
           // Merge logic: start with existing data and update/add based on spreadsheet
           const currentCameras = [...data.cameras];
           const currentAccess = [...data.accessPoints];
+          const matchedCameraIndices = new Set<number>();
+          const matchedAccessIndices = new Set<number>();
 
+          // Process Cameras
           cameras.forEach(newCam => {
               const cleanNewName = newCam.name.trim().toUpperCase();
               const cleanNewId = newCam.id.trim().toUpperCase();
+              const cleanNewResp = newCam.responsible?.trim().toUpperCase();
 
-              const existingIdx = currentCameras.findIndex(c => 
-                  (c.id.trim().toUpperCase() === cleanNewId && c.name.trim().toUpperCase() === cleanNewName) ||
-                  (c.id.trim().toUpperCase() === cleanNewId && cleanNewId !== 'N/A')
+              // 1. Try exact match: ID + Name + Responsible
+              let existingIdx = currentCameras.findIndex((c, idx) => 
+                  !matchedCameraIndices.has(idx) &&
+                  c.id.trim().toUpperCase() === cleanNewId && 
+                  c.name.trim().toUpperCase() === cleanNewName &&
+                  c.responsible.trim().toUpperCase() === cleanNewResp &&
+                  cleanNewId !== 'N/A'
               );
+
+              // 2. Try ID match (if ID is valid)
+              if (existingIdx < 0 && cleanNewId !== 'N/A') {
+                  existingIdx = currentCameras.findIndex((c, idx) => 
+                      !matchedCameraIndices.has(idx) &&
+                      c.id.trim().toUpperCase() === cleanNewId
+                  );
+              }
+
+              // 3. Try Name + Responsible match (tie-breaker for duplicate names)
+              if (existingIdx < 0) {
+                  existingIdx = currentCameras.findIndex((c, idx) => 
+                      !matchedCameraIndices.has(idx) &&
+                      c.name.trim().toUpperCase() === cleanNewName &&
+                      c.responsible.trim().toUpperCase() === cleanNewResp
+                  );
+              }
+
+              // 4. Try Name only match
+              if (existingIdx < 0) {
+                  existingIdx = currentCameras.findIndex((c, idx) => 
+                      !matchedCameraIndices.has(idx) &&
+                      c.name.trim().toUpperCase() === cleanNewName
+                  );
+              }
 
               if (existingIdx >= 0) {
                   const existingCam = currentCameras[existingIdx];
@@ -223,19 +256,51 @@ const App: React.FC = () => {
                       merged.responsible = getResponsibleByWarehouse(merged.warehouse, newCam.responsible);
                   }
                   currentCameras[existingIdx] = merged;
+                  matchedCameraIndices.add(existingIdx);
               } else {
                   currentCameras.push(newCam);
               }
           });
 
+          // Process Access Points
           accessPoints.forEach(newAp => {
               const cleanNewName = newAp.name.trim().toUpperCase();
               const cleanNewId = newAp.id.trim().toUpperCase();
+              const cleanNewResp = newAp.responsible?.trim().toUpperCase();
 
-              const existingIdx = currentAccess.findIndex(a => 
-                  (a.id.trim().toUpperCase() === cleanNewId && a.name.trim().toUpperCase() === cleanNewName) ||
-                  (a.id.trim().toUpperCase() === cleanNewId && cleanNewId !== 'N/A')
+              // 1. Try exact match: ID + Name + Responsible
+              let existingIdx = currentAccess.findIndex((a, idx) => 
+                  !matchedAccessIndices.has(idx) &&
+                  a.id.trim().toUpperCase() === cleanNewId && 
+                  a.name.trim().toUpperCase() === cleanNewName &&
+                  a.responsible.trim().toUpperCase() === cleanNewResp &&
+                  cleanNewId !== 'N/A'
               );
+
+              // 2. Try ID match
+              if (existingIdx < 0 && cleanNewId !== 'N/A') {
+                  existingIdx = currentAccess.findIndex((a, idx) => 
+                      !matchedAccessIndices.has(idx) &&
+                      a.id.trim().toUpperCase() === cleanNewId
+                  );
+              }
+
+              // 3. Try Name + Responsible match
+              if (existingIdx < 0) {
+                  existingIdx = currentAccess.findIndex((a, idx) => 
+                      !matchedAccessIndices.has(idx) &&
+                      a.name.trim().toUpperCase() === cleanNewName &&
+                      a.responsible.trim().toUpperCase() === cleanNewResp
+                  );
+              }
+
+              // 4. Try Name only match
+              if (existingIdx < 0) {
+                  existingIdx = currentAccess.findIndex((a, idx) => 
+                      !matchedAccessIndices.has(idx) &&
+                      a.name.trim().toUpperCase() === cleanNewName
+                  );
+              }
 
               if (existingIdx >= 0) {
                   const existingAp = currentAccess[existingIdx];
@@ -250,6 +315,7 @@ const App: React.FC = () => {
                       merged.responsible = getResponsibleByWarehouse(merged.warehouse, newAp.responsible);
                   }
                   currentAccess[existingIdx] = merged;
+                  matchedAccessIndices.add(existingIdx);
               } else {
                   currentAccess.push(newAp);
               }
