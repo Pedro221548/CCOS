@@ -80,6 +80,7 @@ export interface AccessPoint {
   type: string;
   location: string;
   warehouse: string;   
+  responsible: string; 
   status: Status;
   lastLog: string;
   latency?: string;    

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { AccessPoint } from '../types';
+import { getResponsibleByWarehouse } from '../services/monitoring';
 import { ShieldCheck, MapPin, Clock, DoorClosed, AlertTriangle, Warehouse, Activity, RefreshCw, Filter, Search, X, Plus, Edit2, Trash2, Download, Upload, ChevronDown, ChevronUp } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -154,16 +155,22 @@ const AccessControlList: React.FC<AccessControlListProps> = ({ accessPoints, onT
           const updatedAp = { ...editingAp, ...formData };
           if (formData.warehouse !== undefined && formData.warehouse !== editingAp.warehouse) {
               updatedAp.warehouseManuallyEdited = true;
+              // Auto-update responsible based on new warehouse
+              updatedAp.responsible = getResponsibleByWarehouse(formData.warehouse, editingAp.responsible);
           }
           if (onEdit) onEdit(updatedAp as AccessPoint);
       } else {
-          if (onAdd) onAdd({
+          const newAp = {
               ...formData,
               uuid: `access-${Date.now()}`,
               status: formData.status || 'ONLINE',
               lastLog: new Date().toISOString(),
               warehouseManuallyEdited: !!(formData.warehouse && formData.warehouse !== 'Geral' && formData.warehouse !== 'Sem Galpão')
-          } as AccessPoint);
+          };
+          if (formData.warehouse) {
+              newAp.responsible = getResponsibleByWarehouse(formData.warehouse, formData.responsible || null);
+          }
+          if (onAdd) onAdd(newAp as AccessPoint);
       }
       setShowModal(false);
   }, [formData, editingAp, onEdit, onAdd]);
@@ -228,15 +235,20 @@ const AccessControlList: React.FC<AccessControlListProps> = ({ accessPoints, onT
           
           if (!worksheet) throw new Error("Planilha vazia");
 
-          const updates: { name: string; warehouse?: string }[] = [];
+          const updates: { name: string; warehouse?: string; responsible?: string }[] = [];
 
           worksheet.eachRow((row, rowNumber) => {
               if (rowNumber === 1) return; // Skip header
               const name = row.getCell(1).value?.toString() || '';
               const warehouse = row.getCell(2).value?.toString() || '';
+              const responsible = row.getCell(5).value?.toString() || '';
               
-              if (name && warehouse && warehouse !== '-') {
-                  updates.push({ name, warehouse });
+              if (name) {
+                  updates.push({ 
+                      name, 
+                      warehouse: (warehouse && warehouse !== '-') ? warehouse : undefined,
+                      responsible: (responsible && responsible !== '-') ? responsible : undefined
+                  });
               }
           });
 

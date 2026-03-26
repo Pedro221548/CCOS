@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, Suspense, lazy, useRef, useMem
 import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar, Clock, RefreshCw, BookOpen, DollarSign, UserPlus, History } from 'lucide-react';
 import { Camera, AccessPoint, User, ProcessedWorker, AppNotification, ThirdPartyImport, Note, ShiftNote, ThirdPartyPayment, PaymentImport, Status } from './types';
 import { authService } from './services/auth';
-import { monitoringService } from './services/monitoring';
+import { monitoringService, getResponsibleByWarehouse } from './services/monitoring';
 import { organizerService } from './services/organizer';
 import { ref, onValue, update, query, orderByChild } from 'firebase/database';
 import { db } from './services/firebase';
@@ -195,57 +195,70 @@ const App: React.FC = () => {
 
   const handleImportData = async (cameras: Camera[], accessPoints: AccessPoint[]) => {
       try {
-          // Merge existing recordingTime and warehouse based on ID and Name since UUID changes on import
-          const mergedCameras = cameras.map(newCam => {
-              const existingCam = data.cameras.find(c => c.id === newCam.id && c.name === newCam.name);
-              if (existingCam) {
-                  const merged = { ...newCam };
-                  // Preserve recording time
-                  if (existingCam.recordingTime) merged.recordingTime = existingCam.recordingTime;
+          // Merge logic: start with existing data and update/add based on spreadsheet
+          const currentCameras = [...data.cameras];
+          const currentAccess = [...data.accessPoints];
+
+          cameras.forEach(newCam => {
+              const cleanNewName = newCam.name.trim().toUpperCase();
+              const cleanNewId = newCam.id.trim().toUpperCase();
+
+              const existingIdx = currentCameras.findIndex(c => 
+                  (c.id.trim().toUpperCase() === cleanNewId && c.name.trim().toUpperCase() === cleanNewName) ||
+                  (c.id.trim().toUpperCase() === cleanNewId && cleanNewId !== 'N/A')
+              );
+
+              if (existingIdx >= 0) {
+                  const existingCam = currentCameras[existingIdx];
+                  const merged = { ...existingCam, ...newCam };
                   
-                  // Preserve warehouse if it was manually edited in the app
-                  if (existingCam.warehouseManuallyEdited) {
+                  // Priority logic: If spreadsheet has a warehouse, use it. 
+                  // If spreadsheet is empty but system has one, preserve system's.
+                  if (!newCam.warehouseManuallyEdited && existingCam.warehouseManuallyEdited) {
                       merged.warehouse = existingCam.warehouse;
+                      merged.responsible = existingCam.responsible;
                       merged.warehouseManuallyEdited = true;
                   } else {
-                      // Standard merge logic: preserve if new is unassigned
-                      const isNewUnassigned = !newCam.warehouse || newCam.warehouse === 'Geral' || newCam.warehouse === 'Sem Galpão';
-                      const isExistingAssigned = existingCam.warehouse && existingCam.warehouse !== 'Geral' && existingCam.warehouse !== 'Sem Galpão';
-                      
-                      if (isNewUnassigned && isExistingAssigned) {
-                          merged.warehouse = existingCam.warehouse;
-                      }
+                      merged.warehouseManuallyEdited = newCam.warehouseManuallyEdited;
+                      merged.responsible = getResponsibleByWarehouse(merged.warehouse, newCam.responsible);
                   }
-                  return merged;
+                  currentCameras[existingIdx] = merged;
+              } else {
+                  currentCameras.push(newCam);
               }
-              return newCam;
           });
 
-          const mergedAccess = accessPoints.map(newAp => {
-              const existingAp = data.accessPoints.find(a => a.id === newAp.id && a.name === newAp.name);
-              if (existingAp) {
-                  const merged = { ...newAp };
+          accessPoints.forEach(newAp => {
+              const cleanNewName = newAp.name.trim().toUpperCase();
+              const cleanNewId = newAp.id.trim().toUpperCase();
+
+              const existingIdx = currentAccess.findIndex(a => 
+                  (a.id.trim().toUpperCase() === cleanNewId && a.name.trim().toUpperCase() === cleanNewName) ||
+                  (a.id.trim().toUpperCase() === cleanNewId && cleanNewId !== 'N/A')
+              );
+
+              if (existingIdx >= 0) {
+                  const existingAp = currentAccess[existingIdx];
+                  const merged = { ...existingAp, ...newAp };
                   
-                  // Preserve warehouse if it was manually edited in the app
-                  if (existingAp.warehouseManuallyEdited) {
+                  if (!newAp.warehouseManuallyEdited && existingAp.warehouseManuallyEdited) {
                       merged.warehouse = existingAp.warehouse;
+                      merged.responsible = existingAp.responsible;
                       merged.warehouseManuallyEdited = true;
                   } else {
-                      const isNewUnassigned = !newAp.warehouse || newAp.warehouse === 'Geral' || newAp.warehouse === 'Sem Galpão';
-                      const isExistingAssigned = existingAp.warehouse && existingAp.warehouse !== 'Geral' && existingAp.warehouse !== 'Sem Galpão';
-                      
-                      if (isNewUnassigned && isExistingAssigned) {
-                          merged.warehouse = existingAp.warehouse;
-                      }
+                      merged.warehouseManuallyEdited = newAp.warehouseManuallyEdited;
+                      merged.responsible = getResponsibleByWarehouse(merged.warehouse, newAp.responsible);
                   }
-                  return merged;
+                  currentAccess[existingIdx] = merged;
+              } else {
+                  currentAccess.push(newAp);
               }
-              return newAp;
           });
 
-          await monitoringService.importData(mergedCameras, mergedAccess);
-          addToast("Sistema atualizado!", "success");
+          await monitoringService.importData(currentCameras, currentAccess);
+          addToast("Sistema atualizado com sucesso!", "success");
       } catch (e) {
+          console.error(e);
           addToast("Erro ao importar dados.", "alert");
       }
   };
@@ -279,97 +292,245 @@ const App: React.FC = () => {
       }
   };
 
-  const handleImportCameraData = async (updates: { name: string; recordingTime?: string; warehouse?: string }[]) => {
+  const handleImportCameraData = async (updates: { name: string; recordingTime?: string; warehouse?: string; responsible?: string }[]) => {
       try {
           let updatedCount = 0;
           const currentCameras = [...data.cameras];
+          const matchedIndices = new Set<number>();
           
+          // Two-pass matching to handle duplicate names correctly
+          // Pass 1: Match by name AND responsible (exact match for existing items)
           for (const update of updates) {
-              // Find all cameras with the same name
-              currentCameras.forEach((cam, idx) => {
-                  if (cam.name === update.name) {
-                      let needsUpdate = false;
-                      const newCam = { ...cam };
-                      
-                      if (update.recordingTime && cam.recordingTime !== update.recordingTime) {
-                          newCam.recordingTime = update.recordingTime;
+              const updateName = update.name.trim().toUpperCase();
+              const updateResponsible = update.responsible?.trim().toUpperCase();
+
+              const exactMatchIdx = currentCameras.findIndex((cam, idx) => 
+                  !matchedIndices.has(idx) && 
+                  cam.name.trim().toUpperCase() === updateName &&
+                  cam.responsible.trim().toUpperCase() === updateResponsible
+              );
+
+              if (exactMatchIdx >= 0) {
+                  const cam = currentCameras[exactMatchIdx];
+                  const newCam = { ...cam };
+                  let needsUpdate = false;
+
+                  if (update.recordingTime && cam.recordingTime !== update.recordingTime) {
+                      newCam.recordingTime = update.recordingTime;
+                      needsUpdate = true;
+                  }
+
+                  if (update.warehouse) {
+                      let finalWarehouse = update.warehouse.toUpperCase().trim();
+                      if (finalWarehouse === 'G2') finalWarehouse = 'GALPÃO G2';
+                      else if (finalWarehouse === 'G3') finalWarehouse = 'GALPÃO G3';
+                      else if (finalWarehouse === 'G5') finalWarehouse = 'GALPÃO G5';
+                      else if (finalWarehouse === 'SP') finalWarehouse = 'GALPÃO SP';
+                      else if (finalWarehouse === 'LSP') finalWarehouse = 'GALPÃO LSP';
+                      else if (finalWarehouse === 'PAVUNA') finalWarehouse = 'GALPÃO PAVUNA';
+                      else if (finalWarehouse === 'MERITI') finalWarehouse = 'GALPÃO MERITI';
+                      else if (finalWarehouse === '4 ELOS RJ' || finalWarehouse === '4ELOS RJ') finalWarehouse = 'GALPÃO 4 ELOS RJ';
+                      else if (finalWarehouse === '4 ELOS ES' || finalWarehouse === '4ELOS ES') finalWarehouse = 'GALPÃO 4 ELOS ES';
+
+                      if (cam.warehouse !== finalWarehouse) {
+                          newCam.warehouse = finalWarehouse;
+                          newCam.warehouseManuallyEdited = true;
                           needsUpdate = true;
                       }
-                      
-                      if (update.warehouse) {
-                          // Normalize warehouse name if it's a short version
-                          let finalWarehouse = update.warehouse.toUpperCase().trim();
-                          if (finalWarehouse === 'G2') finalWarehouse = 'GALPÃO G2';
-                          else if (finalWarehouse === 'G3') finalWarehouse = 'GALPÃO G3';
-                          else if (finalWarehouse === 'G5') finalWarehouse = 'GALPÃO G5';
-                          else if (finalWarehouse === 'SP') finalWarehouse = 'GALPÃO SP';
-                          else if (finalWarehouse === 'LSP') finalWarehouse = 'GALPÃO LSP';
-                          else if (finalWarehouse === 'PAVUNA') finalWarehouse = 'GALPÃO PAVUNA';
-                          else if (finalWarehouse === 'MERITI') finalWarehouse = 'GALPÃO MERITI';
+                  }
 
-                          if (cam.warehouse !== finalWarehouse) {
-                              newCam.warehouse = finalWarehouse;
-                              newCam.warehouseManuallyEdited = true;
-                              needsUpdate = true;
-                          }
-                      }
+                  // Update responsible if provided and different
+                  if (update.responsible && cam.responsible !== update.responsible) {
+                      newCam.responsible = update.responsible;
+                      needsUpdate = true;
+                  } else if (newCam.warehouse && newCam.warehouse !== cam.warehouse) {
+                      // If warehouse changed but responsible wasn't in spreadsheet, auto-map it
+                      newCam.responsible = getResponsibleByWarehouse(newCam.warehouse, cam.responsible);
+                      needsUpdate = true;
+                  }
 
-                      if (needsUpdate) {
-                          currentCameras[idx] = newCam;
-                          updatedCount++;
+                  if (needsUpdate) {
+                      currentCameras[exactMatchIdx] = newCam;
+                      updatedCount++;
+                  }
+                  matchedIndices.add(exactMatchIdx);
+                  (update as any)._matched = true;
+              }
+          }
+
+          // Pass 2: Match remaining updates by name only (for items where responsible or warehouse changed)
+          for (const update of updates) {
+              if ((update as any)._matched) continue;
+
+              const updateName = update.name.trim().toUpperCase();
+              const nameMatchIdx = currentCameras.findIndex((cam, idx) => 
+                  !matchedIndices.has(idx) && 
+                  cam.name.trim().toUpperCase() === updateName
+              );
+
+              if (nameMatchIdx >= 0) {
+                  const cam = currentCameras[nameMatchIdx];
+                  const newCam = { ...cam };
+                  let needsUpdate = false;
+
+                  if (update.recordingTime && cam.recordingTime !== update.recordingTime) {
+                      newCam.recordingTime = update.recordingTime;
+                      needsUpdate = true;
+                  }
+
+                  if (update.warehouse) {
+                      let finalWarehouse = update.warehouse.toUpperCase().trim();
+                      if (finalWarehouse === 'G2') finalWarehouse = 'GALPÃO G2';
+                      else if (finalWarehouse === 'G3') finalWarehouse = 'GALPÃO G3';
+                      else if (finalWarehouse === 'G5') finalWarehouse = 'GALPÃO G5';
+                      else if (finalWarehouse === 'SP') finalWarehouse = 'GALPÃO SP';
+                      else if (finalWarehouse === 'LSP') finalWarehouse = 'GALPÃO LSP';
+                      else if (finalWarehouse === 'PAVUNA') finalWarehouse = 'GALPÃO PAVUNA';
+                      else if (finalWarehouse === 'MERITI') finalWarehouse = 'GALPÃO MERITI';
+                      else if (finalWarehouse === '4 ELOS RJ' || finalWarehouse === '4ELOS RJ') finalWarehouse = 'GALPÃO 4 ELOS RJ';
+                      else if (finalWarehouse === '4 ELOS ES' || finalWarehouse === '4ELOS ES') finalWarehouse = 'GALPÃO 4 ELOS ES';
+
+                      if (cam.warehouse !== finalWarehouse) {
+                          newCam.warehouse = finalWarehouse;
+                          newCam.warehouseManuallyEdited = true;
+                          needsUpdate = true;
                       }
                   }
-              });
+
+                  if (update.responsible && cam.responsible !== update.responsible) {
+                      newCam.responsible = update.responsible;
+                      needsUpdate = true;
+                  } else if (newCam.warehouse && newCam.warehouse !== cam.warehouse) {
+                      newCam.responsible = getResponsibleByWarehouse(newCam.warehouse, cam.responsible);
+                      needsUpdate = true;
+                  }
+
+                  if (needsUpdate) {
+                      currentCameras[nameMatchIdx] = newCam;
+                      updatedCount++;
+                  }
+                  matchedIndices.add(nameMatchIdx);
+              }
           }
           
           if (updatedCount > 0) {
               await monitoringService.importData(currentCameras, data.accessPoints);
-              addToast(`${updatedCount} itens atualizados com sucesso!`, "success");
+              addToast(`${updatedCount} câmeras atualizadas com sucesso!`, "success");
           } else {
-              addToast("Nenhum item precisou ser atualizado.", "info");
+              addToast("Nenhuma câmera precisou ser atualizada.", "info");
           }
       } catch (e) {
           console.error(e);
-          addToast("Erro ao atualizar dados via Excel.", "alert");
+          addToast("Erro ao atualizar câmeras via Excel.", "alert");
       }
   };
 
-  const handleImportAccessPoints = async (updates: { name: string; warehouse?: string }[]) => {
+  const handleImportAccessPoints = async (updates: { name: string; warehouse?: string; responsible?: string }[]) => {
       try {
           let updatedCount = 0;
           const currentAccess = [...data.accessPoints];
+          const matchedIndices = new Set<number>();
 
+          // Pass 1: Match by name AND responsible
           for (const update of updates) {
-              // Find all access points with the same name
-              currentAccess.forEach((ap, idx) => {
-                  if (ap.name === update.name) {
-                      let needsUpdate = false;
-                      const newAp = { ...ap };
-                      
-                      if (update.warehouse) {
-                          // Normalize warehouse name
-                          let finalWarehouse = update.warehouse.toUpperCase().trim();
-                          if (finalWarehouse === 'G2') finalWarehouse = 'GALPÃO G2';
-                          else if (finalWarehouse === 'G3') finalWarehouse = 'GALPÃO G3';
-                          else if (finalWarehouse === 'G5') finalWarehouse = 'GALPÃO G5';
-                          else if (finalWarehouse === 'SP') finalWarehouse = 'GALPÃO SP';
-                          else if (finalWarehouse === 'LSP') finalWarehouse = 'GALPÃO LSP';
-                          else if (finalWarehouse === 'PAVUNA') finalWarehouse = 'GALPÃO PAVUNA';
-                          else if (finalWarehouse === 'MERITI') finalWarehouse = 'GALPÃO MERITI';
+              const updateName = update.name.trim().toUpperCase();
+              const updateResponsible = update.responsible?.trim().toUpperCase();
 
-                          if (ap.warehouse !== finalWarehouse) {
-                              newAp.warehouse = finalWarehouse;
-                              newAp.warehouseManuallyEdited = true;
-                              needsUpdate = true;
-                          }
-                      }
+              const exactMatchIdx = currentAccess.findIndex((ap, idx) => 
+                  !matchedIndices.has(idx) && 
+                  ap.name.trim().toUpperCase() === updateName &&
+                  ap.responsible.trim().toUpperCase() === updateResponsible
+              );
 
-                      if (needsUpdate) {
-                          currentAccess[idx] = newAp;
-                          updatedCount++;
+              if (exactMatchIdx >= 0) {
+                  const ap = currentAccess[exactMatchIdx];
+                  const newAp = { ...ap };
+                  let needsUpdate = false;
+
+                  if (update.warehouse) {
+                      let finalWarehouse = update.warehouse.toUpperCase().trim();
+                      if (finalWarehouse === 'G2') finalWarehouse = 'GALPÃO G2';
+                      else if (finalWarehouse === 'G3') finalWarehouse = 'GALPÃO G3';
+                      else if (finalWarehouse === 'G5') finalWarehouse = 'GALPÃO G5';
+                      else if (finalWarehouse === 'SP') finalWarehouse = 'GALPÃO SP';
+                      else if (finalWarehouse === 'LSP') finalWarehouse = 'GALPÃO LSP';
+                      else if (finalWarehouse === 'PAVUNA') finalWarehouse = 'GALPÃO PAVUNA';
+                      else if (finalWarehouse === 'MERITI') finalWarehouse = 'GALPÃO MERITI';
+                      else if (finalWarehouse === '4 ELOS RJ' || finalWarehouse === '4ELOS RJ') finalWarehouse = 'GALPÃO 4 ELOS RJ';
+                      else if (finalWarehouse === '4 ELOS ES' || finalWarehouse === '4ELOS ES') finalWarehouse = 'GALPÃO 4 ELOS ES';
+
+                      if (ap.warehouse !== finalWarehouse) {
+                          newAp.warehouse = finalWarehouse;
+                          newAp.warehouseManuallyEdited = true;
+                          needsUpdate = true;
                       }
                   }
-              });
+
+                  if (update.responsible && ap.responsible !== update.responsible) {
+                      newAp.responsible = update.responsible;
+                      needsUpdate = true;
+                  } else if (newAp.warehouse && newAp.warehouse !== ap.warehouse) {
+                      newAp.responsible = getResponsibleByWarehouse(newAp.warehouse, ap.responsible);
+                      needsUpdate = true;
+                  }
+
+                  if (needsUpdate) {
+                      currentAccess[exactMatchIdx] = newAp;
+                      updatedCount++;
+                  }
+                  matchedIndices.add(exactMatchIdx);
+                  (update as any)._matched = true;
+              }
+          }
+
+          // Pass 2: Match by name only
+          for (const update of updates) {
+              if ((update as any)._matched) continue;
+
+              const updateName = update.name.trim().toUpperCase();
+              const nameMatchIdx = currentAccess.findIndex((ap, idx) => 
+                  !matchedIndices.has(idx) && 
+                  ap.name.trim().toUpperCase() === updateName
+              );
+
+              if (nameMatchIdx >= 0) {
+                  const ap = currentAccess[nameMatchIdx];
+                  const newAp = { ...ap };
+                  let needsUpdate = false;
+
+                  if (update.warehouse) {
+                      let finalWarehouse = update.warehouse.toUpperCase().trim();
+                      if (finalWarehouse === 'G2') finalWarehouse = 'GALPÃO G2';
+                      else if (finalWarehouse === 'G3') finalWarehouse = 'GALPÃO G3';
+                      else if (finalWarehouse === 'G5') finalWarehouse = 'GALPÃO G5';
+                      else if (finalWarehouse === 'SP') finalWarehouse = 'GALPÃO SP';
+                      else if (finalWarehouse === 'LSP') finalWarehouse = 'GALPÃO LSP';
+                      else if (finalWarehouse === 'PAVUNA') finalWarehouse = 'GALPÃO PAVUNA';
+                      else if (finalWarehouse === 'MERITI') finalWarehouse = 'GALPÃO MERITI';
+                      else if (finalWarehouse === '4 ELOS RJ' || finalWarehouse === '4ELOS RJ') finalWarehouse = 'GALPÃO 4 ELOS RJ';
+                      else if (finalWarehouse === '4 ELOS ES' || finalWarehouse === '4ELOS ES') finalWarehouse = 'GALPÃO 4 ELOS ES';
+
+                      if (ap.warehouse !== finalWarehouse) {
+                          newAp.warehouse = finalWarehouse;
+                          newAp.warehouseManuallyEdited = true;
+                          needsUpdate = true;
+                      }
+                  }
+
+                  if (update.responsible && ap.responsible !== update.responsible) {
+                      newAp.responsible = update.responsible;
+                      needsUpdate = true;
+                  } else if (newAp.warehouse && newAp.warehouse !== ap.warehouse) {
+                      newAp.responsible = getResponsibleByWarehouse(newAp.warehouse, ap.responsible);
+                      needsUpdate = true;
+                  }
+
+                  if (needsUpdate) {
+                      currentAccess[nameMatchIdx] = newAp;
+                      updatedCount++;
+                  }
+                  matchedIndices.add(nameMatchIdx);
+              }
           }
           
           if (updatedCount > 0) {

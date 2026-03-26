@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { Camera, Status } from '../types';
+import { getResponsibleByWarehouse } from '../services/monitoring';
 import { Video, MapPin, User, AlertCircle, Search, X, Filter, Warehouse, Plus, Edit2, Trash2, PowerOff, Power, Clock, Download, Upload, ChevronDown, ChevronUp } from 'lucide-react';
 import Checkbox from './ui/Checkbox';
 import ExcelJS from 'exceljs';
@@ -144,16 +145,22 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
           const updatedCam = { ...editingCam, ...formData };
           if (formData.warehouse !== undefined && formData.warehouse !== editingCam.warehouse) {
               updatedCam.warehouseManuallyEdited = true;
+              // Auto-update responsible based on new warehouse
+              updatedCam.responsible = getResponsibleByWarehouse(formData.warehouse, editingCam.responsible);
           }
           if (onEdit) onEdit(updatedCam as Camera);
       } else {
           // Add
-          if (onAdd) onAdd({
+          const newCam = {
               ...formData,
               uuid: `cam-${Date.now()}`,
               status: formData.status || 'ONLINE',
               warehouseManuallyEdited: !!(formData.warehouse && formData.warehouse !== 'Geral' && formData.warehouse !== 'Sem Galpão')
-          } as Camera);
+          };
+          if (formData.warehouse) {
+              newCam.responsible = getResponsibleByWarehouse(formData.warehouse, formData.responsible || null);
+          }
+          if (onAdd) onAdd(newCam as Camera);
       }
       setShowModal(false);
   }, [formData, editingCam, onEdit, onAdd]);
@@ -210,19 +217,21 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
           
           if (!worksheet) throw new Error("Planilha vazia");
 
-          const updates: { name: string; recordingTime?: string; warehouse?: string }[] = [];
+          const updates: { name: string; recordingTime?: string; warehouse?: string; responsible?: string }[] = [];
 
           worksheet.eachRow((row, rowNumber) => {
               if (rowNumber === 1) return; // Skip header
               const name = row.getCell(1).value?.toString() || '';
               const warehouse = row.getCell(2).value?.toString() || '';
               const recordingTime = row.getCell(4).value?.toString() || '';
+              const responsible = row.getCell(5).value?.toString() || '';
               
               if (name) {
                   updates.push({ 
                       name, 
                       recordingTime: (recordingTime && recordingTime !== '-') ? recordingTime : undefined,
-                      warehouse: (warehouse && warehouse !== '-') ? warehouse : undefined
+                      warehouse: (warehouse && warehouse !== '-') ? warehouse : undefined,
+                      responsible: (responsible && responsible !== '-') ? responsible : undefined
                   });
               }
           });

@@ -3,19 +3,20 @@ import React, { useRef, useState } from 'react';
 import { FileSpreadsheet, RotateCcw, Upload, Video, DoorClosed, Save, Briefcase, Trash2, Clock, FileText, Download, Database, Check, Layers, Power, X, AlertTriangle, RefreshCw, Info, DollarSign, Wand2, ListChecks, ShieldAlert, Loader2 } from 'lucide-react';
 import { Camera, AccessPoint, Status, ProcessedWorker, ThirdPartyImport, ChannelType, ThirdPartyPayment, PaymentImport } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
+import { getResponsibleByWarehouse } from '../services/monitoring';
 
 const VALID_COMPANIES = ['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PRIMUS', 'PRAYLOG', 'GMILL', 'BSB'];
 
 const VALID_UNITS = [
     { id: 'GALPÃO MERITI', keywords: ['MERITI', 'SJM', 'EXPRESSA', 'BSB', 'GRADIL EXPRESSA', 'DOCA RECEXP', 'RUA 17', 'RUA 12', 'RUA 34', 'REC MEZANINO', 'MESA CONTROLADO', 'DOCA RECEBIMENTO', 'ALTO CUSTO', 'ALTO VALOR'] },
-    { id: 'GALPÃO 4 ELOS ES', keywords: ['G4 ES', 'G10', '4ELOS ES', '4 ELOS ES', '4ELOS', 'SPEED DOME', 'LOLA', 'CONFERENCIA 04', 'CONFERENCIA 03', 'RUA FLOWRACK', 'CHK0', 'G1004LF', 'G1003LF', 'G1001LF', 'CAMERA 4ELOS'] },
-    { id: 'GALPÃO LSP', keywords: ['10.0.30.65', '179.108.121.85', 'LSP_', 'LSP01', 'ENTRADA RODOVIA', 'PORTÃO SOCIAL', 'SPEED ESTACIONAMENTO', 'PÁTIO DOCAS', 'GUARITA', 'LSP01LF', 'LSP02LF', 'LSP03LF', 'ECLUSA LSP'] },
-    { id: 'GALPÃO SP', keywords: ['177.69.119.221', 'INVD 32', 'SP 01', 'SP 02', 'SP 3_', 'SP_1', 'HOSPIDROGAS', 'FAVO', 'SALLVE', 'ITAPEVI', 'NEURAXPHARM', 'IP01LF', 'IP02LF', 'IP03LF', 'IP04LF', 'IP05LF', 'IP06LF', 'IP07LF', 'IP08LF'] },
+    { id: 'GALPÃO 4 ELOS ES', keywords: ['G4 ES', 'G10', '4ELOS ES', '4 ELOS ES', '4ELOS', 'SPEED DOME', 'LOLA', 'CONFERENCIA 04', 'CONFERENCIA 03', 'RUA FLOWRACK', 'CHK0', 'G1004LF', 'G1003LF', 'G1001LF', 'CAMERA 4ELOS', 'FRENTE RUA G10-2'] },
+    { id: 'GALPÃO LSP', keywords: ['10.0.30.65', '179.108.121.85', 'LSP_', 'LSP01', 'ENTRADA RODOVIA', 'PORTÃO SOCIAL', 'SPEED ESTACIONAMENTO', 'PÁTIO DOCAS', 'GUARITA', 'LSP01LF', 'LSP02LF', 'LSP03LF', 'ECLUSA LSP', 'CATRACA'] },
+    { id: 'GALPÃO SP', keywords: ['177.69.119.221', 'INVD 32', 'SP 01', 'SP 02', 'SP 3_', 'SP_1', 'HOSPIDROGAS', 'FAVO', 'SALLVE', 'ITAPEVI', 'NEURAXPHARM', 'IP01LF', 'IP02LF', 'IP03LF', 'IP04LF', 'IP05LF', 'IP06LF', 'IP07LF', 'IP08LF', '29 E 30 FUNDOS'] },
     { id: 'GALPÃO 4 ELOS RJ', keywords: ['4 ELOS RJ', 'ELOS RJ', 'RUA 1 FRENTE', 'REFEITORIO MEZANINO', 'DOCA 40414243', 'ACESSO MD 2', '4E01LF', '4E02LF', '4E03LF'] },
-    { id: 'GALPÃO G5', keywords: ['TERABYTE', 'NVD 1 G5', 'NVD 2 G5', 'NVD 3 G5', 'NVD 4 G5', 'NVD 5 G5', 'MD 4', 'MD 5', 'MD 6', 'MD 7', 'MD 8', 'MD 9', 'MD4', 'MD5', 'MD6', 'MD7', 'MD8', 'MD9', 'PINOS0', 'HERSHEYS', 'AC BRAZIL', 'BIOSANTE', 'BEYOUNG', 'LOLA COS', 'SERVIER', 'CELLERA', 'BIOCHIMICO', 'TUNEL', 'SAIDA EMER'] },
-    { id: 'GALPÃO PAVUNA', keywords: ['PAVUNA', 'UNILOG PAVUNA', 'PV01', 'PV02', 'REC MODULO 01', 'ANTECAMARA ENTRADA', 'PV01LF', 'PV02LF', 'PV03LF'] },
-    { id: 'GALPÃO G2', keywords: ['10.0.10.13', '10.0.10.14', '10.0.10.15', '10.0.10.16', '10.0.10.20', 'G2 MODULO', 'G2 DOCA', 'SEMEAR', 'RG SOLUÇÕES', 'PFS', 'PRESTIGE', 'BEAUTYGLAM', 'MERCO', 'BIOCON', 'MD A', 'MD B', 'MD C', 'MD D', 'MD E', 'MD F', 'VESTIARIO', 'COPA G2', 'ESCANINHO CELULAR', 'G216LF', 'G213LF', 'G203LF', 'G208LF', 'G207LF', 'G205LF', 'G210LF', 'G215LF', 'G201LF', 'G214LF', 'G212LF', 'G206LF', 'G204LF', 'G209LF', 'G217LF', 'G211LF', 'G202LF', 'ZYDUS', 'PRATI', 'GAIOLA', 'CATRACA G2', 'BEB', 'B E B', 'CHECKOUT'] },
-    { id: 'GALPÃO G3', keywords: ['10.0.10.18', 'G3 MATRIZ', 'G3 CCTO', 'MYLAN', 'ASPEN', 'DIPRIVAN', 'SALA MYLAN', 'G3 MD', 'RUA 25-26', 'RUA 23-24', 'RUA 21-22', 'RUA 19-20', 'RUA 17-18', 'RUA 11-12', 'RUA 9-10', 'RUA 3-4', 'RUA 5-6', 'RUA 1-2', 'ANTECAMERA ASPEN', 'CAMARA FRIA ASPEN', 'G3 ANTECAMARA', 'VPC', 'G315LF', 'G313LF', 'G311LF', 'G307LF', 'G306LF', 'G302LF', 'G305LF', 'G309LF', 'G316LF', 'G314LF', 'G312LF', 'G304LF', 'G301LF', 'G310LF', 'G308LF', 'G303LF'] }
+    { id: 'GALPÃO G5', keywords: ['TERABYTE', 'NVD 1 G5', 'NVD 2 G5', 'NVD 3 G5', 'NVD 4 G5', 'NVD 5 G5', 'MD 4', 'MD 5', 'MD 6', 'MD 7', 'MD 8', 'MD 9', 'MD4', 'MD5', 'MD6', 'MD7', 'MD8', 'MD9', 'PINOS0', 'HERSHEYS', 'AC BRAZIL', 'BIOSANTE', 'BEYOUNG', 'LOLA COS', 'SERVIER', 'CELLERA', 'BIOCHIMICO', 'TUNEL', 'SAIDA EMER', 'CHECKOUT 06'] },
+    { id: 'GALPÃO PAVUNA', keywords: ['PAVUNA', 'UNILOG PAVUNA', 'PV01', 'PV02', 'REC MODULO 01', 'PV01LF', 'PV02LF', 'PV03LF', 'ANTECAMARA ENTRADA'] },
+    { id: 'GALPÃO G2', keywords: ['10.0.10.13', '10.0.10.14', '10.0.10.15', '10.0.10.16', '10.0.10.20', 'G2 MODULO', 'G2 DOCA', 'SEMEAR', 'RG SOLUÇÕES', 'PFS', 'PRESTIGE', 'BEAUTYGLAM', 'MERCO', 'BIOCON', 'MD A', 'MD B', 'MD C', 'MD D', 'MD E', 'MD F', 'VESTIARIO', 'COPA G2', 'ESCANINHO CELULAR', 'G216LF', 'G213LF', 'G203LF', 'G208LF', 'G207LF', 'G205LF', 'G210LF', 'G215LF', 'G201LF', 'G214LF', 'G212LF', 'G206LF', 'G204LF', 'G209LF', 'G217LF', 'G211LF', 'G202LF', 'ZYDUS', 'PRATI', 'GAIOLA', 'CATRACA G2', 'BEB', 'B E B', 'CHECKOUT', 'ACESSO MD A'] },
+    { id: 'GALPÃO G3', keywords: ['10.0.10.18', 'G3 MATRIZ', 'G3 CCTO', 'MYLAN', 'ASPEN', 'DIPRIVAN', 'SALA MYLAN', 'G3 MD', 'RUA 25-26', 'RUA 23-24', 'RUA 21-22', 'RUA 19-20', 'RUA 17-18', 'RUA 11-12', 'RUA 9-10', 'RUA 3-4', 'RUA 5-6', 'RUA 1-2', 'ANTECAMERA ASPEN', 'CAMARA FRIA ASPEN', 'VPC', 'G315LF', 'G313LF', 'G311LF', 'G307LF', 'G306LF', 'G302LF', 'G305LF', 'G309LF', 'G316LF', 'G314LF', 'G312LF', 'G304LF', 'G301LF', 'G310LF', 'G308LF', 'G303LF', 'G3 ANTECAMARA'] }
 ];
 
 const parseRowDate = (row: any): string => {
@@ -89,19 +90,6 @@ const normalizeWarehouse = (rawWarehouse: string | null, location: string | null
     return rawWarehouse || 'Geral';
 };
 
-const getResponsibleByWarehouse = (warehouse: string, currentResponsible: string | null): string => {
-    switch (warehouse) {
-        case 'GALPÃO G2': return 'ROBSON DIAS BRITO';
-        case 'GALPÃO G3': return 'EDNEI RODRIGUES SOARES';
-        case 'GALPÃO G5': return 'MOACIR ANDRADE NUNES';
-        case 'GALPÃO PAVUNA': case 'GALPÃO MERITI': case 'GALPÃO LSP': return 'MAURO BAPTISTA CERQUEIRA';
-        case 'GALPÃO SP': return 'JOSENIAS SANTOS NASCIMENTO';
-        case 'GALPÃO 4 ELOS RJ': return 'DANIEL CESAR MACHADO';
-        case 'GALPÃO 4 ELOS ES': return 'SILVIA SANTOS';
-        default: return currentResponsible || 'N/A';
-    }
-};
-
 const mapJsonToDevices = (jsonData: any[], type: 'camera' | 'access'): any[] => {
     const getValue = (rowObj: any, possibleHeaders: string[]) => {
         const key = Object.keys(rowObj).find(k => {
@@ -150,7 +138,9 @@ const mapJsonToDevices = (jsonData: any[], type: 'camera' | 'access'): any[] => 
             let status: Status = 'ONLINE';
             const offlineKeywords = ['OFFLINE', 'OFF', 'INATIVO', 'DESLIGADO', 'FALHA', 'ERRO', 'ERROR', 'DOWN', 'DISCONNECTED', '0', 'FALSE', 'NAO', 'NÃO', 'RUIM', 'PARADO'];
             if (offlineKeywords.some(k => statusRaw === k || statusRaw.includes(k))) status = 'OFFLINE';
-            return { uuid, id: finalId, name: finalName, type: 'Controle de Acesso', location: location || 'N/A', warehouse, status, lastLog, latency: '-', warehouseManuallyEdited } as AccessPoint;
+            const responsibleRaw = getValue(obj, ['Responsável', 'Responsavel', 'Resp', 'Tecnico']);
+            const responsible = getResponsibleByWarehouse(warehouse, responsibleRaw);
+            return { uuid, id: finalId, name: finalName, type: 'Controle de Acesso', location: location || 'N/A', warehouse, responsible, status, lastLog, latency: '-', warehouseManuallyEdited } as AccessPoint;
         }
     }).filter(Boolean);
 };

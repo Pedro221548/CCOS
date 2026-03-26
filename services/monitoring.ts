@@ -14,6 +14,24 @@ const getNowFormatted = () => {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
+export const getResponsibleByWarehouse = (warehouse: string, currentResponsible: string | null): string => {
+    const normalizedWarehouse = (warehouse || '').trim().toUpperCase();
+    
+    switch (normalizedWarehouse) {
+        case 'GALPÃO G2': return 'ROBSON DIAS BRITO';
+        case 'GALPÃO G3': return 'EDNEI RODRIGUES SOARES';
+        case 'GALPÃO G5': return 'MOACIR ANDRADE NUNES';
+        case 'GALPÃO PAVUNA': 
+        case 'GALPÃO MERITI': 
+        case 'GALPÃO LSP': 
+            return 'MAURO BAPTISTA CERQUEIRA';
+        case 'GALPÃO SP': return 'JOSENIAS SANTOS NASCIMENTO';
+        case 'GALPÃO 4 ELOS RJ': return 'DANIEL CESAR MACHADO';
+        case 'GALPÃO 4 ELOS ES': return 'SILVIA SANTOS';
+        default: return currentResponsible || 'N/A';
+    }
+};
+
 class MonitoringService {
   // --- Cameras ---
   async addCamera(camera: Camera, currentCameras: Camera[]) {
