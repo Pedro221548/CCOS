@@ -14,6 +14,7 @@ const INITIAL_DATA: AppData = {
   events: [],
   thirdPartyImports: [],
   paymentImports: [],
+  attendanceRoster: [],
   lastSync: '-'
 };
 
@@ -33,6 +34,7 @@ export const useAppData = (user: User | null) => {
     const camerasRef = ref(db, 'monitoramento/cameras');
     const accessRef = ref(db, 'monitoramento/access_points');
     const documentsRef = ref(db, 'monitoramento/documents');
+    const rosterRef = ref(db, 'monitoramento/attendance_roster');
     const importsRef = ref(db, 'monitoramento/third_party_imports');
     const paymentsRef = ref(db, 'monitoramento/payment_imports');
     const metadataRef = ref(db, 'monitoramento/metadata');
@@ -51,6 +53,16 @@ export const useAppData = (user: User | null) => {
 
     const unsubDocs = onValue(documentsRef, (snap) => {
         setData(prev => ({ ...prev, documents: snap.val() || [] }));
+    });
+
+    const unsubRoster = onValue(rosterRef, (snap) => {
+        const val = snap.val();
+        if (val) {
+            const list = Object.keys(val).map(key => ({ id: key, ...val[key] }));
+            setData(prev => ({ ...prev, attendanceRoster: list }));
+        } else {
+            setData(prev => ({ ...prev, attendanceRoster: [] }));
+        }
     });
     
     const unsubImports = onValue(importsRef, (snap) => {
@@ -113,6 +125,7 @@ export const useAppData = (user: User | null) => {
         unsubCameras();
         unsubAccess();
         unsubDocs();
+        unsubRoster();
         unsubImports();
         unsubPayments();
         unsubMetadata();

@@ -43,6 +43,7 @@ export interface AttendanceRoster {
   unit: string;
   checkedIn?: boolean;
   confirmedAt?: string;
+  presence?: boolean;
 }
 
 export interface AppNotification {
@@ -142,6 +143,7 @@ export interface AppData {
   events: CalendarEvent[];
   thirdPartyImports?: ThirdPartyImport[]; 
   paymentImports?: PaymentImport[];
+  attendanceRoster: AttendanceRoster[];
   lastSync: string;
 }
 

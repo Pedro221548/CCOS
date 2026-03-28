@@ -15,6 +15,11 @@ const getNowFormatted = () => {
 };
 
 export const getResponsibleByWarehouse = (warehouse: string, currentResponsible: string | null): string => {
+    // Se o usuário forneceu um responsável na planilha, usamos ele (permitindo edição manual)
+    if (currentResponsible && currentResponsible !== 'N/A' && currentResponsible.trim() !== '') {
+        return currentResponsible.trim().toUpperCase();
+    }
+
     const normalizedWarehouse = (warehouse || '').trim().toUpperCase();
     
     switch (normalizedWarehouse) {
@@ -224,6 +229,10 @@ class MonitoringService {
 
   async deletePaymentImport(importId: string) {
       await remove(ref(db, `monitoramento/payment_imports/${importId}`));
+  }
+
+  async updateAttendancePresence(rosterId: string, presence: boolean) {
+      await update(ref(db, `monitoramento/attendance_roster/${rosterId}`), { presence });
   }
 
   async fullReset() {

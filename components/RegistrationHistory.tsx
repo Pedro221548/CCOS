@@ -4,7 +4,8 @@ import { User, TeamWorker, AttendanceRoster } from '../types';
 import { 
     History, Calendar, Search, Building2, User as UserIcon, 
     ChevronDown, ChevronUp, Download, FileSpreadsheet, 
-    Filter, Clock, CheckCircle2, Warehouse, Shield, Loader2
+    Filter, Clock, CheckCircle2, Warehouse, Shield, Loader2,
+    Check, X
 } from 'lucide-react';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../services/firebase';
@@ -98,6 +99,7 @@ const RegistrationHistory: React.FC<RegistrationHistoryProps> = ({ currentUser }
                 "CPF": worker?.cpf || 'NÃO LOCALIZADO',
                 "EMPRESA": r.companyName,
                 "UNIDADE ALVO": r.unit,
+                "PRESENÇA": r.presence ? 'SIM' : 'NÃO',
                 "STATUS": r.checkedIn ? 'CADASTRADO/LIBERADO' : 'AGUARDANDO',
                 "CONFIRMADO EM": r.confirmedAt ? new Date(r.confirmedAt).toLocaleString('pt-BR') : 'N/A'
             };
@@ -213,6 +215,15 @@ const RegistrationHistory: React.FC<RegistrationHistoryProps> = ({ currentUser }
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
+                                                                    {item.presence ? (
+                                                                        <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 font-black text-[7px] md:text-[8px] uppercase tracking-tighter flex items-center gap-1">
+                                                                            <Check size={8} /> PRESENTE
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-500 border border-rose-500/20 font-black text-[7px] md:text-[8px] uppercase tracking-tighter flex items-center gap-1">
+                                                                            <X size={8} /> AUSENTE
+                                                                        </span>
+                                                                    )}
                                                                     {item.checkedIn ? (
                                                                         <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-black text-[7px] md:text-[8px] uppercase tracking-tighter">CADASTRADO</span>
                                                                     ) : (

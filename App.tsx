@@ -251,6 +251,16 @@ const App: React.FC = () => {
                   );
               }
 
+              // 3.1 Try Name + Warehouse match (if responsible changed but warehouse stayed same)
+              if (existingIdx < 0 && newCam.warehouse) {
+                  const cleanNewWarehouse = newCam.warehouse.trim().toUpperCase();
+                  existingIdx = currentCameras.findIndex((c, idx) => 
+                      !matchedCameraIndices.has(idx) &&
+                      c.name.trim().toUpperCase() === cleanNewName &&
+                      c.warehouse.trim().toUpperCase() === cleanNewWarehouse
+                  );
+              }
+
               // 4. Try Name only match
               if (existingIdx < 0) {
                   existingIdx = currentCameras.findIndex((c, idx) => 
@@ -309,6 +319,16 @@ const App: React.FC = () => {
                       !matchedAccessIndices.has(idx) &&
                       a.name.trim().toUpperCase() === cleanNewName &&
                       a.responsible.trim().toUpperCase() === cleanNewResp
+                  );
+              }
+
+              // 3.1 Try Name + Warehouse match
+              if (existingIdx < 0 && newAp.warehouse) {
+                  const cleanNewWarehouse = newAp.warehouse.trim().toUpperCase();
+                  existingIdx = currentAccess.findIndex((a, idx) => 
+                      !matchedAccessIndices.has(idx) &&
+                      a.name.trim().toUpperCase() === cleanNewName &&
+                      a.warehouse.trim().toUpperCase() === cleanNewWarehouse
                   );
               }
 
@@ -394,8 +414,29 @@ const App: React.FC = () => {
                   cam.responsible.trim().toUpperCase() === updateResponsible
               );
 
-              if (exactMatchIdx >= 0) {
-                  const cam = currentCameras[exactMatchIdx];
+              // 1.1 Try Name + Warehouse match (if responsible changed but warehouse stayed same)
+              let matchIdx = exactMatchIdx;
+              if (matchIdx < 0 && update.warehouse) {
+                  let finalWarehouse = update.warehouse.toUpperCase().trim();
+                  if (finalWarehouse === 'G2') finalWarehouse = 'GALPÃO G2';
+                  else if (finalWarehouse === 'G3') finalWarehouse = 'GALPÃO G3';
+                  else if (finalWarehouse === 'G5') finalWarehouse = 'GALPÃO G5';
+                  else if (finalWarehouse === 'SP') finalWarehouse = 'GALPÃO SP';
+                  else if (finalWarehouse === 'LSP') finalWarehouse = 'GALPÃO LSP';
+                  else if (finalWarehouse === 'PAVUNA') finalWarehouse = 'GALPÃO PAVUNA';
+                  else if (finalWarehouse === 'MERITI') finalWarehouse = 'GALPÃO MERITI';
+                  else if (finalWarehouse === '4 ELOS RJ' || finalWarehouse === '4ELOS RJ') finalWarehouse = 'GALPÃO 4 ELOS RJ';
+                  else if (finalWarehouse === '4 ELOS ES' || finalWarehouse === '4ELOS ES') finalWarehouse = 'GALPÃO 4 ELOS ES';
+
+                  matchIdx = currentCameras.findIndex((cam, idx) => 
+                      !matchedIndices.has(idx) && 
+                      cam.name.trim().toUpperCase() === updateName &&
+                      cam.warehouse.trim().toUpperCase() === finalWarehouse
+                  );
+              }
+
+              if (matchIdx >= 0) {
+                  const cam = currentCameras[matchIdx];
                   const newCam = { ...cam };
                   let needsUpdate = false;
 
@@ -434,10 +475,10 @@ const App: React.FC = () => {
                   }
 
                   if (needsUpdate) {
-                      currentCameras[exactMatchIdx] = newCam;
+                      currentCameras[matchIdx] = newCam;
                       updatedCount++;
                   }
-                  matchedIndices.add(exactMatchIdx);
+                  matchedIndices.add(matchIdx);
                   (update as any)._matched = true;
               }
           }
@@ -688,6 +729,34 @@ const App: React.FC = () => {
   const handleImportThirdParty = async (workers: ProcessedWorker[], fileName: string) => {
       try {
           await monitoringService.addThirdPartyImport(workers, fileName);
+          
+          // Lógica de presença no histórico
+          if (data.attendanceRoster && data.attendanceRoster.length > 0) {
+              const updates: Promise<void>[] = [];
+              const processedIds = new Set<string>();
+
+              for (const worker of workers) {
+                  // Busca no histórico por nome e data
+                  const matches = data.attendanceRoster.filter(r => 
+                      r.date === worker.date && 
+                      r.workerName.toUpperCase() === worker.name.toUpperCase() &&
+                      !r.presence
+                  );
+
+                  for (const match of matches) {
+                      if (!processedIds.has(match.id)) {
+                          updates.push(monitoringService.updateAttendancePresence(match.id, true));
+                          processedIds.add(match.id);
+                      }
+                  }
+              }
+
+              if (updates.length > 0) {
+                  await Promise.all(updates);
+                  addToast(`${updates.length} presenças confirmadas no histórico!`, "success");
+              }
+          }
+
           addToast(`Importado: ${fileName}`, "success");
       } catch (e) {
           addToast("Erro ao importar terceirizados.", "alert");
