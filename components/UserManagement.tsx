@@ -6,12 +6,27 @@ import {
     Users, UserPlus, Trash2, Shield, Eye, Lock, Check, AlertCircle, 
     Loader2, CheckCircle, AlertTriangle, X, Briefcase, Warehouse, 
     MessageSquareHeart, Search, MoreVertical, ShieldCheck, Mail, ShieldAlert,
-    Building2, Filter, Key, ChevronDown
+    Building2, Filter, Key, ChevronDown, LayoutDashboard
 } from 'lucide-react';
 import Checkbox from './ui/Checkbox';
 import { WAREHOUSE_LIST } from '../constants';
 import { ref, onValue, update, off } from 'firebase/database';
 import { db } from '../services/firebase';
+
+const MASTER_EMAIL = 'pedro.fernandes@ccos.com';
+
+const TAB_OPTIONS = [
+    { id: 'dashboard', label: 'PAINEL PRINCIPAL' },
+    { id: 'monitoring', label: 'MONITORAMENTO' },
+    { id: 'work-mgmt', label: 'PLANTÃO' },
+    { id: 'third-party-mgmt', label: 'FLUXO DE ACESSO' },
+    { id: 'registration', label: 'CADASTRO' },
+    { id: 'registration-history', label: 'HISTÓRICO' },
+    { id: 'finance', label: 'FINANCEIRO' },
+    { id: 'manual', label: 'MANUAL' },
+    { id: 'data', label: 'FONTE DADOS' },
+    { id: 'users', label: 'USUÁRIOS' },
+];
 
 interface UserManagementProps {
     currentUser: User;
@@ -40,9 +55,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
   // Editing Permissions State
   const [editingPermissionsId, setEditingPermissionsId] = useState<string | null>(null);
   const [tempPermissions, setTempPermissions] = useState<string[]>([]);
+  
+  const [editingTabPermissionsId, setEditingTabPermissionsId] = useState<string | null>(null);
+  const [tempTabPermissions, setTempTabPermissions] = useState<string[]>([]);
+  
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const isAdmin = currentUser.role === 'admin';
+  const isMaster = currentUser.email === MASTER_EMAIL;
 
   useEffect(() => {
     loadUsers();
@@ -170,6 +190,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
       setTempPermissions(user.allowedWarehouses || []);
   };
 
+  const openTabPermissionsModal = (user: User) => {
+      setEditingTabPermissionsId(user.uid);
+      setTempTabPermissions(user.permissions || TAB_OPTIONS.map(t => t.id));
+  };
+
   const savePermissions = async () => {
       if (!editingPermissionsId) return;
       try {
@@ -178,6 +203,17 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
           setEditingPermissionsId(null);
       } catch (err) {
           alert("Erro ao salvar permissões.");
+      }
+  };
+
+  const saveTabPermissions = async () => {
+      if (!editingTabPermissionsId) return;
+      try {
+          await authService.updateUserProfile(editingTabPermissionsId, { permissions: tempTabPermissions });
+          setUsers(prev => prev.map(u => u.uid === editingTabPermissionsId ? { ...u, permissions: tempTabPermissions } : u));
+          setEditingTabPermissionsId(null);
+      } catch (err) {
+          alert("Erro ao salvar permissões de acesso.");
       }
   };
 
@@ -357,20 +393,22 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                                     <th className="p-6">Identificação</th>
                                     <th className="p-6">Acesso Master</th>
                                     <th className="p-6">Situação</th>
-                                    <th className="p-6 text-center">Permissões</th>
+                                    <th className="p-6 text-center">Unidades</th>
+                                    <th className="p-6 text-center">Acesso Site</th>
                                     <th className="p-6 text-right">Controle</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/40">
                                 {listLoading && users.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="p-20 text-center">
+                                        <td colSpan={6} className="p-20 text-center">
                                             <Loader2 className="animate-spin text-blue-500 mx-auto mb-4" size={40} />
                                             <span className="text-slate-600 font-bold uppercase tracking-widest text-[10px]">Sincronizando Banco de Dados...</span>
                                         </td>
                                     </tr>
                                 ) : filteredUsersList.map(user => {
                                     const isSelf = user.uid === currentUser.uid;
+                                    const isUserMaster = user.email === MASTER_EMAIL;
                                     return (
                                         <tr key={user.uid} className={`hover:bg-slate-800/20 transition-colors group ${deletingId === user.uid ? 'opacity-30' : ''}`}>
                                             <td className="p-6">
@@ -390,7 +428,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                                                     <select 
                                                         value={user.role} 
                                                         onChange={(e) => handleUpdateRole(user.uid, e.target.value as UserRole)} 
-                                                        disabled={isSelf} 
+                                                        disabled={isSelf || isUserMaster} 
                                                         className={`bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-widest outline-none transition-all cursor-pointer hover:border-blue-500 disabled:opacity-30 disabled:cursor-not-allowed
                                                             ${user.role === 'admin' ? 'text-rose-500 border-rose-500/20' : 
                                                               user.role === 'manager' ? 'text-blue-500 border-blue-500/20' : 
@@ -406,8 +444,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                                             </td>
                                             <td className="p-6">
                                                 <button 
-                                                    onClick={() => !isSelf && handleUpdateStatus(user.uid, user.status === 'blocked' ? 'active' : 'blocked')}
-                                                    disabled={isSelf}
+                                                    onClick={() => !isSelf && !isUserMaster && handleUpdateStatus(user.uid, user.status === 'blocked' ? 'active' : 'blocked')}
+                                                    disabled={isSelf || isUserMaster}
                                                     className={`px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all
                                                         ${user.status === 'blocked' 
                                                             ? 'bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500 hover:text-white' 
@@ -430,10 +468,23 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                                                     <span className="text-[10px] text-slate-700 font-black uppercase tracking-widest italic">-</span>
                                                 )}
                                             </td>
+                                            <td className="p-6 text-center">
+                                                {isMaster && user.role !== 'provider' && !isUserMaster ? (
+                                                    <button 
+                                                        onClick={() => openTabPermissionsModal(user)}
+                                                        className="p-3 bg-amber-600/10 text-amber-500 hover:bg-amber-600 hover:text-white border border-amber-500/20 rounded-2xl transition-all shadow-lg shadow-amber-900/10"
+                                                        title="Configurar Acesso ao Site"
+                                                    >
+                                                        <Key size={18} />
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-[10px] text-slate-700 font-black uppercase tracking-widest italic">-</span>
+                                                )}
+                                            </td>
                                             <td className="p-6 text-right">
                                                 <button 
-                                                    onClick={() => !isSelf && setConfirmDeleteId(user.uid)} 
-                                                    disabled={isSelf} 
+                                                    onClick={() => !isSelf && !isUserMaster && setConfirmDeleteId(user.uid)} 
+                                                    disabled={isSelf || isUserMaster} 
                                                     className="p-3 bg-slate-950 border border-slate-800 text-slate-600 hover:text-rose-500 hover:bg-rose-500/10 hover:border-rose-500/30 rounded-2xl transition-all disabled:opacity-0"
                                                 >
                                                     <Trash2 size={18}/>
@@ -493,6 +544,51 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                             <button onClick={() => setEditingPermissionsId(null)} className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-3xl font-black uppercase text-xs tracking-widest transition-all">Cancelar</button>
                             <button onClick={savePermissions} className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-2xl shadow-blue-900/40 transition-all flex items-center justify-center gap-3">
                                 <ShieldCheck size={20} /> ATUALIZAR ACESSOS
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+       )}
+
+       {/* MODAL: EDITAR PERMISSÕES DE ACESSO AO SITE */}
+       {editingTabPermissionsId && (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
+                <div className="bg-slate-900 border border-slate-700 rounded-[40px] shadow-2xl w-full max-w-xl overflow-hidden relative">
+                    <div className="absolute top-0 left-0 w-full h-1.5 bg-amber-600"></div>
+                    
+                    <div className="p-10">
+                        <div className="flex justify-between items-start mb-10">
+                            <div>
+                                <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">PERMISSÕES DE ACESSO</h3>
+                                <p className="text-slate-500 text-sm font-bold uppercase tracking-widest mt-2">Defina quais módulos este usuário pode acessar</p>
+                            </div>
+                            <button onClick={() => setEditingTabPermissionsId(null)} className="p-3 bg-slate-800 hover:bg-rose-600 text-white rounded-full transition-all"><X size={24}/></button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 mb-10">
+                            {TAB_OPTIONS.map(tab => (
+                                <label key={tab.id} className={`flex items-center justify-between p-4 rounded-3xl border transition-all cursor-pointer group
+                                    ${tempTabPermissions.includes(tab.id) ? 'bg-amber-600/10 border-amber-500 shadow-lg' : 'bg-slate-950 border-slate-800 hover:border-slate-700'}
+                                `} onClick={() => {
+                                    setTempTabPermissions(prev => prev.includes(tab.id) ? prev.filter(t => t !== tab.id) : [...prev, tab.id]);
+                                }}>
+                                    <div className="flex items-center gap-3">
+                                        <LayoutDashboard size={16} className={tempTabPermissions.includes(tab.id) ? 'text-amber-400' : 'text-slate-600'} />
+                                        <span className={`text-xs font-bold uppercase tracking-tight ${tempTabPermissions.includes(tab.id) ? 'text-white' : 'text-slate-400'}`}>{tab.label}</span>
+                                    </div>
+                                    <Checkbox 
+                                        checked={tempTabPermissions.includes(tab.id)}
+                                        onChange={() => {}} 
+                                    />
+                                </label>
+                            ))}
+                        </div>
+
+                        <div className="flex gap-4">
+                            <button onClick={() => setEditingTabPermissionsId(null)} className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-3xl font-black uppercase text-xs tracking-widest transition-all">Cancelar</button>
+                            <button onClick={saveTabPermissions} className="flex-1 py-4 bg-amber-600 hover:bg-amber-500 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-2xl shadow-amber-900/40 transition-all flex items-center justify-center gap-3">
+                                <ShieldCheck size={20} /> ATUALIZAR PERMISSÕES
                             </button>
                         </div>
                     </div>

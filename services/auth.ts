@@ -39,7 +39,8 @@ class AuthService {
                 name: userData.name || 'Usuário',
                 role: userData.role || 'viewer',
                 status: userData.status || 'active',
-                allowedWarehouses: userData.allowedWarehouses || [], // CORREÇÃO: Carregar permissões
+                allowedWarehouses: userData.allowedWarehouses || [],
+                permissions: userData.permissions || [],
                 photoURL: userData.photoURL || '',
                 bannerURL: userData.bannerURL || '',
                 jobTitle: userData.jobTitle || '',
@@ -55,7 +56,8 @@ class AuthService {
                   name: firebaseUser.displayName || 'Usuário (Visitante)',
                   role: isOwner ? 'admin' : 'viewer',
                   status: 'active',
-                  allowedWarehouses: []
+                  allowedWarehouses: [],
+                  permissions: []
               };
               
               callback(memoryUser);
@@ -124,6 +126,7 @@ class AuthService {
         role: newUser.role,
         status: 'active',
         allowedWarehouses: newUser.allowedWarehouses || [],
+        permissions: [],
         createdAt: new Date().toISOString(),
         photoURL: '',
         jobTitle: 'Membro da Equipe',
@@ -204,7 +207,8 @@ class AuthService {
         ...data[key],
         name: data[key].name || 'Sem Nome', 
         email: data[key].email || '',
-        allowedWarehouses: data[key].allowedWarehouses || []
+        allowedWarehouses: data[key].allowedWarehouses || [],
+        permissions: data[key].permissions || []
       }));
     }
     return [];

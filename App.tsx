@@ -41,6 +41,25 @@ const LoadingFallback = () => (
   </div>
 );
 
+const MASTER_EMAIL = 'pedro.fernandes@ccos.com';
+
+const hasTabPermission = (user: User | null, tab: string) => {
+    if (!user) return false;
+    if (user.email === MASTER_EMAIL) return true;
+    
+    // Fornecedores têm acesso fixo
+    if (user.role === 'provider') {
+        return ['registration', 'registration-history'].includes(tab);
+    }
+
+    if (!user.permissions) {
+        // Fallback para lógica baseada em cargo se não houver permissões definidas
+        if (['data', 'users'].includes(tab)) return user.role === 'admin';
+        return true;
+    }
+    return user.permissions.includes(tab);
+};
+
 const hasWarehousePermission = (allowedList: string[] | undefined, targetWarehouse: string) => {
     if (!allowedList || allowedList.length === 0) return false;
     const normalizedTarget = (targetWarehouse || '').toUpperCase();
@@ -173,8 +192,7 @@ const App: React.FC = () => {
   };
 
   const handleTabChange = useCallback((tab: typeof activeTab) => {
-    if (user?.role === 'provider' && !['registration', 'registration-history'].includes(tab)) return;
-    if (['data', 'users'].includes(tab) && !isAdmin) return;
+    if (!hasTabPermission(user, tab)) return;
 
     if (['data', 'users'].includes(tab) && !isUnlocked) {
       setPasswordPromptTab(tab as 'data' | 'users');
@@ -766,19 +784,19 @@ const App: React.FC = () => {
           <div>
             <p className="px-4 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] opacity-50">Operacional</p>
             <div className="space-y-1">
-              {user.role !== 'provider' && (
+              {hasTabPermission(user, 'dashboard') && (
                 <button onClick={() => handleTabChange('dashboard')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
                   <LayoutDashboard size={18} /> 
                   <span className="text-xs font-bold uppercase tracking-wider">Painel principal</span>
                 </button>
               )}
-              {user.role !== 'provider' && (
+              {hasTabPermission(user, 'monitoring') && (
                 <button onClick={() => handleTabChange('monitoring')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'monitoring' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
                   <Shield size={18} /> 
                   <span className="text-xs font-bold uppercase tracking-wider">Monitoramento</span>
                 </button>
               )}
-              {user?.role !== 'manager' && user.role !== 'provider' && (
+              {hasTabPermission(user, 'work-mgmt') && (
                 <button onClick={() => handleTabChange('work-mgmt')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'work-mgmt' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
                   <ClipboardList size={18} /> 
                   <span className="text-xs font-bold uppercase tracking-wider">Plantão</span>
@@ -791,29 +809,33 @@ const App: React.FC = () => {
           <div>
             <p className="px-4 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] opacity-50">Gestão & Acesso</p>
             <div className="space-y-1">
-              {user.role !== 'provider' && (
+              {hasTabPermission(user, 'third-party-mgmt') && (
                 <button onClick={() => handleTabChange('third-party-mgmt')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'third-party-mgmt' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
                   <Users size={18} /> 
                   <span className="text-xs font-bold uppercase tracking-wider">Fluxo de Acesso</span>
                 </button>
               )}
-              <button onClick={() => handleTabChange('registration')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all relative ${activeTab === 'registration' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
-                <UserPlus size={18} /> 
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider">Cadastro</span>
-                    {unreadNotificationsCount > 0 && (
-                        <div className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></span>
-                        </div>
-                    )}
-                </div>
-              </button>
-              <button onClick={() => handleTabChange('registration-history')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'registration-history' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
-                <History size={18} /> 
-                <span className="text-xs font-bold uppercase tracking-wider">Histórico</span>
-              </button>
-              {user.role !== 'provider' && (
+              {hasTabPermission(user, 'registration') && (
+                <button onClick={() => handleTabChange('registration')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all relative ${activeTab === 'registration' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
+                  <UserPlus size={18} /> 
+                  <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider">Cadastro</span>
+                      {unreadNotificationsCount > 0 && (
+                          <div className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></span>
+                          </div>
+                      )}
+                  </div>
+                </button>
+              )}
+              {hasTabPermission(user, 'registration-history') && (
+                <button onClick={() => handleTabChange('registration-history')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'registration-history' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
+                  <History size={18} /> 
+                  <span className="text-xs font-bold uppercase tracking-wider">Histórico</span>
+                </button>
+              )}
+              {hasTabPermission(user, 'finance') && (
                 <button onClick={() => handleTabChange('finance')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'finance' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
                   <DollarSign size={18} /> 
                   <span className="text-xs font-bold uppercase tracking-wider">Financeiro</span>
@@ -826,21 +848,23 @@ const App: React.FC = () => {
           <div>
             <p className="px-4 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] opacity-50">Sistema</p>
             <div className="space-y-1">
-              <button onClick={() => handleTabChange('manual')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'manual' ? 'bg-blue-600 text-white shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
-                <BookOpen size={18} /> 
-                <span className="text-xs font-bold uppercase tracking-wider">Manual</span>
-              </button>
-              {isAdmin && (
-                <>
-                  <button onClick={() => handleTabChange('data')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'data' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}`}>
-                    <FileSpreadsheet size={18} /> 
-                    <span className="text-xs font-bold uppercase tracking-wider">Fonte Dados</span>
-                  </button>
-                  <button onClick={() => handleTabChange('users')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'users' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}`}>
-                    <Users size={18} /> 
-                    <span className="text-xs font-bold uppercase tracking-wider">Usuários</span>
-                  </button>
-                </>
+              {hasTabPermission(user, 'manual') && (
+                <button onClick={() => handleTabChange('manual')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'manual' ? 'bg-blue-600 text-white shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
+                  <BookOpen size={18} /> 
+                  <span className="text-xs font-bold uppercase tracking-wider">Manual</span>
+                </button>
+              )}
+              {hasTabPermission(user, 'data') && (
+                <button onClick={() => handleTabChange('data')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'data' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}`}>
+                  <FileSpreadsheet size={18} /> 
+                  <span className="text-xs font-bold uppercase tracking-wider">Fonte Dados</span>
+                </button>
+              )}
+              {hasTabPermission(user, 'users') && (
+                <button onClick={() => handleTabChange('users')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'users' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}`}>
+                  <Users size={18} /> 
+                  <span className="text-xs font-bold uppercase tracking-wider">Usuários</span>
+                </button>
               )}
             </div>
           </div>

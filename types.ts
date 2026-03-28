@@ -17,6 +17,7 @@ export interface User {
   jobTitle?: string;
   bio?: string;
   companyName?: string; // Para o perfil de Prestador
+  permissions?: string[]; 
 }
 
 export interface TeamWorker {
