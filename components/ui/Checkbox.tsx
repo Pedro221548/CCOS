@@ -38,6 +38,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
       className={`flex items-center gap-3 cursor-pointer select-none group ${
         disabled ? 'opacity-50 cursor-not-allowed' : ''
       } ${className}`}
+      onClick={(e) => e.stopPropagation()}
     >
       <div className="relative flex items-center justify-center">
         <input
@@ -45,6 +46,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
           className="sr-only"
           checked={checked}
           onChange={(e) => !disabled && onChange(e.target.checked)}
+          onClick={(e) => e.stopPropagation()}
           disabled={disabled}
           ref={(el) => {
             if (el) el.indeterminate = indeterminate;

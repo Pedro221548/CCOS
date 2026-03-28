@@ -821,9 +821,9 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                 const isSelected = selectedRosterIds.has(roster.id);
                                 
                                 return (
-                                    <div key={roster.id} className={`bg-slate-950/50 border rounded-2xl p-4 transition-all relative overflow-hidden ${isSelected ? 'border-blue-500 bg-blue-500/5' : isApproved ? 'border-emerald-500/20' : 'border-slate-800'}`}>
+                                    <div key={roster.id} onClick={() => toggleRosterSelection(roster.id)} className={`bg-slate-950/50 border rounded-2xl p-4 transition-all relative overflow-hidden cursor-pointer ${isSelected ? 'border-blue-500 bg-blue-500/5' : isApproved ? 'border-emerald-500/20' : 'border-slate-800'}`}>
                                         <div className="flex items-start gap-4">
-                                            <div className="relative shrink-0" onClick={() => toggleRosterSelection(roster.id)}>
+                                            <div className="relative shrink-0">
                                                 <img src={worker?.photoUrl || `https://ui-avatars.com/api/?name=${roster.workerName}&background=1e293b&color=475569`} className="w-16 h-16 rounded-xl object-cover border border-slate-800" />
                                                 <div className="absolute -top-2 -left-2">
                                                     <Checkbox 
@@ -852,20 +852,20 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-800/50">
-                                            <button onClick={() => startDownloadProcess(roster.workerId, 'photo')} className="flex items-center justify-center gap-2 py-2 bg-slate-900 border border-slate-800 rounded-lg text-[9px] font-black text-slate-400 uppercase tracking-widest active:bg-slate-800">
+                                            <button onClick={(e) => { e.stopPropagation(); startDownloadProcess(roster.workerId, 'photo'); }} className="flex items-center justify-center gap-2 py-2 bg-slate-900 border border-slate-800 rounded-lg text-[9px] font-black text-slate-400 uppercase tracking-widest active:bg-slate-800">
                                                 <Image size={12} /> FOTO
                                             </button>
-                                            <button onClick={() => startDownloadProcess(roster.workerId, 'document')} className="flex items-center justify-center gap-2 py-2 bg-slate-900 border border-slate-800 rounded-lg text-[9px] font-black text-slate-400 uppercase tracking-widest active:bg-slate-800">
+                                            <button onClick={(e) => { e.stopPropagation(); startDownloadProcess(roster.workerId, 'document'); }} className="flex items-center justify-center gap-2 py-2 bg-slate-900 border border-slate-800 rounded-lg text-[9px] font-black text-slate-400 uppercase tracking-widest active:bg-slate-800">
                                                 <Download size={12} /> DOCS
                                             </button>
                                         </div>
 
                                         <div className="flex gap-2 mt-2">
-                                            <button onClick={() => setDeleteConfig({ id: roster.id, type: 'roster', name: roster.workerName })} className="p-2.5 bg-rose-600/10 text-rose-500 border border-rose-600/20 rounded-lg active:bg-rose-600 active:text-white transition-all">
+                                            <button onClick={(e) => { e.stopPropagation(); setDeleteConfig({ id: roster.id, type: 'roster', name: roster.workerName }); }} className="p-2.5 bg-rose-600/10 text-rose-500 border border-rose-600/20 rounded-lg active:bg-rose-600 active:text-white transition-all">
                                                 <Trash2 size={14} />
                                             </button>
                                             {!isApproved && (isAdmin || isManager) ? (
-                                                <button onClick={() => handleApproveWorker(roster.workerId, roster.id)} disabled={actionLoading === roster.id} className="flex-1 bg-emerald-600 text-white font-black rounded-lg text-[9px] uppercase tracking-[0.2em] shadow-lg flex items-center justify-center gap-2">
+                                                <button onClick={(e) => { e.stopPropagation(); handleApproveWorker(roster.workerId, roster.id); }} disabled={actionLoading === roster.id} className="flex-1 bg-emerald-600 text-white font-black rounded-lg text-[9px] uppercase tracking-[0.2em] shadow-lg flex items-center justify-center gap-2">
                                                     {actionLoading === roster.id ? <Loader2 className="animate-spin" size={14} /> : <><CheckCircle2 size={14} /> LIBERAR ACESSO</>}
                                                 </button>
                                             ) : isApproved && (
@@ -907,7 +907,7 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                         const isSelected = selectedRosterIds.has(roster.id);
                                         
                                         return (
-                                            <tr key={roster.id} className={`transition-all group border-l-4 ${isSelected ? 'bg-blue-600/[0.03] border-l-blue-500' : isApproved ? 'bg-emerald-500/[0.01] border-l-emerald-500' : 'hover:bg-slate-800/20 border-l-transparent'}`}>
+                                            <tr key={roster.id} onClick={() => toggleRosterSelection(roster.id)} className={`transition-all group border-l-4 cursor-pointer ${isSelected ? 'bg-blue-600/[0.03] border-l-blue-500' : isApproved ? 'bg-emerald-500/[0.01] border-l-emerald-500' : 'hover:bg-slate-800/20 border-l-transparent'}`}>
                                                 <td className="p-8">
                                                     <div className="flex justify-center">
                                                         <Checkbox 
@@ -948,11 +948,11 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                             </div>
                                                         )}
                                                         <div className="flex flex-col gap-2">
-                                                            <button onClick={() => startDownloadProcess(roster.workerId, 'photo')} className="flex items-center gap-3 text-slate-500 hover:text-amber-500 transition-all text-[10px] font-black uppercase tracking-[0.1em] group/btn">
+                                                            <button onClick={(e) => { e.stopPropagation(); startDownloadProcess(roster.workerId, 'photo'); }} className="flex items-center gap-3 text-slate-500 hover:text-amber-500 transition-all text-[10px] font-black uppercase tracking-[0.1em] group/btn">
                                                                 <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all shadow-inner"><Image size={14} /></div>
                                                                 Baixar Foto
                                                             </button>
-                                                            <button onClick={() => startDownloadProcess(roster.workerId, 'document')} className="flex items-center gap-3 text-slate-500 hover:text-amber-500 transition-all text-[10px] font-black uppercase tracking-[0.1em] group/btn">
+                                                            <button onClick={(e) => { e.stopPropagation(); startDownloadProcess(roster.workerId, 'document'); }} className="flex items-center gap-3 text-slate-500 hover:text-amber-500 transition-all text-[10px] font-black uppercase tracking-[0.1em] group/btn">
                                                                 <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 group-hover/btn:border-amber-500/50 transition-all shadow-inner"><Download size={14} /></div>
                                                                 Documentos
                                                             </button>
@@ -961,12 +961,12 @@ const Registration: React.FC<RegistrationProps> = ({ currentUser }) => {
                                                 </td>
                                                 <td className="p-8">
                                                     <div className="flex items-center justify-end gap-3">
-                                                        <button onClick={() => setDeleteConfig({ id: roster.id, type: 'roster', name: roster.workerName })} className="p-3 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white border border-rose-600/20 rounded-2xl transition-all shadow-lg" title="Remover da escala"><Trash2 size={18} /></button>
+                                                        <button onClick={(e) => { e.stopPropagation(); setDeleteConfig({ id: roster.id, type: 'roster', name: roster.workerName }); }} className="p-3 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white border border-rose-600/20 rounded-2xl transition-all shadow-lg" title="Remover da escala"><Trash2 size={18} /></button>
                                                         {isApproved ? (
                                                             <div className="bg-emerald-500/10 border border-emerald-500/20 px-8 py-3 rounded-2xl text-[11px] font-black uppercase text-emerald-500 flex items-center gap-3 shadow-xl shadow-emerald-900/10 animate-fade-in"><CheckCircle2 size={18} className="text-emerald-400" /> LIBERADO PARA ACESSO</div>
                                                         ) : (
                                                             (isAdmin || isManager) ? (
-                                                                <button onClick={() => handleApproveWorker(roster.workerId, roster.id)} disabled={actionLoading === roster.id} className="bg-[#10b981]/10 hover:bg-[#10b981] text-[#10b981] hover:text-white border border-[#10b981]/20 px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-emerald-900/10 group/lib">{actionLoading === roster.id ? <Loader2 className="animate-spin" size={18} /> : <><CheckCircle2 size={18} className="group-hover:lib:scale-110 transition-transform" /> LIBERAR</>}</button>
+                                                                <button onClick={(e) => { e.stopPropagation(); handleApproveWorker(roster.workerId, roster.id); }} disabled={actionLoading === roster.id} className="bg-[#10b981]/10 hover:bg-[#10b981] text-[#10b981] hover:text-white border border-[#10b981]/20 px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-emerald-900/10 group/lib">{actionLoading === roster.id ? <Loader2 className="animate-spin" size={18} /> : <><CheckCircle2 size={18} className="group-hover:lib:scale-110 transition-transform" /> LIBERAR</>}</button>
                                                             ) : (
                                                                 <div className="bg-amber-500/5 border border-amber-500/20 px-8 py-3 rounded-2xl text-[11px] font-black uppercase text-amber-500 flex items-center gap-3 italic tracking-widest opacity-70">AGUARDANDO AUDITORIA</div>
                                                             )

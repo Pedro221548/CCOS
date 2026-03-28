@@ -534,7 +534,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                                     </div>
                                     <Checkbox 
                                         checked={tempPermissions.includes(wh)}
-                                        onChange={() => {}} // Handled by parent label click
+                                        onChange={() => {
+                                            setTempPermissions(prev => prev.includes(wh) ? prev.filter(w => w !== wh) : [...prev, wh]);
+                                        }}
                                     />
                                 </label>
                             ))}
@@ -579,7 +581,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                                     </div>
                                     <Checkbox 
                                         checked={tempTabPermissions.includes(tab.id)}
-                                        onChange={() => {}} 
+                                        onChange={() => {
+                                            setTempTabPermissions(prev => prev.includes(tab.id) ? prev.filter(t => t !== tab.id) : [...prev, tab.id]);
+                                        }} 
                                     />
                                 </label>
                             ))}
