@@ -147,7 +147,7 @@ const mapJsonToDevices = (jsonData: any[], type: 'camera' | 'access'): any[] => 
 
 interface ImporterProps {
   onImport: (cameras: Camera[], accessPoints: AccessPoint[]) => void;
-  onImportThirdParty: (workers: ProcessedWorker[], fileName: string) => void;
+  onImportThirdParty: (workers: ProcessedWorker[], fileName: string, startDate?: string, endDate?: string) => void;
   onImportPayments: (payments: ThirdPartyPayment[], fileName: string) => void;
   onDeleteImport: (id: string) => void;
   onDeletePayment: (id: string) => void;
@@ -172,6 +172,8 @@ const Importer: React.FC<ImporterProps> = ({
   // MODAL STATES
   const [resetTarget, setResetTarget] = useState<'cameras' | 'access' | 'thirdparty' | 'payments' | null>(null);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'thirdparty' | 'payment', name: string } | null>(null);
+  const [pendingThirdPartyFile, setPendingThirdPartyFile] = useState<{ bstr: any, fileName: string } | null>(null);
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const accessInputRef = useRef<HTMLInputElement>(null);
@@ -257,7 +259,9 @@ const Importer: React.FC<ImporterProps> = ({
                     company, unit, date: dateNormalized, time: timeStr, accessPoint: row['Ponto de Acesso'] || row['Ambiente'] || '-', eventType: finalEvent
                 });
             });
-            if (newWorkers.length > 0) onImportThirdParty(newWorkers, fileName);
+            if (newWorkers.length > 0) {
+                setPendingThirdPartyFile({ bstr, fileName });
+            }
             else alert("Nenhum dado válido de terceiros encontrado na planilha.");
         }
     };
@@ -349,6 +353,66 @@ const Importer: React.FC<ImporterProps> = ({
           return;
       }
       onImport(cameras, access);
+  };
+
+  const processPendingThirdPartyFile = () => {
+      if (!pendingThirdPartyFile) return;
+      const { bstr, fileName } = pendingThirdPartyFile;
+      const wb = window.XLSX.read(bstr, { type: 'binary', cellDates: true });
+      const wsname = wb.SheetNames[0];
+      const ws = wb.Sheets[wsname];
+      const jsonData: any[] = window.XLSX.utils.sheet_to_json(ws);
+      const newWorkers: ProcessedWorker[] = [];
+      jsonData.forEach((row, index) => {
+          const rawName = row['Pessoa'] || row['Nome'] || row['NOME'];
+          if (!rawName || typeof rawName !== 'string' || !rawName.trim()) return; 
+
+          const rawEventType = (row['Tipo de evento'] || row['Eventos'] || '').toUpperCase();
+          const rawStatus = (row['Status de Entrada/Saída'] || '').toUpperCase();
+          
+          let finalEvent = 'NORMAL';
+          if (rawStatus.includes('ENTRADA') || rawEventType.includes('ENTRADA') || rawEventType.includes('DESBLOQUEIO') || rawEventType.includes('ACESSO LIBERADO')) {
+              finalEvent = 'ENTRADA';
+          } else if (rawStatus.includes('SAÍDA') || rawStatus.includes('SAIDA') || rawEventType.includes('SAÍDA') || rawEventType.includes('SAIDA')) {
+              finalEvent = 'SAÍDA';
+          } else {
+              finalEvent = rawEventType || 'OUTRO';
+          }
+
+          const locationString = [row['Ambiente'], row['Ponto de Acesso'], row['Tipo de ponto de acesso'], row['Local'], row['Nome do dispositivo'], row['Device']].join(' ').toUpperCase();
+          const unit = normalizeWarehouse(null, locationString, null, null, locationString, null);
+          if (!unit || unit === 'Geral') return; 
+
+          const fullSearchString = [locationString, row['Grupo de pessoas'], row['Pessoa'], row['Nome']].join(' ').toUpperCase();
+          let company = row['Grupo de pessoas'] ? row['Grupo de pessoas'].trim().toUpperCase() : null;
+          if (!company) {
+             if (fullSearchString.includes('PRAYLOG')) company = 'PRAYLOG';
+             else if (fullSearchString.includes('SUPERA')) company = 'SUPERA LOG';
+             else if (fullSearchString.includes('FORMA')) company = 'FORMA';
+             else if (fullSearchString.includes('PRIMUS')) company = 'PRIMUS';
+             else if (fullSearchString.includes('MPI')) company = 'MPI';
+             else if (fullSearchString.includes('B11')) company = 'B11';
+             else if (fullSearchString.includes('MJM')) company = 'MJM';
+             else if (fullSearchString.includes('MULT')) company = 'MULT';
+             else if (fullSearchString.includes('GMILL')) company = 'GMILL';
+             else if (fullSearchString.includes('BSB')) company = 'BSB';
+          }
+          
+          if (!company) company = ''; 
+
+          const dateNormalized = parseRowDate(row);
+          let timeStr = row['Hora'] || '-';
+          if (typeof timeStr === 'string' && timeStr.includes(' ')) timeStr = timeStr.split(' ')[1]; 
+          
+          newWorkers.push({
+              id: `w-${index}-${Date.now()}`,
+              name: rawName.trim(),
+              company, unit, date: dateNormalized, time: timeStr, accessPoint: row['Ponto de Acesso'] || row['Ambiente'] || '-', eventType: finalEvent
+          });
+      });
+      onImportThirdParty(newWorkers, fileName, dateRange.start, dateRange.end);
+      setPendingThirdPartyFile(null);
+      setDateRange({ start: '', end: '' });
   };
 
   // EXECUTE ACTIONS AFTER CONFIRMATION
@@ -548,6 +612,33 @@ const Importer: React.FC<ImporterProps> = ({
                 </div>
             </div>
         </div>
+
+        {/* MODAL DE DATA PARA FLUXO DE ACESSO */}
+        {pendingThirdPartyFile && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-fade-in">
+                <div className="bg-[#05070a] border border-slate-800 rounded-[32px] shadow-[0_0_50px_rgba(0,0,0,0.8)] w-full max-w-md p-10 text-center space-y-8 relative overflow-hidden ring-1 ring-slate-800">
+                    <div className="absolute top-0 left-0 w-full h-1.5 bg-amber-600 shadow-[0_0_15px_rgba(245,158,11,0.5)]"></div>
+                    
+                    <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">REGISTRO DE DATA</h3>
+                    
+                    <div className="space-y-4">
+                        <div className="text-left">
+                            <label className="text-slate-400 text-xs font-bold uppercase">Data Início</label>
+                            <input type="date" value={dateRange.start} onChange={(e) => setDateRange(prev => ({...prev, start: e.target.value}))} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white" />
+                        </div>
+                        <div className="text-left">
+                            <label className="text-slate-400 text-xs font-bold uppercase">Data Fim</label>
+                            <input type="date" value={dateRange.end} onChange={(e) => setDateRange(prev => ({...prev, end: e.target.value}))} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white" />
+                        </div>
+                    </div>
+
+                    <div className="flex gap-4 pt-4">
+                        <button onClick={() => setPendingThirdPartyFile(null)} className="flex-1 px-6 py-4 bg-[#1e293b] hover:bg-slate-700 text-slate-200 rounded-2xl font-black uppercase text-xs tracking-widest transition-all border border-slate-700">CANCELAR</button>
+                        <button onClick={processPendingThirdPartyFile} disabled={!dateRange.start || !dateRange.end} className="flex-1 px-6 py-4 bg-amber-600 hover:bg-amber-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-50">CONFIRMAR</button>
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* MODAL DE CONFIRMAÇÃO UNIFICADO (ESTILO CCOS) */}
         {(resetTarget || itemToDelete) && (

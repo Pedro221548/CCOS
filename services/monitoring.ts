@@ -199,14 +199,16 @@ class MonitoringService {
     await update(ref(db, 'monitoramento/metadata'), { lastSync: formattedTime });
   }
 
-  async addThirdPartyImport(workers: ProcessedWorker[], fileName: string) {
+  async addThirdPartyImport(workers: ProcessedWorker[], fileName: string, startDate?: string, endDate?: string) {
       const importRef = push(ref(db, 'monitoramento/third_party_imports'));
       const newImport: ThirdPartyImport = {
           id: importRef.key || Date.now().toString(),
           fileName: fileName,
           importedAt: new Date().toISOString(),
           count: workers.length,
-          workers: workers
+          workers: workers,
+          startDate: startDate,
+          endDate: endDate
       };
       await set(importRef, newImport);
   }

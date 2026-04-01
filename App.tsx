@@ -726,9 +726,9 @@ const App: React.FC = () => {
     }
   };
 
-  const handleImportThirdParty = async (workers: ProcessedWorker[], fileName: string) => {
+  const handleImportThirdParty = async (workers: ProcessedWorker[], fileName: string, startDate?: string, endDate?: string) => {
       try {
-          await monitoringService.addThirdPartyImport(workers, fileName);
+          await monitoringService.addThirdPartyImport(workers, fileName, startDate, endDate);
           
           // Lógica de presença no histórico
           if (data.attendanceRoster && data.attendanceRoster.length > 0) {
@@ -1194,7 +1194,7 @@ const App: React.FC = () => {
                       onChange={e => setPasswordInput(e.target.value)}
                       onKeyDown={e => {
                           if (e.key === 'Enter') {
-                              if (passwordInput === 'Só eu sei a senha') {
+                              if (passwordInput === 'Uni@745896321') {
                                   setIsUnlocked(true);
                                   setActiveTab(passwordPromptTab);
                                   setPasswordPromptTab(null);
@@ -1211,7 +1211,7 @@ const App: React.FC = () => {
                   <div className="flex gap-3">
                       <button onClick={() => setPasswordPromptTab(null)} className="flex-1 px-4 py-2 bg-slate-800 text-slate-300 rounded hover:bg-slate-700">Cancelar</button>
                       <button onClick={() => {
-                          if (passwordInput === 'Só eu sei a senha') {
+                          if (passwordInput === 'Uni@745896321') {
                               setIsUnlocked(true);
                               setActiveTab(passwordPromptTab);
                               setPasswordPromptTab(null);

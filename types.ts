@@ -181,6 +181,8 @@ export interface ThirdPartyImport {
     importedAt: string;
     count: number;
     workers: ProcessedWorker[];
+    startDate?: string;
+    endDate?: string;
 }
 
 export interface EmailPendency {
