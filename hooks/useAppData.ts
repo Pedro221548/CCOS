@@ -38,7 +38,7 @@ export const useAppData = (user: User | null) => {
     const importsRef = ref(db, 'monitoramento/third_party_imports');
     const paymentsRef = ref(db, 'monitoramento/payment_imports');
     const metadataRef = ref(db, 'monitoramento/metadata');
-    const notesRef = ref(db, 'monitoramento/organizer/notes');
+    const notesRef = ref(db, `monitoramento/organizer/notes/${user.uid}`);
     const shiftNotesRef = ref(db, 'monitoramento/organizer/shift_notes');
 
     // Listeners

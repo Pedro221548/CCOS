@@ -811,10 +811,10 @@ const App: React.FC = () => {
     };
   }, [data.cameras, data.accessPoints, user]);
 
-  const handleAddNote = (note: Note) => organizerService.addNote(note, data.notes);
-  const handleToggleNote = (id: string) => organizerService.toggleNote(id, data.notes);
-  const handleDeleteNote = (id: string) => organizerService.deleteNote(id, data.notes);
-  const handleEditNote = (id: string, content: string) => organizerService.editNote(id, content, data.notes);
+  const handleAddNote = (note: Note) => user && organizerService.addNote(note, data.notes, user.uid);
+  const handleToggleNote = (id: string) => user && organizerService.toggleNote(id, data.notes, user.uid);
+  const handleDeleteNote = (id: string) => user && organizerService.deleteNote(id, data.notes, user.uid);
+  const handleEditNote = (id: string, content: string) => user && organizerService.editNote(id, content, data.notes, user.uid);
   const handleAddShiftNote = (note: ShiftNote) => organizerService.addShiftNote(note, data.shiftNotes || []);
   const handleDeleteShiftNote = (id: string) => organizerService.deleteShiftNote(id, data.shiftNotes || []);
 
