@@ -144,6 +144,7 @@ export interface AppData {
   thirdPartyImports?: ThirdPartyImport[]; 
   paymentImports?: PaymentImport[];
   occurrenceImports?: OccurrenceImport[];
+  requestImports?: OccurrenceImport[];
   attendanceRoster: AttendanceRoster[];
   lastSync: string;
 }

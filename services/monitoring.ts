@@ -225,8 +225,9 @@ class MonitoringService {
     await set(importRef, newImport);
   }
 
-  async addOccurrenceImport(occurrences: any[], fileName: string) {
-    const importRef = push(ref(db, 'monitoramento/occurrence_imports'));
+  async addOccurrenceImport(occurrences: any[], fileName: string, type: 'occurrence' | 'request' = 'occurrence') {
+    const path = type === 'request' ? 'monitoramento/request_imports' : 'monitoramento/occurrence_imports';
+    const importRef = push(ref(db, path));
     const newImport = {
         id: importRef.key || Date.now().toString(),
         fileName: fileName,
@@ -245,8 +246,9 @@ class MonitoringService {
       await remove(ref(db, `monitoramento/payment_imports/${importId}`));
   }
 
-  async deleteOccurrenceImport(importId: string) {
-      await remove(ref(db, `monitoramento/occurrence_imports/${importId}`));
+  async deleteOccurrenceImport(importId: string, type: 'occurrence' | 'request' = 'occurrence') {
+      const path = type === 'request' ? 'monitoramento/request_imports' : 'monitoramento/occurrence_imports';
+      await remove(ref(db, `${path}/${importId}`));
   }
 
   async updateAttendancePresence(rosterId: string, presence: boolean) {

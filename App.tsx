@@ -82,6 +82,7 @@ const App: React.FC = () => {
   
   const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'occurrences' | 'occurrences-bi' | 'registration' | 'registration-history' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users'>('dashboard');
   const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'alarms' | 'access'>('cameras');
+  const [occurrencesSubTab, setOccurrencesSubTab] = useState<'occurrences' | 'requests'>('occurrences');
   const [thirdPartySubTab, setThirdPartySubTab] = useState<'status' | 'access-mgmt' | 'heatmap'>('status');
   const [financeSubTab, setFinanceSubTab] = useState<'payments' | 'audit'>('payments');
 
@@ -105,6 +106,7 @@ const App: React.FC = () => {
   const { data, thirdPartyWorkers, paymentRecords } = useAppData(user);
 
   const occurrencesData = useMemo(() => data.occurrenceImports || [], [data.occurrenceImports]);
+  const requestData = useMemo(() => data.requestImports || [], [data.requestImports]);
 
   const isAdmin = user?.role === 'admin';
 
@@ -1112,7 +1114,28 @@ const App: React.FC = () => {
                     {monitoringSubTab === 'access' && <AccessControlList accessPoints={data.accessPoints} onToggleStatus={handleToggleAccessStatus} onAdd={handleAddAccessPoint} onEdit={handleEditAccessPoint} onDelete={handleDeleteAccessPoint} onImport={handleImportAccessPoints} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
                   </div>
                 )}
-                {activeTab === 'occurrences' && <OccurrencesDashboard occurrencesData={occurrencesData} currentUser={user} />}
+                {activeTab === 'occurrences' && (
+                  <div className="space-y-6 animate-fade-in">
+                    <div className="flex border-b border-slate-300 dark:border-slate-800/50 overflow-x-auto no-scrollbar">
+                        <button 
+                            onClick={() => setOccurrencesSubTab('occurrences')} 
+                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${occurrencesSubTab === 'occurrences' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                        >
+                            Ocorrências
+                            {occurrencesSubTab === 'occurrences' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
+                        </button>
+                        <button 
+                            onClick={() => setOccurrencesSubTab('requests')} 
+                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${occurrencesSubTab === 'requests' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                        >
+                            Requisições
+                            {occurrencesSubTab === 'requests' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
+                        </button>
+                    </div>
+                    {occurrencesSubTab === 'occurrences' && <OccurrencesDashboard occurrencesData={occurrencesData} currentUser={user} type="occurrence" />}
+                    {occurrencesSubTab === 'requests' && <OccurrencesDashboard occurrencesData={requestData} currentUser={user} type="request" />}
+                  </div>
+                )}
                 {activeTab === 'occurrences-bi' && <OccurrencesDashboard occurrencesData={occurrencesData} currentUser={user} />}
                 {activeTab === 'third-party-mgmt' && (
                   <div className="space-y-6 animate-fade-in">

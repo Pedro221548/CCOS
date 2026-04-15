@@ -7,6 +7,7 @@ import { monitoringService } from '../services/monitoring';
 interface OccurrencesDashboardProps {
     occurrencesData: any[];
     currentUser: User;
+    type?: 'occurrence' | 'request';
 }
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6'];
@@ -98,7 +99,7 @@ const ExpandedDetails = ({ text, id }: { text: string, id: string }) => {
     );
 };
 
-const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrencesData, currentUser }) => {
+const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrencesData, currentUser, type = 'occurrence' }) => {
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -131,6 +132,7 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
 
     // Extract all occurrences
     const allOccurrences = useMemo(() => {
+        if (!Array.isArray(occurrencesData)) return [];
         let list: Occurrence[] = [];
         occurrencesData.forEach(imp => {
             if (imp.occurrences) {
@@ -575,7 +577,7 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
             }
 
             if (parsedOccurrences.length > 0) {
-                await monitoringService.addOccurrenceImport(parsedOccurrences, file.name);
+                await monitoringService.addOccurrenceImport(parsedOccurrences, file.name, type);
                 alert(`Sucesso! ${parsedOccurrences.length} tarefas importadas.`);
             } else {
                 alert("Nenhuma tarefa válida encontrada na planilha.");
@@ -990,7 +992,7 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                                 <button 
                                     onClick={async () => {
                                         if (deleteConfirmId) {
-                                            await monitoringService.deleteOccurrenceImport(deleteConfirmId);
+                                            await monitoringService.deleteOccurrenceImport(deleteConfirmId, type);
                                             setDeleteConfirmId(null);
                                         }
                                     }}

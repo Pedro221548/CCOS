@@ -14,6 +14,8 @@ const INITIAL_DATA: AppData = {
   events: [],
   thirdPartyImports: [],
   paymentImports: [],
+  occurrenceImports: [],
+  requestImports: [],
   attendanceRoster: [],
   lastSync: '-'
 };
@@ -36,6 +38,7 @@ export const useAppData = (user: User | null) => {
     const documentsRef = ref(db, 'monitoramento/documents');
     const rosterRef = ref(db, 'monitoramento/attendance_roster');
     const importsRef = ref(db, 'monitoramento/third_party_imports');
+    const requestsRef = ref(db, 'monitoramento/request_imports');
     const paymentsRef = ref(db, 'monitoramento/payment_imports');
     const occurrencesRef = ref(db, 'monitoramento/occurrence_imports');
     const metadataRef = ref(db, 'monitoramento/metadata');
@@ -46,6 +49,19 @@ export const useAppData = (user: User | null) => {
     const unsubCameras = onValue(camerasRef, (snap) => {
         setData(prev => ({ ...prev, cameras: snap.val() || [] }));
         setIsLoading(false);
+    });
+    
+    const unsubRequests = onValue(requestsRef, (snap) => {
+        const val = snap.val();
+        if (val) {
+            const imports = Object.keys(val).map(key => ({
+                id: key,
+                ...val[key]
+            })).sort((a: any, b: any) => new Date(b.importedAt).getTime() - new Date(a.importedAt).getTime());
+            setData(prev => ({ ...prev, requestImports: imports }));
+        } else {
+            setData(prev => ({ ...prev, requestImports: [] }));
+        }
     });
 
     const unsubAccess = onValue(accessRef, (snap) => {
