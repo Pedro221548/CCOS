@@ -978,6 +978,7 @@ const App: React.FC = () => {
                     {activeTab === 'dashboard' ? 'Painel principal' : 
                      activeTab === 'monitoring' ? 'Central de Monitoramento' :
                      activeTab === 'occurrences' ? 'Ocorrências BI' :
+                     activeTab === 'occurrences-bi' ? 'Ocorrências BI (Novo)' :
                      activeTab === 'third-party-mgmt' ? 'Gestão de Acesso' :
                      activeTab === 'registration' ? 'Cadastro de Acesso' :
                      activeTab === 'registration-history' ? 'Histórico de Registros' :
@@ -1110,6 +1111,7 @@ const App: React.FC = () => {
                   </div>
                 )}
                 {activeTab === 'occurrences' && <OccurrencesDashboard occurrencesData={data.occurrenceImports || []} currentUser={user} />}
+                {activeTab === 'occurrences-bi' && <OccurrencesDashboard occurrencesData={data.occurrenceImports || []} currentUser={user} />}
                 {activeTab === 'third-party-mgmt' && (
                   <div className="space-y-6 animate-fade-in">
                     <div className="flex border-b border-slate-300 dark:border-slate-800/50 overflow-x-auto no-scrollbar">
