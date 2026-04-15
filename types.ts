@@ -143,6 +143,7 @@ export interface AppData {
   events: CalendarEvent[];
   thirdPartyImports?: ThirdPartyImport[]; 
   paymentImports?: PaymentImport[];
+  occurrenceImports?: OccurrenceImport[];
   attendanceRoster: AttendanceRoster[];
   lastSync: string;
 }
@@ -254,6 +255,49 @@ export interface AppFeedback {
   status: 'pending' | 'completed';
   adminReply?: string;
   repliedAt?: string;
+}
+
+export interface Occurrence {
+    id: string;
+    empresa: string;
+    cliente: string;
+    tipo: string;
+    data: string;
+    horario?: string;
+    descricao: string;
+    desconformidade?: string;
+    iniciada?: string;
+    concluida?: string;
+    responsaveis?: string;
+    status: string;
+    
+    // New fields from CRM/Task export
+    tarefa?: string;
+    ativo?: string;
+    prazoFinal?: string;
+    criadoPor?: string;
+    participantes?: string;
+    observadores?: string;
+    tipoOcorrencia?: string;
+    criadoEm?: string;
+    modificadaEm?: string;
+    fechadoEm?: string;
+    duracaoPrevista?: string;
+    tempoGasto?: string;
+    marcadores?: string;
+    lead?: string;
+    contato?: string;
+    negocio?: string;
+    idTarefaPrincipal?: string;
+    nomeTarefaPrincipal?: string;
+    fluxo?: string;
+}
+
+export interface OccurrenceImport {
+    id: string;
+    importedAt: string;
+    importedBy: string;
+    occurrences: Occurrence[];
 }
 
 declare global {

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef, useMemo } from 'react';
-import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar, Clock, RefreshCw, BookOpen, DollarSign, UserPlus, History } from 'lucide-react';
+import { LayoutDashboard, Menu, Bell, X, FileSpreadsheet, CheckCircle2, Shield, Loader2, LogOut, Users, PlusSquare, ClipboardList, ChevronUp, MessageSquareHeart, AlertTriangle, Megaphone, Info, Sun, Moon, HelpCircle, Mail, Calendar, Clock, RefreshCw, BookOpen, DollarSign, UserPlus, History, BarChart3 } from 'lucide-react';
 import { Camera, AccessPoint, User, ProcessedWorker, AppNotification, ThirdPartyImport, Note, ShiftNote, ThirdPartyPayment, PaymentImport, Status } from './types';
 import { authService } from './services/auth';
 import { monitoringService, getResponsibleByWarehouse } from './services/monitoring';
@@ -31,6 +31,7 @@ const Payments = lazy(() => import('./components/Payments'));
 const Registration = lazy(() => import('./components/Registration'));
 const RegistrationHistory = lazy(() => import('./components/RegistrationHistory'));
 const FinanceAudit = lazy(() => import('./components/FinanceAudit'));
+const OccurrencesDashboard = lazy(() => import('./components/OccurrencesDashboard'));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center h-full w-full bg-[#1c1e26]">
@@ -79,7 +80,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'registration' | 'registration-history' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'occurrences' | 'registration' | 'registration-history' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users'>('dashboard');
   const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'alarms' | 'access'>('cameras');
   const [thirdPartySubTab, setThirdPartySubTab] = useState<'status' | 'access-mgmt' | 'heatmap'>('status');
   const [financeSubTab, setFinanceSubTab] = useState<'payments' | 'audit'>('payments');
@@ -865,6 +866,12 @@ const App: React.FC = () => {
                   <span className="text-xs font-bold uppercase tracking-wider">Monitoramento</span>
                 </button>
               )}
+              {hasTabPermission(user, 'occurrences') && (
+                <button onClick={() => handleTabChange('occurrences')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'occurrences' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
+                  <BarChart3 size={18} /> 
+                  <span className="text-xs font-bold uppercase tracking-wider">Ocorrências BI</span>
+                </button>
+              )}
               {hasTabPermission(user, 'work-mgmt') && (
                 <button onClick={() => handleTabChange('work-mgmt')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'work-mgmt' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
                   <ClipboardList size={18} /> 
@@ -970,6 +977,7 @@ const App: React.FC = () => {
                 <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
                     {activeTab === 'dashboard' ? 'Painel principal' : 
                      activeTab === 'monitoring' ? 'Central de Monitoramento' :
+                     activeTab === 'occurrences' ? 'Ocorrências BI' :
                      activeTab === 'third-party-mgmt' ? 'Gestão de Acesso' :
                      activeTab === 'registration' ? 'Cadastro de Acesso' :
                      activeTab === 'registration-history' ? 'Histórico de Registros' :
@@ -1101,6 +1109,7 @@ const App: React.FC = () => {
                     {monitoringSubTab === 'access' && <AccessControlList accessPoints={data.accessPoints} onToggleStatus={handleToggleAccessStatus} onAdd={handleAddAccessPoint} onEdit={handleEditAccessPoint} onDelete={handleDeleteAccessPoint} onImport={handleImportAccessPoints} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
                   </div>
                 )}
+                {activeTab === 'occurrences' && <OccurrencesDashboard occurrencesData={data.occurrenceImports || []} currentUser={user} />}
                 {activeTab === 'third-party-mgmt' && (
                   <div className="space-y-6 animate-fade-in">
                     <div className="flex border-b border-slate-300 dark:border-slate-800/50 overflow-x-auto no-scrollbar">

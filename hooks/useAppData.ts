@@ -37,6 +37,7 @@ export const useAppData = (user: User | null) => {
     const rosterRef = ref(db, 'monitoramento/attendance_roster');
     const importsRef = ref(db, 'monitoramento/third_party_imports');
     const paymentsRef = ref(db, 'monitoramento/payment_imports');
+    const occurrencesRef = ref(db, 'monitoramento/occurrence_imports');
     const metadataRef = ref(db, 'monitoramento/metadata');
     const notesRef = ref(db, `monitoramento/organizer/notes/${user.uid}`);
     const shiftNotesRef = ref(db, 'monitoramento/organizer/shift_notes');
@@ -111,6 +112,19 @@ export const useAppData = (user: User | null) => {
         }
     });
 
+    const unsubOccurrences = onValue(occurrencesRef, (snap) => {
+        const val = snap.val();
+        if (val) {
+            const imports = Object.keys(val).map(key => ({
+                id: key,
+                ...val[key]
+            })).sort((a: any, b: any) => new Date(b.importedAt).getTime() - new Date(a.importedAt).getTime());
+            setData(prev => ({ ...prev, occurrenceImports: imports }));
+        } else {
+            setData(prev => ({ ...prev, occurrenceImports: [] }));
+        }
+    });
+
     const unsubMetadata = onValue(metadataRef, (snap) => {
         const meta = snap.val();
         if (meta && meta.lastSync) {
@@ -128,6 +142,7 @@ export const useAppData = (user: User | null) => {
         unsubRoster();
         unsubImports();
         unsubPayments();
+        unsubOccurrences();
         unsubMetadata();
         unsubNotes();
         unsubShiftNotes();

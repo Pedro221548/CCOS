@@ -225,12 +225,28 @@ class MonitoringService {
     await set(importRef, newImport);
   }
 
+  async addOccurrenceImport(occurrences: any[], fileName: string) {
+    const importRef = push(ref(db, 'monitoramento/occurrence_imports'));
+    const newImport = {
+        id: importRef.key || Date.now().toString(),
+        fileName: fileName,
+        importedAt: new Date().toISOString(),
+        count: occurrences.length,
+        occurrences: occurrences
+    };
+    await set(importRef, newImport);
+  }
+
   async deleteThirdPartyImport(importId: string) {
       await remove(ref(db, `monitoramento/third_party_imports/${importId}`));
   }
 
   async deletePaymentImport(importId: string) {
       await remove(ref(db, `monitoramento/payment_imports/${importId}`));
+  }
+
+  async deleteOccurrenceImport(importId: string) {
+      await remove(ref(db, `monitoramento/occurrence_imports/${importId}`));
   }
 
   async updateAttendancePresence(rosterId: string, presence: boolean) {
