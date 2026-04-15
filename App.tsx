@@ -869,7 +869,7 @@ const App: React.FC = () => {
               {hasTabPermission(user, 'occurrences') && (
                 <button onClick={() => handleTabChange('occurrences')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'occurrences' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
                   <BarChart3 size={18} /> 
-                  <span className="text-xs font-bold uppercase tracking-wider">Ocorrências BI</span>
+                  <span className="text-xs font-bold uppercase tracking-wider">Ocorrências</span>
                 </button>
               )}
               {hasTabPermission(user, 'work-mgmt') && (
@@ -977,8 +977,8 @@ const App: React.FC = () => {
                 <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
                     {activeTab === 'dashboard' ? 'Painel principal' : 
                      activeTab === 'monitoring' ? 'Central de Monitoramento' :
-                     activeTab === 'occurrences' ? 'Ocorrências BI' :
-                     activeTab === 'occurrences-bi' ? 'Ocorrências BI (Novo)' :
+                     activeTab === 'occurrences' ? 'Ocorrências' :
+                     activeTab === 'occurrences-bi' ? 'Ocorrências (Novo)' :
                      activeTab === 'third-party-mgmt' ? 'Gestão de Acesso' :
                      activeTab === 'registration' ? 'Cadastro de Acesso' :
                      activeTab === 'registration-history' ? 'Histórico de Registros' :
