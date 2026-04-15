@@ -866,7 +866,7 @@ const App: React.FC = () => {
                   <span className="text-xs font-bold uppercase tracking-wider">Monitoramento</span>
                 </button>
               )}
-              {hasTabPermission(user, 'occurrences') && (
+              {hasTabPermission(user, 'occurrences-bi') && (
                 <button onClick={() => handleTabChange('occurrences')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'occurrences' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
                   <BarChart3 size={18} /> 
                   <span className="text-xs font-bold uppercase tracking-wider">Ocorrências</span>

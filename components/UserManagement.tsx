@@ -23,7 +23,7 @@ const TAB_OPTIONS = [
     { id: 'registration', label: 'CADASTRO' },
     { id: 'registration-history', label: 'HISTÓRICO' },
     { id: 'finance', label: 'FINANCEIRO' },
-    { id: 'occurrences-bi', label: 'OCORRÊNCIAS' },
+    { id: 'occurrences', label: 'OCORRÊNCIAS' },
     { id: 'manual', label: 'MANUAL' },
     { id: 'data', label: 'FONTE DADOS' },
     { id: 'users', label: 'USUÁRIOS' },
