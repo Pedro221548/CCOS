@@ -978,7 +978,7 @@ const App: React.FC = () => {
                     {activeTab === 'dashboard' ? 'Painel principal' : 
                      activeTab === 'monitoring' ? 'Central de Monitoramento' :
                      activeTab === 'occurrences' ? 'Ocorrências' :
-                     activeTab === 'occurrences-bi' ? 'Ocorrências (Novo)' :
+                     activeTab === 'occurrences-bi' ? 'Ocorrências' :
                      activeTab === 'third-party-mgmt' ? 'Gestão de Acesso' :
                      activeTab === 'registration' ? 'Cadastro de Acesso' :
                      activeTab === 'registration-history' ? 'Histórico de Registros' :
