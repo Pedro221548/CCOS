@@ -12,36 +12,107 @@ interface OccurrencesDashboardProps {
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6'];
 
-const ExpandedDetails = ({ text, id }: { text: string, id: string }) => {
+const ExpandedDetails = ({ text, id, type }: { text: string, id: string, type: 'occurrence' | 'request' }) => {
     const details = useMemo(() => {
         if (!text) return null;
         
-        const extract = (key: string, nextKeys: string[]) => {
-            const keyIndex = text.toLowerCase().indexOf(key.toLowerCase());
-            if (keyIndex === -1) return '';
-            
-            const start = keyIndex + key.length;
-            let end = text.length;
-            nextKeys.forEach(nk => {
-                const nkIndex = text.toLowerCase().indexOf(nk.toLowerCase(), start);
-                if (nkIndex !== -1 && nkIndex < end) {
-                    end = nkIndex;
-                }
-            });
-            
-            let val = text.substring(start, end).trim();
-            if (val.startsWith(':')) val = val.substring(1).trim();
-            return val;
-        };
+        const keys = [
+            'Empresa', 
+            'Cliente', 
+            'Tipo de Ocorrência', 
+            'Tipo de solicitação', 
+            'Descrição da ocorrência', 
+            'Descrição', 
+            'Desconformidade', 
+            'Data', 
+            'Data do ocorrido', 
+            'Horário', 
+            'Localização', 
+            'Imagens', 
+            'Anexos'
+        ];
 
-        const keys = ['Empresa', 'Cliente', 'Tipo de Ocorrência', 'Descrição da ocorrência', 'Desconformidade', 'Data', 'Horário', 'Imagens', 'Anexos'];
+        // Find best key positions (preferring those followed by a colon or at start of line)
+        const bestMatches = keys.map(k => {
+            const escapedKey = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`\\b${escapedKey}\\b`, 'gi');
+            let match;
+            let bestMatchIndex = -1;
+            let maxScore = -1;
+            
+            while ((match = regex.exec(text)) !== null) {
+                let score = 0;
+                // If followed by colon, high score
+                const after = text.substring(match.index + k.length, match.index + k.length + 5);
+                if (after.includes(':')) score += 100;
+                // If at start of line or start of text, high score
+                const before = text.substring(0, match.index);
+                if (before.length === 0 || before.endsWith('\n') || before.trim().endsWith('\n')) score += 50;
+                
+                if (score > maxScore) {
+                    maxScore = score;
+                    bestMatchIndex = match.index;
+                }
+            }
+            // Only accept matches that have some structural indicator (colon or start of line)
+            return (bestMatchIndex !== -1 && maxScore >= 50) ? { key: k, index: bestMatchIndex, score: maxScore } : null;
+        }).filter(m => m !== null) as { key: string, index: number, score: number }[];
+
+        const keyPositions = bestMatches.sort((a, b) => a.index - b.index);
+
         const result: Record<string, string> = {};
         
-        keys.forEach(k => {
-            const otherKeys = keys.filter(ok => ok !== k);
-            const val = extract(k, otherKeys);
-            if (val) result[k] = val;
-        });
+        for (let i = 0; i < keyPositions.length; i++) {
+            const current = keyPositions[i];
+            const next = keyPositions[i + 1];
+            
+            const start = current.index + current.key.length;
+            const end = next ? next.index : text.length;
+            
+            let val = text.substring(start, end).trim();
+            // Remove leading colon and whitespace
+            val = val.replace(/^[:\s]+/, '');
+            
+            // Clean up repeated key name at start of value
+            const keyRegex = new RegExp(`^${current.key}[:\\s]*`, 'i');
+            val = val.replace(keyRegex, '').trim();
+            
+            if (val) {
+                let keyName = current.key;
+                if (type === 'request' && keyName === 'Tipo de Ocorrência') {
+                    keyName = 'Tipo de solicitação';
+                }
+                
+                if (result[keyName]) {
+                    result[keyName] = `${result[keyName]} ${val}`;
+                } else {
+                    result[keyName] = val;
+                }
+            }
+        }
+
+        // Final cleanup for 'Tipo de solicitação' to remove trailing repetitions and artifacts
+        if (result['Tipo de solicitação']) {
+            let v = result['Tipo de solicitação'];
+            // Remove any remaining "Tipo de solicitação:" or "Tipo de Ocorrência:" inside
+            v = v.replace(/Tipo de solicitação[:\s]*/gi, '').trim();
+            v = v.replace(/Tipo de Ocorrência[:\s]*/gi, '').trim();
+            
+            // Handle the "REQUISIÇÃO DE IMAGENS... REQUISIÇÃO DE" case (common Bitrix artifact)
+            const words = v.split(/\s+/);
+            if (words.length > 6) {
+                // Check if the last few words are a prefix of the first few words
+                for (let len = 4; len >= 1; len--) {
+                    const prefix = words.slice(0, len).join(' ').toLowerCase();
+                    const suffix = words.slice(-len).join(' ').toLowerCase();
+                    if (prefix.startsWith(suffix) || suffix.startsWith(prefix)) {
+                        v = words.slice(0, -len).join(' ').trim();
+                        break;
+                    }
+                }
+            }
+            result['Tipo de solicitação'] = v;
+        }
 
         if (Object.keys(result).length === 0) {
             return { 'Detalhes': text };
@@ -61,18 +132,19 @@ const ExpandedDetails = ({ text, id }: { text: string, id: string }) => {
                     className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shadow-lg shadow-blue-900/30"
                 >
                     <ExternalLink size={16} />
-                    Abrir Ocorrência no Bitrix24
+                    Abrir {type === 'request' ? 'Solicitação' : 'Ocorrência'} no Bitrix24
                 </a>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm p-4 bg-slate-900/50 rounded-lg border border-slate-700/50">
                 {Object.entries(details).map(([key, value]) => {
                     const isAttachment = key === 'Imagens' || key === 'Anexos';
+                    const displayKey = (type === 'request' && key === 'Tipo de Ocorrência') ? 'Tipo de solicitação' : key;
                     
                     return (
                         <div key={key} className={`${key === 'Descrição da ocorrência' || key === 'Detalhes' || isAttachment ? 'md:col-span-2' : ''}`}>
                             <span className="font-bold text-slate-400 block text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1">
                                 {isAttachment ? <Paperclip size={12} /> : null}
-                                {key}
+                                {displayKey}
                             </span>
                             {isAttachment ? (
                                 <div className="flex flex-col gap-2 mt-2">
@@ -89,7 +161,7 @@ const ExpandedDetails = ({ text, id }: { text: string, id: string }) => {
                                     })}
                                 </div>
                             ) : (
-                                <span className="text-slate-200 whitespace-pre-wrap">{value}</span>
+                                <span className="text-slate-200 whitespace-pre-wrap" title={value}>{value}</span>
                             )}
                         </div>
                     );
@@ -144,7 +216,19 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
 
     // Unique values for filters
     const uniqueResponsaveis = useMemo(() => Array.from(new Set(allOccurrences.map(o => o.responsaveis).filter(Boolean))), [allOccurrences]);
-    const uniqueTiposOcorrencia = useMemo(() => Array.from(new Set(allOccurrences.map(o => o.tipoOcorrencia).filter(Boolean))), [allOccurrences]);
+    const uniqueTiposOcorrencia = useMemo(() => {
+        const types = new Set<string>();
+        allOccurrences.forEach(o => {
+            let val = o.tipoOcorrencia;
+            if (val) {
+                if (type === 'request' && val === 'Tipo de Ocorrência') {
+                    val = 'Tipo de solicitação';
+                }
+                types.add(val);
+            }
+        });
+        return Array.from(types).sort();
+    }, [allOccurrences, type]);
     const uniqueEmpresas = useMemo(() => Array.from(new Set(allOccurrences.map(o => o.empresa).filter(Boolean))), [allOccurrences]);
     const uniqueStatus = useMemo(() => Array.from(new Set(allOccurrences.map(o => o.status).filter(Boolean))), [allOccurrences]);
     const uniqueClientes = useMemo(() => Array.from(new Set(allOccurrences.map(o => o.cliente).filter(Boolean))), [allOccurrences]);
@@ -435,7 +519,7 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                         else if (colMap['participantes'] === undefined && colName.includes('participantes')) colMap['participantes'] = index;
                         else if (colMap['observadores'] === undefined && colName.includes('observadores')) colMap['observadores'] = index;
                         else if (colMap['status'] === undefined && colName.includes('status')) colMap['status'] = index;
-                        else if (colMap['tipoOcorrencia'] === undefined && (colName.includes('tipo de ocorrência') || colName.includes('tipo de ocorrencia'))) colMap['tipoOcorrencia'] = index;
+                        else if (colMap['tipoOcorrencia'] === undefined && (colName.includes('tipo de ocorrência') || colName.includes('tipo de ocorrencia') || colName.includes('tipo de solicitação') || colName.includes('tipo de solicitacao'))) colMap['tipoOcorrencia'] = index;
                         else if (colMap['criadoEm'] === undefined && (colName.includes('criado em') || colName.includes('data de criação'))) colMap['criadoEm'] = index;
                         else if (colMap['dataInicio'] === undefined && (colName.includes('data de início') || colName.includes('data de inicio'))) colMap['dataInicio'] = index;
                         else if (colMap['modificadaEm'] === undefined && colName.includes('modificada em')) colMap['modificadaEm'] = index;
@@ -526,22 +610,36 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                     let extractedTipo = '';
                     if (descricaoRaw) {
                         const extract = (key: string, nextKeys: string[]) => {
-                            const keyIndex = descricaoRaw.toLowerCase().indexOf(key.toLowerCase());
-                            if (keyIndex === -1) return '';
-                            const start = keyIndex + key.length;
+                            const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const regex = new RegExp(`(?:^|\\n|\\r|\\s)${escapedKey}\\b[:\\s]*`, 'gi');
+                            const match = regex.exec(descricaoRaw);
+                            if (!match) return '';
+                            
+                            const start = match.index + match[0].length;
                             let end = descricaoRaw.length;
+                            
                             nextKeys.forEach(nk => {
-                                const nkIndex = descricaoRaw.toLowerCase().indexOf(nk.toLowerCase(), start);
-                                if (nkIndex !== -1 && nkIndex < end) end = nkIndex;
+                                const escapedNk = nk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                // Look for next key specifically followed by a colon to avoid false positives
+                                const nkRegex = new RegExp(`(?:^|\\n|\\r|\\s)${escapedNk}\\b[:\\s]*`, 'gi');
+                                nkRegex.lastIndex = start;
+                                const nkMatch = nkRegex.exec(descricaoRaw);
+                                if (nkMatch && nkMatch.index < end) {
+                                    // Only accept as a separator if it's likely a key (e.g., followed by colon or at start of line)
+                                    const context = descricaoRaw.substring(nkMatch.index, nkMatch.index + nk.length + 5);
+                                    if (context.includes(':') || nkMatch[0].includes('\n') || nkMatch[0].includes('\r')) {
+                                        end = nkMatch.index;
+                                    }
+                                }
                             });
+                            
                             let val = descricaoRaw.substring(start, end).trim();
-                            if (val.startsWith(':')) val = val.substring(1).trim();
                             return val;
                         };
-                        const keys = ['Empresa', 'Cliente', 'Tipo de Ocorrência', 'Descrição da ocorrência', 'Desconformidade', 'Data', 'Horário', 'Imagens', 'Anexos'];
+                        const keys = ['Empresa', 'Cliente', 'Tipo de Ocorrência', 'Tipo de solicitação', 'Descrição da ocorrência', 'Desconformidade', 'Data', 'Horário', 'Imagens', 'Anexos'];
                         extractedEmpresa = extract('Empresa', keys.filter(k => k !== 'Empresa'));
                         extractedCliente = extract('Cliente', keys.filter(k => k !== 'Cliente'));
-                        extractedTipo = extract('Tipo de Ocorrência', keys.filter(k => k !== 'Tipo de Ocorrência'));
+                        extractedTipo = extract('Tipo de Ocorrência', keys.filter(k => k !== 'Tipo de Ocorrência')) || extract('Tipo de solicitação', keys.filter(k => k !== 'Tipo de solicitação'));
                     }
 
                     parsedOccurrences.push({
@@ -616,14 +714,10 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                         <BarChart3 className="text-blue-500" />
                         Dashboard de Tarefas
                     </h2>
-                    <p className="text-sm text-slate-400 mt-1">Monitoramento inteligente de tarefas e tipos de ocorrência</p>
+                    <p className="text-sm text-slate-400 mt-1">Monitoramento inteligente de tarefas e {type === 'request' ? 'tipos de solicitação' : 'tipos de ocorrência'}</p>
                 </div>
                 
                 <div className="flex items-center gap-3">
-                    <button onClick={exportToCSV} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors border border-slate-700">
-                        <Download size={18} />
-                        Exportar
-                    </button>
                     {currentUser.role === 'admin' && (
                         <>
                             <button onClick={() => setShowImportsModal(true)} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors border border-slate-700">
@@ -699,7 +793,7 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
 
             {/* Top Ocorrências por Cliente */}
             <div className="w-full bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
-                <h3 className="text-lg font-bold text-white mb-4">Top Ocorrências por Cliente</h3>
+                <h3 className="text-lg font-bold text-white mb-4">Top {type === 'request' ? 'Solicitações' : 'Ocorrências'} por Cliente</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     {topOccurrencesByCliente.map(([cliente, count]) => (
                         <div key={cliente} className="bg-slate-800 rounded-lg p-4">
@@ -720,9 +814,9 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                         <option value="ALL">Responsável</option>
                         {uniqueResponsaveis.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
-                    <select value={tipoOcorrenciaFilter} onChange={(e) => setTipoOcorrenciaFilter(e.target.value)} className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-blue-500">
-                        <option value="ALL">Tipo de Ocorrência</option>
-                        {uniqueTiposOcorrencia.map(p => <option key={p} value={p}>{p}</option>)}
+                    <select value={tipoOcorrenciaFilter} onChange={(e) => setTipoOcorrenciaFilter(e.target.value)} className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-blue-500 max-w-full">
+                        <option value="ALL">{type === 'request' ? 'Tipo de solicitação' : 'Tipo de Ocorrência'}</option>
+                        {uniqueTiposOcorrencia.map(p => <option key={p} value={p} title={p}>{p}</option>)}
                     </select>
                     <select value={empresaFilter} onChange={(e) => setEmpresaFilter(e.target.value)} className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-blue-500">
                         <option value="ALL">Empresa</option>
@@ -744,7 +838,7 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                 
                 {/* Gráfico 1: Ocorrências por Dia */}
                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg w-full">
-                    <h3 className="text-slate-300 font-bold mb-6 flex items-center gap-2"><Calendar size={18} className="text-indigo-500"/> Ocorrências</h3>
+                    <h3 className="text-slate-300 font-bold mb-6 flex items-center gap-2"><Calendar size={18} className="text-indigo-500"/> {type === 'request' ? 'Solicitações' : 'Ocorrências'}</h3>
                     <div className="h-[430px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={chartOcorrenciasPorDia} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
@@ -779,7 +873,7 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     {/* Gráfico 2: Top Ocorrências */}
                     <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg flex-1">
-                        <h3 className="text-slate-300 font-bold mb-6 flex items-center gap-2"><BarChart3 size={18} className="text-blue-500"/> Top Ocorrências</h3>
+                        <h3 className="text-slate-300 font-bold mb-6 flex items-center gap-2"><BarChart3 size={18} className="text-blue-500"/> Top {type === 'request' ? 'Solicitações' : 'Ocorrências'}</h3>
                         <div className="h-64">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={chartTipoOcorrencia} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -875,7 +969,7 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                                         {isExpanded && (
                                             <tr className="bg-slate-800/20 border-b border-slate-800/50">
                                                 <td colSpan={4} className="px-4 py-4">
-                                                    <ExpandedDetails text={occ.descricao || ''} id={occ.id} />
+                                                    <ExpandedDetails text={occ.descricao || ''} id={occ.id} type={type} />
                                                 </td>
                                             </tr>
                                         )}

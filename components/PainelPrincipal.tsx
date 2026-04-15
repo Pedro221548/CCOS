@@ -35,6 +35,40 @@ const PainelPrincipal: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [
   const { cameras, accessPoints, documents, shiftNotes = [] } = data;
   const [copied, setCopied] = useState(false);
   
+  const parseDate = (dateStr?: string) => {
+      if (!dateStr) return null;
+      const brMatch = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}):(\d{2}))?/);
+      if (brMatch) {
+          return new Date(Number(brMatch[3]), Number(brMatch[2]) - 1, Number(brMatch[1]), Number(brMatch[4] || 0), Number(brMatch[5] || 0), Number(brMatch[6] || 0));
+      }
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? null : d;
+  };
+
+  const occurrenceStats = useMemo(() => {
+      const all = (data.occurrenceImports || []).flatMap(imp => imp.occurrences || []);
+      const count = all.length;
+      if (count === 0) return { count: 0, range: '---' };
+      const dates = all.map(o => parseDate(o.criadoEm)).filter(Boolean) as Date[];
+      if (dates.length === 0) return { count, range: '---' };
+      const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+      const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+      const format = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      return { count, range: `${format(minDate)} até ${format(maxDate)}` };
+  }, [data.occurrenceImports]);
+
+  const requestStats = useMemo(() => {
+      const all = (data.requestImports || []).flatMap(imp => imp.occurrences || []);
+      const count = all.length;
+      if (count === 0) return { count: 0, range: '---' };
+      const dates = all.map(o => parseDate(o.criadoEm)).filter(Boolean) as Date[];
+      if (dates.length === 0) return { count, range: '---' };
+      const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+      const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+      const format = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      return { count, range: `${format(minDate)} até ${format(maxDate)}` };
+  }, [data.requestImports]);
+
   // States para o novo Modal Unificado
   const [selectedDeviceForInfo, setSelectedDeviceForInfo] = useState<Camera | AccessPoint | null>(null);
   const [isEditingModal, setIsEditingModal] = useState(false);
@@ -316,13 +350,17 @@ const PainelPrincipal: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [
 
   const whatsAppMessage = useMemo(() => {
     let msg = `*RELATÓRIO DE MONITORAMENTO*\n📅 ${new Date().toLocaleDateString('pt-BR')} - ${new Date().toLocaleTimeString('pt-BR')}\n\n📊 *Status Geral: ${systemState}*\n`;
+    msg += `📈 *RESUMO DE ATIVIDADES*\n`;
+    msg += `   Ocorrências: ${occurrenceStats.count} (${occurrenceStats.range})\n`;
+    msg += `   Requisições: ${requestStats.count} (${requestStats.range})\n\n`;
+    
     if (stats.totalVideo > 0) msg += `📹 *CÂMERAS*\n   Total: ${stats.totalVideo} | 🟢 On: ${stats.onlineVideo} | 🔴 Off: ${stats.offlineVideo}\n   📉 Disponibilidade: ${stats.availVideo}%\n`;
     if (stats.totalAlarm > 0) msg += `🚨 *ALARMES*\n   Total: ${stats.totalAlarm} | 🟢 On: ${stats.onlineAlarm} | 🔴 Off: ${stats.offlineAlarm}\n`;
     if (totalAccess > 0) msg += `🚪 *ACESSOS*\n   Total: ${totalAccess} | 🟢 On: ${accessOnline} | 🔴 Off: ${accessOffline}\n`;
     if (totalPeopleCount > 0) msg += `👷 *PESSOAS*\n   Total Presente: ${totalPeopleCount} (Terceiros: ${uniqueThirdPartyCount})\n`;
     msg += `\n`;
     if (offlineDevices.length > 0 || offlineAccessPoints.length > 0) {
-      msg += `❗ *OCORRÊNCIAS OFFLINE (${stats.offlineVideo + stats.offlineAlarm + accessOffline}):*\n`;
+      msg += `❗ *DISPOSITIVOS OFFLINE (${stats.offlineVideo + stats.offlineAlarm + accessOffline}):*\n`;
       offlineDevices.forEach(c => {
         const ticketStr = c.ticket ? ` [Chamado: ${c.ticket}]` : '';
         const obsStr = c.observation ? `\n   📝 Obs: ${c.observation}` : '';
@@ -334,7 +372,7 @@ const PainelPrincipal: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [
       });
     }
     return msg;
-  }, [systemState, stats, totalAccess, accessOnline, accessOffline, totalPeopleCount, uniqueThirdPartyCount, offlineDevices, offlineAccessPoints]);
+  }, [systemState, stats, totalAccess, accessOnline, accessOffline, totalPeopleCount, uniqueThirdPartyCount, offlineDevices, offlineAccessPoints, occurrenceStats, requestStats]);
 
   const copyToClipboard = useCallback(() => {
     navigator.clipboard.writeText(whatsAppMessage);
@@ -372,6 +410,8 @@ const PainelPrincipal: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [
         accessOnline={accessOnline}
         isManager={isManager}
         currentUser={currentUser || null}
+        occurrenceStats={occurrenceStats}
+        requestStats={requestStats}
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
@@ -406,7 +446,7 @@ const PainelPrincipal: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [
                     className={`flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 rounded-[1.5rem] ${activeHubTab === 'incidents' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-lg shadow-blue-500/5 border border-slate-100 dark:border-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 dark:hover:bg-slate-800/50'}`}
                 >
                     <div className={`w-2 h-2 rounded-full ${offlineDevices.length > 0 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
-                    Incidentes ({offlineDevices.length + offlineAccessPoints.length})
+                    Dispositivos Offline ({offlineDevices.length + offlineAccessPoints.length})
                 </button>
                 <button 
                     onClick={() => setActiveHubTab('documents')}

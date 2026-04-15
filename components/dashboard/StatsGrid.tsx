@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Signal, AlertTriangle, Clock, Shield, Warehouse, Video, BellRing, DoorClosed, Users, Crown, TrendingUp, Activity } from 'lucide-react';
+import { Zap, Signal, AlertTriangle, Clock, Shield, Warehouse, Video, BellRing, DoorClosed, Users, Crown, TrendingUp, Activity, FileText } from 'lucide-react';
 import { User } from '../../types';
 
 interface StatsGridProps {
@@ -18,6 +18,8 @@ interface StatsGridProps {
     offlineDevicesCount: number;
     isManager: boolean;
     currentUser: User | null;
+    occurrenceStats: { count: number; range: string };
+    requestStats: { count: number; range: string };
 }
 
 const StatsGrid: React.FC<StatsGridProps> = ({
@@ -33,7 +35,9 @@ const StatsGrid: React.FC<StatsGridProps> = ({
     availabilityNum,
     offlineDevicesCount,
     isManager,
-    currentUser
+    currentUser,
+    occurrenceStats,
+    requestStats
 }) => {
     return (
         <div className="space-y-6">
@@ -54,21 +58,27 @@ const StatsGrid: React.FC<StatsGridProps> = ({
 
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex items-center gap-4 shadow-sm">
                     <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
-                        <Signal size={20} />
+                        <TrendingUp size={20} />
                     </div>
                     <div>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Conectividade</p>
-                        <p className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight">Estável</p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ocorrências</p>
+                        <div className="flex flex-col">
+                            <p className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight">{occurrenceStats.count}</p>
+                            <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400">{occurrenceStats.range}</p>
+                        </div>
                     </div>
                 </div>
 
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex items-center gap-4 shadow-sm">
                     <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 shrink-0">
-                        <AlertTriangle size={20} className={offlineDevicesCount > 0 ? 'animate-bounce' : ''} />
+                        <FileText size={20} />
                     </div>
                     <div>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Incidentes</p>
-                        <p className="text-sm font-black text-slate-800 dark:text-white">{offlineDevicesCount}</p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Requisições</p>
+                        <div className="flex flex-col">
+                            <p className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight">{requestStats.count}</p>
+                            <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400">{requestStats.range}</p>
+                        </div>
                     </div>
                 </div>
 
