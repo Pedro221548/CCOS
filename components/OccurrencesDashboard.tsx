@@ -1027,4 +1027,4 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
     );
 };
 
-export default OccurrencesDashboard;
+export default React.memo(OccurrencesDashboard);

@@ -80,7 +80,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'occurrences' | 'registration' | 'registration-history' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'occurrences' | 'occurrences-bi' | 'registration' | 'registration-history' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users'>('dashboard');
   const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'alarms' | 'access'>('cameras');
   const [thirdPartySubTab, setThirdPartySubTab] = useState<'status' | 'access-mgmt' | 'heatmap'>('status');
   const [financeSubTab, setFinanceSubTab] = useState<'payments' | 'audit'>('payments');
@@ -103,6 +103,8 @@ const App: React.FC = () => {
   
   const { theme, toggleTheme } = useTheme();
   const { data, thirdPartyWorkers, paymentRecords } = useAppData(user);
+
+  const occurrencesData = useMemo(() => data.occurrenceImports || [], [data.occurrenceImports]);
 
   const isAdmin = user?.role === 'admin';
 
@@ -1110,8 +1112,8 @@ const App: React.FC = () => {
                     {monitoringSubTab === 'access' && <AccessControlList accessPoints={data.accessPoints} onToggleStatus={handleToggleAccessStatus} onAdd={handleAddAccessPoint} onEdit={handleEditAccessPoint} onDelete={handleDeleteAccessPoint} onImport={handleImportAccessPoints} readOnly={user.role !== 'admin'} allowedWarehouses={user.role === 'manager' ? user.allowedWarehouses : undefined} />}
                   </div>
                 )}
-                {activeTab === 'occurrences' && <OccurrencesDashboard occurrencesData={data.occurrenceImports || []} currentUser={user} />}
-                {activeTab === 'occurrences-bi' && <OccurrencesDashboard occurrencesData={data.occurrenceImports || []} currentUser={user} />}
+                {activeTab === 'occurrences' && <OccurrencesDashboard occurrencesData={occurrencesData} currentUser={user} />}
+                {activeTab === 'occurrences-bi' && <OccurrencesDashboard occurrencesData={occurrencesData} currentUser={user} />}
                 {activeTab === 'third-party-mgmt' && (
                   <div className="space-y-6 animate-fade-in">
                     <div className="flex border-b border-slate-300 dark:border-slate-800/50 overflow-x-auto no-scrollbar">
