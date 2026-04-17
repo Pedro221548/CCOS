@@ -343,7 +343,16 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
     const chartTipoOcorrencia = useMemo(() => {
         const counts: Record<string, number> = {};
         filteredOccurrences.forEach(o => {
-            const t = o.tipoOcorrencia || 'Sem Tipo';
+            let t = o.tipoOcorrencia || 'Sem Tipo';
+            // Clean up: remove "REQUISIÇÃO DE IMAGENS -" or similar prefixes
+            if (t.includes('REQUISIÇÃO DE IMAGENS')) {
+                const parts = t.split(/REQUISIÇÃO DE IMAGENS\s*[\-–—]\s*/i);
+                if (parts.length > 1) t = parts[1];
+            }
+            // Also remove "Localização :" and everything after it
+            if (t.includes('Localização')) {
+                t = t.split(/Localização\s*:/i)[0].trim();
+            }
             counts[t] = (counts[t] || 0) + 1;
         });
         return Object.entries(counts)
@@ -879,14 +888,32 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                                 <BarChart data={chartTipoOcorrencia} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
                                     <XAxis type="number" stroke="#64748b" fontSize={12} allowDecimals={false} />
-                                    <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={10} width={80} tick={{fill: '#94a3b8'}} />
+                                    <YAxis 
+                                        dataKey="name" 
+                                        type="category" 
+                                        stroke="#64748b" 
+                                        fontSize={10} 
+                                        width={140} 
+                                        tick={{fill: '#94a3b8'}} 
+                                        tickFormatter={(val) => val.length > 25 ? `${val.substring(0, 22)}...` : val}
+                                    />
                                     <Tooltip cursor={{fill: '#1e293b'}} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc', borderRadius: '8px' }} />
                                     <Bar 
                                         dataKey="value" 
                                         fill="#3b82f6" 
                                         radius={[0, 4, 4, 0]} 
                                         onClick={(data) => {
-                                            setSelectedOccurrencesForBox(allOccurrences.filter(o => o.tipoOcorrencia === data.name));
+                                            setSelectedOccurrencesForBox(allOccurrences.filter(o => {
+                                                let t = o.tipoOcorrencia || 'Sem Tipo';
+                                                if (t.includes('REQUISIÇÃO DE IMAGENS')) {
+                                                    const parts = t.split(/REQUISIÇÃO DE IMAGENS\s*[\-–—]\s*/i);
+                                                    if (parts.length > 1) t = parts[1];
+                                                }
+                                                if (t.includes('Localização')) {
+                                                    t = t.split(/Localização\s*:/i)[0].trim();
+                                                }
+                                                return t === data.name;
+                                            }));
                                         }}
                                         className="cursor-pointer hover:opacity-80 transition-opacity"
                                     />
@@ -903,7 +930,15 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                                 <BarChart data={chartResponsavel} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
                                     <XAxis type="number" stroke="#64748b" fontSize={12} allowDecimals={false} />
-                                    <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={10} width={80} tick={{fill: '#94a3b8'}} />
+                                    <YAxis 
+                                        dataKey="name" 
+                                        type="category" 
+                                        stroke="#64748b" 
+                                        fontSize={10} 
+                                        width={140} 
+                                        tick={{fill: '#94a3b8'}} 
+                                        tickFormatter={(val) => val.length > 25 ? `${val.substring(0, 22)}...` : val}
+                                    />
                                     <Tooltip cursor={{fill: '#1e293b'}} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc', borderRadius: '8px' }} />
                                     <Bar 
                                         dataKey="value" 
