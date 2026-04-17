@@ -1065,14 +1065,14 @@ const App: React.FC = () => {
                     <div className="flex border-b border-slate-300 dark:border-slate-800/50 overflow-x-auto no-scrollbar">
                         <button 
                             onClick={() => setFinanceSubTab('payments')} 
-                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${financeSubTab === 'payments' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            className={`px-3 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-normal sm:tracking-[0.2em] transition-all relative whitespace-nowrap ${financeSubTab === 'payments' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                         >
                             Frequência
                             {financeSubTab === 'payments' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
                         </button>
                         <button 
                             onClick={() => setFinanceSubTab('audit')} 
-                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${financeSubTab === 'audit' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            className={`px-3 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-normal sm:tracking-[0.2em] transition-all relative whitespace-nowrap ${financeSubTab === 'audit' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                         >
                             Auditoria
                             {financeSubTab === 'audit' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
@@ -1089,21 +1089,21 @@ const App: React.FC = () => {
                     <div className="flex border-b border-slate-300 dark:border-slate-800/50 overflow-x-auto no-scrollbar">
                         <button 
                             onClick={() => setMonitoringSubTab('cameras')} 
-                            className={`px-4 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${monitoringSubTab === 'cameras' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            className={`px-3 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-normal sm:tracking-[0.2em] transition-all relative whitespace-nowrap ${monitoringSubTab === 'cameras' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                         >
                             Câmeras <span className="hidden sm:inline-block text-[10px] opacity-60 ml-1">({counts.video})</span>
                             {monitoringSubTab === 'cameras' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
                         </button>
                         <button 
                             onClick={() => setMonitoringSubTab('alarms')} 
-                            className={`px-4 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${monitoringSubTab === 'alarms' ? 'text-orange-600 dark:text-orange-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            className={`px-3 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-normal sm:tracking-[0.2em] transition-all relative whitespace-nowrap ${monitoringSubTab === 'alarms' ? 'text-orange-600 dark:text-orange-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                         >
                             Alarmes <span className="hidden sm:inline-block text-[10px] opacity-60 ml-1">({counts.alarm})</span>
                             {monitoringSubTab === 'alarms' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600 dark:bg-orange-500 shadow-[0_0_10px_rgba(234,88,12,0.5)]"></div>}
                         </button>
                         <button 
                             onClick={() => setMonitoringSubTab('access')} 
-                            className={`px-4 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${monitoringSubTab === 'access' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            className={`px-3 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-normal sm:tracking-[0.2em] transition-all relative whitespace-nowrap ${monitoringSubTab === 'access' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                         >
                             Acessos <span className="hidden sm:inline-block text-[10px] opacity-60 ml-1">({counts.access})</span>
                             {monitoringSubTab === 'access' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
@@ -1119,14 +1119,14 @@ const App: React.FC = () => {
                     <div className="flex border-b border-slate-300 dark:border-slate-800/50 overflow-x-auto no-scrollbar">
                         <button 
                             onClick={() => setOccurrencesSubTab('occurrences')} 
-                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${occurrencesSubTab === 'occurrences' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            className={`px-3 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-normal sm:tracking-[0.2em] transition-all relative whitespace-nowrap ${occurrencesSubTab === 'occurrences' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                         >
                             Ocorrências
                             {occurrencesSubTab === 'occurrences' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
                         </button>
                         <button 
                             onClick={() => setOccurrencesSubTab('requests')} 
-                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${occurrencesSubTab === 'requests' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            className={`px-3 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-normal sm:tracking-[0.2em] transition-all relative whitespace-nowrap ${occurrencesSubTab === 'requests' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                         >
                             Requisições
                             {occurrencesSubTab === 'requests' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
@@ -1142,21 +1142,21 @@ const App: React.FC = () => {
                     <div className="flex border-b border-slate-300 dark:border-slate-800/50 overflow-x-auto no-scrollbar">
                         <button 
                             onClick={() => setThirdPartySubTab('status')} 
-                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${thirdPartySubTab === 'status' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            className={`px-3 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-normal sm:tracking-[0.2em] transition-all relative whitespace-nowrap ${thirdPartySubTab === 'status' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                         >
                             Status
                             {thirdPartySubTab === 'status' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
                         </button>
                         <button 
                             onClick={() => setThirdPartySubTab('access-mgmt')} 
-                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${thirdPartySubTab === 'access-mgmt' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            className={`px-3 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-normal sm:tracking-[0.2em] transition-all relative whitespace-nowrap ${thirdPartySubTab === 'access-mgmt' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                         >
                             Relatórios
                             {thirdPartySubTab === 'access-mgmt' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
                         </button>
                         <button 
                             onClick={() => setThirdPartySubTab('heatmap')} 
-                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${thirdPartySubTab === 'heatmap' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            className={`px-3 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-normal sm:tracking-[0.2em] transition-all relative whitespace-nowrap ${thirdPartySubTab === 'heatmap' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                         >
                             Mapa Calor
                             {thirdPartySubTab === 'heatmap' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
