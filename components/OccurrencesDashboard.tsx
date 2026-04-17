@@ -129,39 +129,42 @@ const ExpandedDetails = ({ text, id, type }: { text: string, id: string, type: '
                     href={`https://unielo.bitrix24.com.br/company/personal/user/1021/tasks/task/view/${id}/`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shadow-lg shadow-blue-900/30"
+                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-900/30"
                 >
-                    <ExternalLink size={16} />
+                    <ExternalLink size={18} />
                     Abrir {type === 'request' ? 'Solicitação' : 'Ocorrência'} no Bitrix24
                 </a>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm p-4 bg-slate-900/50 rounded-lg border border-slate-700/50">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm p-4 bg-slate-950/40 rounded-xl border border-slate-800/50">
                 {Object.entries(details).map(([key, value]) => {
                     const isAttachment = key === 'Imagens' || key === 'Anexos';
                     const displayKey = (type === 'request' && key === 'Tipo de Ocorrência') ? 'Tipo de solicitação' : key;
                     
                     return (
-                        <div key={key} className={`${key === 'Descrição da ocorrência' || key === 'Detalhes' || isAttachment ? 'md:col-span-2' : ''}`}>
-                            <span className="font-bold text-slate-400 block text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1">
-                                {isAttachment ? <Paperclip size={12} /> : null}
+                        <div key={key} className={`${key === 'Descrição da ocorrência' || key === 'Detalhes' || isAttachment ? 'sm:col-span-2' : ''} space-y-1`}>
+                            <span className="font-bold text-slate-500 block text-[9px] uppercase tracking-[0.15em] flex items-center gap-1">
+                                {isAttachment ? <Paperclip size={10} className="text-blue-500" /> : null}
                                 {displayKey}
                             </span>
                             {isAttachment ? (
-                                <div className="flex flex-col gap-2 mt-2">
+                                <div className="grid grid-cols-1 gap-2 mt-1">
                                     {value.split(',').map((item, idx) => {
                                         const cleanItem = item.trim();
                                         if (!cleanItem) return null;
                                         const isImage = cleanItem.toLowerCase().endsWith('.jpg') || cleanItem.toLowerCase().endsWith('.png') || cleanItem.toLowerCase().endsWith('.jpeg');
                                         return (
-                                            <div key={idx} className="flex items-center gap-2 bg-slate-800/50 p-2 rounded border border-slate-700/50 text-slate-300 text-xs">
+                                            <div key={idx} className="flex items-center gap-2 bg-slate-900 border border-slate-800 p-2 rounded-lg text-slate-300 text-xs hover:border-slate-700 transition-colors">
                                                 {isImage ? <ImageIcon size={14} className="text-blue-400" /> : <Paperclip size={14} className="text-slate-400" />}
-                                                <span className="break-all">{cleanItem}</span>
+                                                <span className="break-all flex-1">{cleanItem}</span>
+                                                <ExternalLink size={12} className="text-slate-500" />
                                             </div>
                                         );
                                     })}
                                 </div>
                             ) : (
-                                <span className="text-slate-200 whitespace-pre-wrap" title={value}>{value}</span>
+                                <div className="text-slate-200 text-xs sm:text-sm bg-slate-900/30 p-2 rounded-lg border border-transparent hover:border-slate-800/50 transition-colors">
+                                    <span className="whitespace-pre-wrap leading-relaxed" title={value}>{value}</span>
+                                </div>
                             )}
                         </div>
                     );
@@ -972,9 +975,10 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                         <thead className="text-xs text-slate-500 uppercase bg-slate-950/50 border-b border-slate-800">
                             <tr>
                                 <th className="px-4 py-3 font-medium">Nome da Tarefa</th>
-                                <th className="px-4 py-3 font-medium">Criada Em</th>
-                                <th className="px-4 py-3 font-medium">Concluída</th>
+                                <th className="px-4 py-3 font-medium hidden md:table-cell">Criada Em</th>
+                                <th className="px-4 py-3 font-medium hidden lg:table-cell">Concluída</th>
                                 <th className="px-4 py-3 font-medium">Responsável</th>
+                                <th className="px-4 py-3 font-medium w-6"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -984,27 +988,48 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                                 return (
                                     <React.Fragment key={occ.id}>
                                         <tr 
-                                            className="border-b border-slate-800/50 hover:bg-slate-800/40 transition-colors cursor-pointer"
+                                            className={`border-b border-slate-800/50 transition-colors cursor-pointer ${isExpanded ? 'bg-slate-800/40' : 'hover:bg-slate-800/20'}`}
                                             onClick={() => setExpandedRow(isExpanded ? null : occ.id)}
                                         >
-                                            <td className="px-4 py-3">
-                                                <div className="font-medium text-slate-200" title={occ.tarefa}>{occ.tarefa || 'Sem título'}</div>
+                                            <td className="px-4 py-4 sm:py-3">
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="font-bold text-slate-100 leading-tight" title={occ.tarefa}>{occ.tarefa || 'Sem título'}</div>
+                                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[10px] text-slate-500 font-medium">
+                                                        <span className="flex items-center gap-1 md:hidden">
+                                                            <Calendar size={10} /> {occ.criadoEm || '-'}
+                                                        </span>
+                                                        {occ.status && (
+                                                            <span className={`px-1.5 py-0.5 rounded border ${
+                                                                occ.status === 'Concluída' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 
+                                                                occ.status?.toLowerCase().includes('andamento') ? 'bg-blue-500/10 border-blue-500/20 text-blue-500' :
+                                                                'bg-amber-500/10 border-amber-500/20 text-amber-500'
+                                                            }`}>
+                                                                {occ.status}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </td>
-                                            <td className="px-4 py-3 text-slate-300 whitespace-nowrap">{occ.criadoEm || '-'}</td>
-                                            <td className="px-4 py-3 text-slate-300 whitespace-nowrap">{occ.fechadoEm || '-'}</td>
+                                            <td className="px-4 py-3 text-slate-300 whitespace-nowrap hidden md:table-cell">{occ.criadoEm || '-'}</td>
+                                            <td className="px-4 py-3 text-slate-300 whitespace-nowrap hidden lg:table-cell">{occ.fechadoEm || '-'}</td>
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-300 border border-slate-700 shrink-0">
+                                                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-300 border border-slate-700 shrink-0">
                                                         {occ.responsaveis ? occ.responsaveis.charAt(0).toUpperCase() : '?'}
                                                     </div>
-                                                    <span>{occ.responsaveis || 'Não atribuído'}</span>
+                                                    <span className="hidden sm:inline text-xs text-slate-300">{occ.responsaveis || 'Não atribuído'}</span>
                                                 </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <ChevronRight size={16} className={`text-slate-600 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                                             </td>
                                         </tr>
                                         {isExpanded && (
-                                            <tr className="bg-slate-800/20 border-b border-slate-800/50">
-                                                <td colSpan={4} className="px-4 py-4">
-                                                    <ExpandedDetails text={occ.descricao || ''} id={occ.id} type={type} />
+                                            <tr className="bg-slate-800/10 border-b border-slate-800/50">
+                                                <td colSpan={5} className="px-2 sm:px-4 py-6">
+                                                    <div className="max-w-4xl mx-auto">
+                                                        <ExpandedDetails text={occ.descricao || ''} id={occ.id} type={type} />
+                                                    </div>
                                                 </td>
                                             </tr>
                                         )}

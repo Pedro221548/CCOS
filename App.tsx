@@ -974,10 +974,10 @@ const App: React.FC = () => {
       </aside>
 
       <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200 dark:bg-[#121212] w-full relative">
-        <header className="h-20 bg-white/80 dark:bg-[#0d0d0d]/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/50 flex items-center justify-between px-8 sticky top-0 z-20 shrink-0">
-          <div className="flex items-center gap-6">
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors"><Menu size={24} /></button>
-            <div className="hidden md:flex flex-col">
+        <header className="h-16 sm:h-20 bg-white/80 dark:bg-[#0d0d0d]/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/50 flex items-center justify-between px-4 sm:px-8 sticky top-0 z-20 shrink-0">
+          <div className="flex items-center gap-4 sm:gap-6">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors"><Menu className="w-5 h-5 sm:w-6 sm:h-6" /></button>
+            <div className="hidden sm:flex flex-col">
                 <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
                     {activeTab === 'dashboard' ? 'Painel principal' : 
                      activeTab === 'monitoring' ? 'Central de Monitoramento' :
@@ -994,7 +994,7 @@ const App: React.FC = () => {
                 </h2>
                 <div className="flex items-center gap-2 mt-0.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
-                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Servidor Online • Latência 12ms</span>
+                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Servidor Online</span>
                 </div>
             </div>
           </div>
@@ -1056,8 +1056,8 @@ const App: React.FC = () => {
              <Shield size={14} className="hidden md:inline text-amber-500" />
         </div>
 
-        <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 scroll-smooth custom-scrollbar" ref={mainContentRef} onScroll={handleScroll}>
-          <div className="max-w-[1600px] mx-auto space-y-8">
+        <div className="flex-1 overflow-auto p-3 sm:p-6 lg:p-8 scroll-smooth custom-scrollbar" ref={mainContentRef} onScroll={handleScroll}>
+          <div className="max-w-[1600px] mx-auto space-y-6 sm:space-y-8">
             <Suspense fallback={<LoadingFallback />}>
                 {activeTab === 'dashboard' && <PainelPrincipal data={data} thirdPartyWorkers={thirdPartyWorkers} currentUser={user} />}
                 {activeTab === 'finance' && (
@@ -1089,23 +1089,23 @@ const App: React.FC = () => {
                     <div className="flex border-b border-slate-300 dark:border-slate-800/50 overflow-x-auto no-scrollbar">
                         <button 
                             onClick={() => setMonitoringSubTab('cameras')} 
-                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${monitoringSubTab === 'cameras' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            className={`px-4 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${monitoringSubTab === 'cameras' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                         >
-                            Câmeras <span className="text-[10px] opacity-60 ml-1">({counts.video})</span>
+                            Câmeras <span className="hidden sm:inline-block text-[10px] opacity-60 ml-1">({counts.video})</span>
                             {monitoringSubTab === 'cameras' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
                         </button>
                         <button 
                             onClick={() => setMonitoringSubTab('alarms')} 
-                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${monitoringSubTab === 'alarms' ? 'text-orange-600 dark:text-orange-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            className={`px-4 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${monitoringSubTab === 'alarms' ? 'text-orange-600 dark:text-orange-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                         >
-                            Alarmes <span className="text-[10px] opacity-60 ml-1">({counts.alarm})</span>
+                            Alarmes <span className="hidden sm:inline-block text-[10px] opacity-60 ml-1">({counts.alarm})</span>
                             {monitoringSubTab === 'alarms' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600 dark:bg-orange-500 shadow-[0_0_10px_rgba(234,88,12,0.5)]"></div>}
                         </button>
                         <button 
                             onClick={() => setMonitoringSubTab('access')} 
-                            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${monitoringSubTab === 'access' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            className={`px-4 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${monitoringSubTab === 'access' ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                         >
-                            Acesso <span className="text-[10px] opacity-60 ml-1">({counts.access})</span>
+                            Acessos <span className="hidden sm:inline-block text-[10px] opacity-60 ml-1">({counts.access})</span>
                             {monitoringSubTab === 'access' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 dark:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>}
                         </button>
                     </div>

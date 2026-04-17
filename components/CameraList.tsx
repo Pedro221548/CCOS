@@ -251,26 +251,26 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
     <div className="space-y-6 animate-fade-in pb-8">
       {/* Header Area */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center gap-4">
-                <div>
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <Video className="text-blue-500" />
-                        Lista de {itemLabelPlural}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div className="flex items-center justify-between w-full lg:w-auto gap-4">
+                <div className="min-w-0">
+                    <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2 shrink-0">
+                        <Video className="text-blue-500 shrink-0" size={24} />
+                        <span className="truncate">Lista de {itemLabelPlural}</span>
                     </h2>
                     {allowedWarehouses && (
-                        <p className="text-xs text-slate-400 mt-1">
+                        <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">
                             Visualizando apenas galpões permitidos.
                         </p>
                     )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                     <button 
                         onClick={handleExportExcel}
-                        className="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                        className="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 p-2 sm:px-3 sm:py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
                         title="Exportar para Excel"
                     >
-                        <Download size={16} /> Exportar
+                        <Download size={18} /> <span className="hidden sm:inline">Exportar</span>
                     </button>
                     {!readOnly && onImportCameraData && (
                         <>
@@ -283,22 +283,22 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                             />
                             <button 
                                 onClick={() => fileInputRef.current?.click()}
-                                className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                                className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 p-2 sm:px-3 sm:py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
                                 title="Importar Dados (Excel)"
                             >
-                                <Upload size={16} /> Importar
+                                <Upload size={18} /> <span className="hidden sm:inline">Importar</span>
                             </button>
                         </>
                     )}
                 </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center justify-between sm:justify-start gap-3 w-full lg:w-auto bg-slate-900/50 p-3 sm:p-0 rounded-xl lg:bg-transparent">
                 <div className="flex gap-2">
-                    <div className="px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-bold text-emerald-400 flex items-center gap-2">
+                    <div className="px-3 py-1.5 sm:py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] sm:text-xs font-bold text-emerald-400 flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                         ON: {totalOnline}
                     </div>
-                    <div className="px-3 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs font-bold text-rose-400 flex items-center gap-2">
+                    <div className="px-3 py-1.5 sm:py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[10px] sm:text-xs font-bold text-rose-400 flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-rose-500"></span>
                         OFF: {totalOffline}
                     </div>
@@ -307,35 +307,35 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                 {!readOnly && (
                     <button 
                         onClick={openAddModal}
-                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shadow-lg shadow-blue-900/30"
+                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-900/30"
                     >
-                        <Plus size={16} /> Adicionar
+                        <Plus size={18} /> <span className="sm:inline">Adicionar</span>
                     </button>
                 )}
             </div>
         </div>
 
         {/* Filters Bar */}
-        <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col xl:flex-row gap-4">
+        <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col lg:flex-row gap-4">
             {/* Search */}
             <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input
                     type="text"
-                    className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-300 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
-                    placeholder="Pesquisar por nome, ID, local, módulo ou responsável..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-slate-300 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                    placeholder="Pesquisar por nome, ID, local, módulo..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:flex gap-3">
                  {/* Status Filter */}
-                 <div className="relative flex-1 sm:flex-none">
+                 <div className="relative">
                     <select 
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value as any)}
-                        className="w-full sm:w-40 pl-3 pr-8 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
+                        className="w-full lg:w-40 pl-3 pr-8 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
                     >
                         <option value="ALL">Todos Status</option>
                         <option value="ONLINE">Online</option>
@@ -345,11 +345,11 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                  </div>
                  
                  {/* Warehouse Filter */}
-                 <div className="relative flex-1 sm:flex-none">
+                 <div className="relative">
                     <select 
                         value={warehouseFilter}
                         onChange={(e) => setWarehouseFilter(e.target.value)}
-                        className="w-full sm:w-48 pl-3 pr-8 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
+                        className="w-full lg:w-48 pl-3 pr-8 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
                     >
                         <option value="ALL">
                             {allowedWarehouses ? 'Meus Galpões' : 'Todos Galpões'}
@@ -362,11 +362,11 @@ const CameraList: React.FC<CameraListProps> = ({ cameras, onToggleStatus, onSetW
                  </div>
 
                  {/* Module Filter */}
-                 <div className="relative flex-1 sm:flex-none">
+                 <div className="relative">
                     <select 
                         value={moduleFilter}
                         onChange={(e) => setModuleFilter(e.target.value)}
-                        className="w-full sm:w-48 pl-3 pr-8 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
+                        className="w-full lg:w-48 pl-3 pr-8 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
                     >
                         <option value="ALL">Todos Módulos</option>
                         {uniqueModules.map(m => (
