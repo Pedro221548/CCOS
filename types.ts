@@ -2,7 +2,7 @@
 export type Status = 'ONLINE' | 'OFFLINE';
 export type ChannelType = 'video' | 'alarm';
 
-export type UserRole = 'admin' | 'viewer' | 'manager' | 'provider';
+export type UserRole = 'admin' | 'viewer' | 'manager' | 'provider' | 'hr';
 export type UserStatus = 'pending' | 'active' | 'blocked';
 
 export interface User {

@@ -268,6 +268,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                                 <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value as UserRole})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-sm text-white focus:border-blue-500 outline-none transition-all appearance-none cursor-pointer">
                                     <option value="viewer">OPERADOR</option>
                                     <option value="manager">GESTOR</option>
+                                    <option value="hr">GENTE/RH</option>
                                     <option value="provider">FORNECEDOR</option>
                                     <option value="admin">ADMIN</option>
                                 </select>
@@ -433,11 +434,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                                                         className={`bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-widest outline-none transition-all cursor-pointer hover:border-blue-500 disabled:opacity-30 disabled:cursor-not-allowed
                                                             ${user.role === 'admin' ? 'text-rose-500 border-rose-500/20' : 
                                                               user.role === 'manager' ? 'text-blue-500 border-blue-500/20' : 
+                                                              user.role === 'hr' ? 'text-emerald-500 border-emerald-500/20' :
                                                               user.role === 'provider' ? 'text-amber-500 border-amber-500/20' : 'text-slate-400 border-slate-700'}
                                                         `}
                                                     >
                                                         <option value="viewer">OPERADOR</option>
                                                         <option value="manager">GESTOR</option>
+                                                        <option value="hr">GENTE/RH</option>
                                                         <option value="provider">FORNECEDOR</option>
                                                         <option value="admin">ADMIN</option>
                                                     </select>

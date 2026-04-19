@@ -3,6 +3,7 @@ import { Upload, FileSpreadsheet, Search, AlertCircle, CheckCircle2, Clock, BarC
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import { Occurrence, User } from '../types';
 import { monitoringService } from '../services/monitoring';
+import { RESPONSIBLE_WAREHOUSE_MAP, WAREHOUSE_LIST } from '../constants';
 
 interface OccurrencesDashboardProps {
     occurrencesData: any[];
@@ -209,13 +210,47 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
     const allOccurrences = useMemo(() => {
         if (!Array.isArray(occurrencesData)) return [];
         let list: Occurrence[] = [];
+        
+        const normalizeWH = (val: string | undefined): string => {
+            if (!val) return 'N/A';
+            const v = val.toUpperCase().trim();
+            if (v.includes('G2 - GALPÃO') || (v.includes('G2') && v.includes('GALPÃO'))) return 'GALPÃO G2';
+            if (v.includes('G3 - GALPÃO') || (v.includes('G3') && v.includes('GALPÃO'))) return 'GALPÃO G3';
+            if (v.includes('G5 - GALPÃO') || (v.includes('G5') && v.includes('GALPÃO'))) return 'GALPÃO G5';
+            if (v.includes('IP - GALPÃO') || (v.includes('IP') && v.includes('GALPÃO'))) return 'GALPÃO SP';
+            if (v.includes('4ELOS') && (v.includes('RJ') || v.includes('LOGÍSTICA'))) return 'GALPÃO 4 ELOS RJ';
+            return val;
+        };
+
         occurrencesData.forEach(imp => {
             if (imp.occurrences) {
-                list = [...list, ...imp.occurrences];
+                const normalized = imp.occurrences.map((o: Occurrence) => ({
+                    ...o,
+                    cliente: normalizeWH(o.cliente),
+                    tipoOcorrencia: normalizeWH(o.tipoOcorrencia),
+                    empresa: normalizeWH(o.empresa)
+                }));
+                list = [...list, ...normalized];
             }
         });
+
+        // Filtrar por armazéns permitidos se for gerente
+        if (currentUser.role === 'manager' && currentUser.allowedWarehouses && currentUser.allowedWarehouses.length > 0) {
+            list = list.filter(o => {
+                const resp = o.responsaveis;
+                if (!resp) return false;
+                
+                // Trata possíveis múltiplos nomes separados por vírgula
+                const names = resp.split(',').map(n => n.trim());
+                return names.some(name => {
+                    const mappedWH = RESPONSIBLE_WAREHOUSE_MAP[name];
+                    return mappedWH && currentUser.allowedWarehouses?.includes(mappedWH);
+                });
+            });
+        }
+
         return list;
-    }, [occurrencesData]);
+    }, [occurrencesData, currentUser]);
 
     // Unique values for filters
     const uniqueResponsaveis = useMemo(() => Array.from(new Set(allOccurrences.map(o => o.responsaveis).filter(Boolean))), [allOccurrences]);
@@ -654,11 +689,22 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                         extractedTipo = extract('Tipo de Ocorrência', keys.filter(k => k !== 'Tipo de Ocorrência')) || extract('Tipo de solicitação', keys.filter(k => k !== 'Tipo de solicitação'));
                     }
 
+                    const normalizeWH = (val: string | undefined): string => {
+                        if (!val) return 'N/A';
+                        const v = val.toUpperCase().trim();
+                        if (v.includes('G2 - GALPÃO') || (v.includes('G2') && v.includes('GALPÃO'))) return 'GALPÃO G2';
+                        if (v.includes('G3 - GALPÃO') || (v.includes('G3') && v.includes('GALPÃO'))) return 'GALPÃO G3';
+                        if (v.includes('G5 - GALPÃO') || (v.includes('G5') && v.includes('GALPÃO'))) return 'GALPÃO G5';
+                        if (v.includes('IP - GALPÃO') || (v.includes('IP') && v.includes('GALPÃO'))) return 'GALPÃO SP';
+                        if (v.includes('4ELOS') && (v.includes('RJ') || v.includes('LOGÍSTICA'))) return 'GALPÃO 4 ELOS RJ';
+                        return val;
+                    };
+
                     parsedOccurrences.push({
                         id: idCol,
                         tarefa: tarefaCol,
-                        empresa: extractedEmpresa || empresaCol || 'N/A',
-                        cliente: extractedCliente || contatoCol || tipoOcorrenciaCol || 'N/A',
+                        empresa: normalizeWH(extractedEmpresa || empresaCol || 'N/A'),
+                        cliente: normalizeWH(extractedCliente || contatoCol || tipoOcorrenciaCol || 'N/A'),
                         tipo: extractedTipo || marcadoresCol || 'N/A',
                         data: criadoEmCol || 'N/A',
                         descricao: descricaoRaw,
@@ -671,7 +717,7 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                         criadoPor: criadoPorCol,
                         participantes: participantesCol,
                         observadores: observadoresCol,
-                        tipoOcorrencia: tipoOcorrenciaCol || extractedTipo || 'N/A',
+                        tipoOcorrencia: normalizeWH(tipoOcorrenciaCol || extractedTipo || 'N/A'),
                         criadoEm: criadoEmCol,
                         modificadaEm: modificadaEmCol,
                         fechadoEm: fechadoEmCol,
@@ -717,6 +763,141 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
     // Pagination Logic
     const totalPages = Math.ceil(filteredOccurrences.length / itemsPerPage);
     const paginatedOccurrences = filteredOccurrences.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+    if (currentUser.role === 'hr') {
+        const thisMonth = new Date().getMonth();
+        const thisYear = new Date().getFullYear();
+        
+        const monthlyOccurrences = allOccurrences.filter(o => {
+            const d = parseDate(o.data || o.criadoEm);
+            return d && d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+        });
+
+        const typesCount: Record<string, number> = {};
+        monthlyOccurrences.forEach(o => {
+            let t = o.tipoOcorrencia || 'Outros';
+            if (t.includes('REQUISIÇÃO DE IMAGENS')) {
+                const parts = t.split(/REQUISIÇÃO DE IMAGENS\s*[\-–—]\s*/i);
+                if (parts.length > 1) t = parts[1];
+            }
+            if (t.includes('Localização')) {
+                t = t.split(/Localização\s*:/i)[0].trim();
+            }
+            typesCount[t] = (typesCount[t] || 0) + 1;
+        });
+
+        const sortedTypes = Object.entries(typesCount)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+
+        const chartData = sortedTypes.map(([name, value]) => ({ name, value }));
+
+        return (
+            <div className="space-y-6 animate-fade-in pb-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl overflow-hidden relative group">
+                        <div className="absolute -right-6 -top-6 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/10 transition-all duration-700"></div>
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500">
+                                <BarChart3 size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-white uppercase tracking-tight">Total do Mês</h3>
+                                <p className="text-slate-400 text-xs">Ocorrências registradas em {new Date().toLocaleString('pt-BR', { month: 'long' })}</p>
+                            </div>
+                        </div>
+                        <div className="text-6xl font-black text-amber-500 mb-2 tabular-nums">
+                            {monthlyOccurrences.length}
+                        </div>
+                        <div className="text-slate-400 text-sm font-medium">
+                            Tarefas atribuídas à Gestão de Gente
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+                        <div className="absolute -right-6 -top-6 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/10 transition-all duration-700"></div>
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
+                                <PieChartIcon size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-white uppercase tracking-tight">Principais Tipos</h3>
+                                <p className="text-slate-400 text-xs">Ocorrências mais frequentes no período</p>
+                            </div>
+                        </div>
+                        <div className="h-[200px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={chartData} layout="vertical" margin={{ left: 0, right: 30 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={true} vertical={false} />
+                                    <XAxis type="number" hide />
+                                    <YAxis 
+                                        dataKey="name" 
+                                        type="category" 
+                                        width={100} 
+                                        tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                    />
+                                    <Tooltip 
+                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+                                        itemStyle={{ color: '#fff', fontSize: '12px' }}
+                                        cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                    />
+                                    <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                    <div className="p-5 border-b border-slate-800 bg-slate-950/40 flex justify-between items-center">
+                        <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] flex items-center gap-2">
+                            <FileSpreadsheet size={16} className="text-amber-500" />
+                            Relatório Mensal Detalhado
+                        </h3>
+                        <div className="px-3 py-1 bg-amber-500/10 text-amber-500 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-500/20">
+                            Filtro: Mês Atual
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-slate-800/20">
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800">Data Registro</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800">Categoria</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800">Responsável Atribuído</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 text-center">Situação</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/50">
+                                {monthlyOccurrences.length > 0 ? (
+                                    monthlyOccurrences.map((o, idx) => (
+                                        <tr key={idx} className="hover:bg-slate-800/30 transition-colors group">
+                                            <td className="px-6 py-4 text-xs text-slate-400 font-mono group-hover:text-amber-500 transition-colors">{o.data || o.criadoEm}</td>
+                                            <td className="px-6 py-4 text-xs font-bold text-white group-hover:text-blue-400 transition-colors">{o.tipoOcorrencia || 'N/A'}</td>
+                                            <td className="px-6 py-4 text-xs text-slate-500 font-medium">{o.responsaveis}</td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${
+                                                    o.status === 'Concluída' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                                                }`}>
+                                                    {o.status}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={4} className="px-6 py-12 text-center text-slate-600 uppercase text-[10px] font-black tracking-widest">Nenhuma ocorrência encontrada este mês</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 animate-fade-in pb-12">
