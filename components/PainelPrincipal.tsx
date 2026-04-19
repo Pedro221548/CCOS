@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { AppData, Camera, AccessPoint, ProcessedWorker, Status, User } from '../types';
 import { Shield, Warehouse, FileText, CheckCircle2 } from 'lucide-react';
 import { monitoringService } from '../services/monitoring';
-import { WAREHOUSE_LIST } from '../constants';
+import { WAREHOUSE_LIST, RESPONSIBLE_WAREHOUSE_MAP } from '../constants';
 
 // Sub-components
 import StatsGrid from './dashboard/StatsGrid';
@@ -45,8 +45,51 @@ const PainelPrincipal: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [
       return isNaN(d.getTime()) ? null : d;
   };
 
+  const normalizeWH = useCallback((val: string | undefined): string => {
+      if (!val) return 'N/A';
+      const v = val.toUpperCase().trim();
+      if (v.includes('G2 - GALPÃO') || (v.includes('G2') && v.includes('GALPÃO')) || v === 'G2' || v.includes('- G2 -')) return 'GALPÃO G2';
+      if (v.includes('G3 - GALPÃO') || (v.includes('G3') && v.includes('GALPÃO')) || v === 'G3' || v.includes('- G3 -')) return 'GALPÃO G3';
+      if (v.includes('G5 - GALPÃO') || (v.includes('G5') && v.includes('GALPÃO')) || v === 'G5' || v.includes('- G5 -')) return 'GALPÃO G5';
+      if (v.includes('IP - GALPÃO') || (v.includes('IP') && v.includes('GALPÃO')) || v === 'IP' || v.includes('- IP -') || v === 'SP' || v.includes('- SP -')) return 'GALPÃO SP';
+      if (v.includes('4ELOS') && (v.includes('RJ') || v.includes('LOGÍSTICA'))) return 'GALPÃO 4 ELOS RJ';
+      return val;
+  }, []);
+
   const occurrenceStats = useMemo(() => {
-      const all = (data.occurrenceImports || []).flatMap(imp => imp.occurrences || []);
+      let all = (data.occurrenceImports || []).flatMap(imp => imp.occurrences || []);
+      
+      if (currentUser?.role === 'manager' && currentUser?.allowedWarehouses && currentUser.allowedWarehouses.length > 0) {
+          all = all.filter(o => {
+              // 1. Identify warehouse from text fields (prioritize this)
+              const whCliente = normalizeWH(o.cliente);
+              const whEmpresa = normalizeWH(o.empresa);
+              const whTarefa = normalizeWH(o.tarefa);
+              const whExplicit = o.armazem && o.armazem !== 'N/A' ? o.armazem : null;
+
+              const detectedWH = (whExplicit || 
+                                (whCliente !== o.cliente ? whCliente : null) || 
+                                (whEmpresa !== o.empresa ? whEmpresa : null) ||
+                                (whTarefa !== o.tarefa ? whTarefa : null));
+
+              if (detectedWH && detectedWH !== 'N/A') {
+                  return currentUser.allowedWarehouses?.includes(detectedWH);
+              }
+
+              // 2. Fallback to Responsible Map only if no warehouse detected in text
+              const resp = o.responsaveis;
+              if (resp) {
+                  const names = resp.split(',').map(n => n.trim().toUpperCase());
+                  return names.some(name => {
+                      const mappedWH = RESPONSIBLE_WAREHOUSE_MAP[name];
+                      return mappedWH && currentUser.allowedWarehouses?.includes(mappedWH);
+                  });
+              }
+
+              return false;
+          });
+      }
+
       const count = all.length;
       if (count === 0) return { count: 0, range: '---' };
       const dates = all.map(o => parseDate(o.criadoEm)).filter(Boolean) as Date[];
@@ -55,10 +98,42 @@ const PainelPrincipal: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [
       const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
       const format = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
       return { count, range: `${format(minDate)} até ${format(maxDate)}` };
-  }, [data.occurrenceImports]);
+  }, [data.occurrenceImports, currentUser, normalizeWH]);
 
   const requestStats = useMemo(() => {
-      const all = (data.requestImports || []).flatMap(imp => imp.occurrences || []);
+      let all = (data.requestImports || []).flatMap(imp => imp.occurrences || []);
+
+      if (currentUser?.role === 'manager' && currentUser?.allowedWarehouses && currentUser.allowedWarehouses.length > 0) {
+          all = all.filter(o => {
+              // 1. Identify warehouse from text fields (prioritize this)
+              const whCliente = normalizeWH(o.cliente);
+              const whEmpresa = normalizeWH(o.empresa);
+              const whTarefa = normalizeWH(o.tarefa);
+              const whExplicit = o.armazem && o.armazem !== 'N/A' ? o.armazem : null;
+
+              const detectedWH = (whExplicit || 
+                                (whCliente !== o.cliente ? whCliente : null) || 
+                                (whEmpresa !== o.empresa ? whEmpresa : null) ||
+                                (whTarefa !== o.tarefa ? whTarefa : null));
+
+              if (detectedWH && detectedWH !== 'N/A') {
+                  return currentUser.allowedWarehouses?.includes(detectedWH);
+              }
+
+              // 2. Fallback to Responsible Map only if no warehouse detected in text
+              const resp = o.responsaveis;
+              if (resp) {
+                  const names = resp.split(',').map(n => n.trim().toUpperCase());
+                  return names.some(name => {
+                      const mappedWH = RESPONSIBLE_WAREHOUSE_MAP[name];
+                      return mappedWH && currentUser.allowedWarehouses?.includes(mappedWH);
+                  });
+              }
+
+              return false;
+          });
+      }
+
       const count = all.length;
       if (count === 0) return { count: 0, range: '---' };
       const dates = all.map(o => parseDate(o.criadoEm)).filter(Boolean) as Date[];
@@ -67,7 +142,7 @@ const PainelPrincipal: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [
       const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
       const format = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
       return { count, range: `${format(minDate)} até ${format(maxDate)}` };
-  }, [data.requestImports]);
+  }, [data.requestImports, currentUser, normalizeWH]);
 
   // States para o novo Modal Unificado
   const [selectedDeviceForInfo, setSelectedDeviceForInfo] = useState<Camera | AccessPoint | null>(null);

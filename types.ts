@@ -292,6 +292,7 @@ export interface Occurrence {
     idTarefaPrincipal?: string;
     nomeTarefaPrincipal?: string;
     fluxo?: string;
+    armazem?: string;
 }
 
 export interface OccurrenceImport {

@@ -211,25 +211,46 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
         if (!Array.isArray(occurrencesData)) return [];
         let list: Occurrence[] = [];
         
-        const normalizeWH = (val: string | undefined): string => {
-            if (!val) return 'N/A';
+        const identifyWH = (val: string | undefined): string | null => {
+            if (!val) return null;
             const v = val.toUpperCase().trim();
-            if (v.includes('G2 - GALPÃO') || (v.includes('G2') && v.includes('GALPÃO'))) return 'GALPÃO G2';
-            if (v.includes('G3 - GALPÃO') || (v.includes('G3') && v.includes('GALPÃO'))) return 'GALPÃO G3';
-            if (v.includes('G5 - GALPÃO') || (v.includes('G5') && v.includes('GALPÃO'))) return 'GALPÃO G5';
-            if (v.includes('IP - GALPÃO') || (v.includes('IP') && v.includes('GALPÃO'))) return 'GALPÃO SP';
+            if (v.includes('G2 - GALPÃO') || (v.includes('G2') && v.includes('GALPÃO')) || v === 'G2' || v.includes('- G2 -')) return 'GALPÃO G2';
+            if (v.includes('G3 - GALPÃO') || (v.includes('G3') && v.includes('GALPÃO')) || v === 'G3' || v.includes('- G3 -')) return 'GALPÃO G3';
+            if (v.includes('G5 - GALPÃO') || (v.includes('G5') && v.includes('GALPÃO')) || v === 'G5' || v.includes('- G5 -')) return 'GALPÃO G5';
+            if (v.includes('IP - GALPÃO') || (v.includes('IP') && v.includes('GALPÃO')) || v === 'IP' || v.includes('- IP -') || v === 'SP' || v.includes('- SP -')) return 'GALPÃO SP';
             if (v.includes('4ELOS') && (v.includes('RJ') || v.includes('LOGÍSTICA'))) return 'GALPÃO 4 ELOS RJ';
-            return val;
+            return null;
+        };
+
+        const cleanText = (text: string | undefined): string => {
+            if (!text) return 'N/A';
+            // Regex para pegar após "REQUISIÇÃO DE IMAGENS -"
+            const reqMatch = text.match(/REQUISIÇÃO DE IMAGENS\s*-\s*(.*)/i);
+            let result = reqMatch ? reqMatch[1] : text;
+            
+            // Remover "Localização :" em diante
+            result = result.split(/Localização\s*:/i)[0].trim();
+            
+            // Remover identificadores de galpão redundantes do texto de exibição
+            result = result.replace(/- G[235] -|- IP -|G[235] - GALPÃO|IP - GALPÃO/gi, ' ').trim();
+            // Limpar hifens soltos e espaços duplos
+            result = result.replace(/\s*-\s*$/, '').replace(/\s+/g, ' ').trim();
+            
+            return result || text; // Se limpar tudo, volta pro original menos poluído
         };
 
         occurrencesData.forEach(imp => {
             if (imp.occurrences) {
-                const normalized = imp.occurrences.map((o: Occurrence) => ({
-                    ...o,
-                    cliente: normalizeWH(o.cliente),
-                    tipoOcorrencia: normalizeWH(o.tipoOcorrencia),
-                    empresa: normalizeWH(o.empresa)
-                }));
+                const normalized = imp.occurrences.map((o: Occurrence) => {
+                    const foundWH = identifyWH(o.cliente) || identifyWH(o.empresa) || identifyWH(o.tipoOcorrencia) || identifyWH(o.tarefa);
+                    return {
+                        ...o,
+                        cliente: cleanText(o.cliente),
+                        tipoOcorrencia: cleanText(o.tipoOcorrencia),
+                        empresa: cleanText(o.empresa),
+                        armazem: foundWH || 'N/A'
+                    };
+                });
                 list = [...list, ...normalized];
             }
         });
@@ -237,15 +258,22 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
         // Filtrar por armazéns permitidos se for gerente
         if (currentUser.role === 'manager' && currentUser.allowedWarehouses && currentUser.allowedWarehouses.length > 0) {
             list = list.filter(o => {
+                // 1. Prioritize detected warehouse if available in the task text
+                if (o.armazem && o.armazem !== 'N/A') {
+                    return currentUser.allowedWarehouses?.includes(o.armazem);
+                }
+
+                // 2. Fallback to Responsible Map only if no warehouse was detected in the data
                 const resp = o.responsaveis;
-                if (!resp) return false;
+                if (resp) {
+                    const names = resp.split(',').map(n => n.trim());
+                    return names.some(name => {
+                        const mappedWH = RESPONSIBLE_WAREHOUSE_MAP[name];
+                        return mappedWH && currentUser.allowedWarehouses?.includes(mappedWH);
+                    });
+                }
                 
-                // Trata possíveis múltiplos nomes separados por vírgula
-                const names = resp.split(',').map(n => n.trim());
-                return names.some(name => {
-                    const mappedWH = RESPONSIBLE_WAREHOUSE_MAP[name];
-                    return mappedWH && currentUser.allowedWarehouses?.includes(mappedWH);
-                });
+                return false;
             });
         }
 
@@ -689,23 +717,34 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                         extractedTipo = extract('Tipo de Ocorrência', keys.filter(k => k !== 'Tipo de Ocorrência')) || extract('Tipo de solicitação', keys.filter(k => k !== 'Tipo de solicitação'));
                     }
 
-                    const normalizeWH = (val: string | undefined): string => {
-                        if (!val) return 'N/A';
+                    const identifyWH = (val: string | undefined): string | null => {
+                        if (!val) return null;
                         const v = val.toUpperCase().trim();
-                        if (v.includes('G2 - GALPÃO') || (v.includes('G2') && v.includes('GALPÃO'))) return 'GALPÃO G2';
-                        if (v.includes('G3 - GALPÃO') || (v.includes('G3') && v.includes('GALPÃO'))) return 'GALPÃO G3';
-                        if (v.includes('G5 - GALPÃO') || (v.includes('G5') && v.includes('GALPÃO'))) return 'GALPÃO G5';
-                        if (v.includes('IP - GALPÃO') || (v.includes('IP') && v.includes('GALPÃO'))) return 'GALPÃO SP';
+                        if (v.includes('G2 - GALPÃO') || (v.includes('G2') && v.includes('GALPÃO')) || v === 'G2' || v.includes('- G2 -')) return 'GALPÃO G2';
+                        if (v.includes('G3 - GALPÃO') || (v.includes('G3') && v.includes('GALPÃO')) || v === 'G3' || v.includes('- G3 -')) return 'GALPÃO G3';
+                        if (v.includes('G5 - GALPÃO') || (v.includes('G5') && v.includes('GALPÃO')) || v === 'G5' || v.includes('- G5 -')) return 'GALPÃO G5';
+                        if (v.includes('IP - GALPÃO') || (v.includes('IP') && v.includes('GALPÃO')) || v === 'IP' || v.includes('- IP -') || v === 'SP' || v.includes('- SP -')) return 'GALPÃO SP';
                         if (v.includes('4ELOS') && (v.includes('RJ') || v.includes('LOGÍSTICA'))) return 'GALPÃO 4 ELOS RJ';
-                        return val;
+                        return null;
+                    };
+
+                    const cleanText = (text: string | undefined): string => {
+                        if (!text) return 'N/A';
+                        const reqMatch = text.match(/REQUISIÇÃO DE IMAGENS\s*-\s*(.*)/i);
+                        let result = reqMatch ? reqMatch[1] : text;
+                        result = result.split(/Localização\s*:/i)[0].trim();
+                        result = result.replace(/- G[235] -|- IP -|G[235] - GALPÃO|IP - GALPÃO/gi, ' ').trim();
+                        result = result.replace(/\s*-\s*$/, '').replace(/\s+/g, ' ').trim();
+                        return result || text;
                     };
 
                     parsedOccurrences.push({
                         id: idCol,
                         tarefa: tarefaCol,
-                        empresa: normalizeWH(extractedEmpresa || empresaCol || 'N/A'),
-                        cliente: normalizeWH(extractedCliente || contatoCol || tipoOcorrenciaCol || 'N/A'),
+                        empresa: cleanText(extractedEmpresa || empresaCol || 'N/A'),
+                        cliente: cleanText(extractedCliente || contatoCol || tipoOcorrenciaCol || 'N/A'),
                         tipo: extractedTipo || marcadoresCol || 'N/A',
+                        armazem: identifyWH(extractedCliente || contatoCol || tipoOcorrenciaCol || tarefaCol) || 'N/A',
                         data: criadoEmCol || 'N/A',
                         descricao: descricaoRaw,
                         iniciada: dataInicioCol,
@@ -717,7 +756,7 @@ const OccurrencesDashboard: React.FC<OccurrencesDashboardProps> = ({ occurrences
                         criadoPor: criadoPorCol,
                         participantes: participantesCol,
                         observadores: observadoresCol,
-                        tipoOcorrencia: normalizeWH(tipoOcorrenciaCol || extractedTipo || 'N/A'),
+                        tipoOcorrencia: cleanText(tipoOcorrenciaCol || extractedTipo || 'N/A'),
                         criadoEm: criadoEmCol,
                         modificadaEm: modificadaEmCol,
                         fechadoEm: fechadoEmCol,
