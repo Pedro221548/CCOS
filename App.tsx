@@ -90,7 +90,7 @@ const App: React.FC = () => {
   const [passwordInput, setPasswordInput] = useState('');
   const [isUnlocked, setIsUnlocked] = useState(false);
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -151,7 +151,7 @@ const App: React.FC = () => {
       
       if (currentUser) {
           setActiveTab(currentUser.role === 'provider' ? 'registration' : 'dashboard');
-          setSidebarOpen(false);
+          setMobileMenuOpen(false);
           
           const savedMon = localStorage.getItem('cv_mon_tab') as any;
           const savedTp = localStorage.getItem('cv_tp_tab') as any;
@@ -206,13 +206,13 @@ const App: React.FC = () => {
     }
 
     setActiveTab(tab);
-    if (window.innerWidth < 1024) setSidebarOpen(false);
+    setMobileMenuOpen(false);
   }, [isAdmin, user, isUnlocked]);
 
   const handleLogout = useCallback(() => { 
     authService.logout(); 
     setActiveTab('dashboard');
-    setSidebarOpen(false);
+    setMobileMenuOpen(false);
     setUser(null);
   }, []);
 
@@ -827,7 +827,7 @@ const App: React.FC = () => {
   if (!user) return <Suspense fallback={<LoadingFallback />}><Login onLogin={() => {}} /></Suspense>;
 
   return (
-    <div className="h-screen w-full bg-slate-200 dark:bg-[#121212] text-slate-900 dark:text-slate-100 flex font-sans overflow-hidden">
+    <div className="h-screen w-full bg-slate-200 dark:bg-[#121212] text-slate-900 dark:text-slate-100 flex flex-col font-sans overflow-hidden">
       
       <div className="fixed top-4 right-4 z-[200] flex flex-col gap-3 pointer-events-none">
           {toasts.map(t => (
@@ -840,166 +840,179 @@ const App: React.FC = () => {
           ))}
       </div>
 
-      <aside className={`fixed inset-y-0 left-0 z-40 bg-slate-50 dark:bg-[#0d0d0d] border-r border-slate-300 dark:border-slate-800 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 lg:translate-x-0 lg:static lg:h-full lg:w-72 flex flex-col shadow-2xl lg:shadow-none`}>
-        <div className="flex flex-col items-center justify-center py-8 px-6 shrink-0 select-none">
-            <div onClick={() => handleTabChange('dashboard')} className="flex items-center gap-3 group w-full cursor-pointer">
+      <header className="h-20 bg-white/80 dark:bg-[#0d0d0d]/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/50 flex items-center justify-between px-4 sm:px-8 sticky top-0 z-[100] shrink-0">
+          <div className="flex items-center gap-4 lg:gap-8">
+            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+            <div onClick={() => handleTabChange('dashboard')} className="flex items-center gap-3 group cursor-pointer shrink-0">
                 <div className="relative transform transition-transform group-hover:scale-110 duration-300">
                     <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full"></div>
-                    <Shield className="w-10 h-10 text-amber-500 relative z-10 fill-amber-500/10" strokeWidth={2} />
+                    <Shield className="w-8 h-8 text-amber-500 relative z-10 fill-amber-500/10" strokeWidth={2} />
                 </div>
                 <div className="flex flex-col">
-                    <h1 className="text-2xl font-black text-amber-500 leading-none tracking-tighter">CCOS</h1>
-                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mt-1">Security Systems</span>
+                    <h1 className="text-xl font-black text-amber-500 leading-none tracking-tighter">CCOS</h1>
+                    <span className="text-[7px] font-black text-slate-500 uppercase tracking-[0.2em] mt-0.5">Security Systems</span>
                 </div>
             </div>
-        </div>
-        <nav className="p-4 space-y-8 flex-1 overflow-y-auto custom-scrollbar">
-          {/* GRUPO OPERACIONAL */}
-          <div>
-            <p className="px-4 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] opacity-50">Operacional</p>
-            <div className="space-y-1">
-              {hasTabPermission(user, 'dashboard') && (
-                <button onClick={() => handleTabChange('dashboard')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
-                  <LayoutDashboard size={18} /> 
-                  <span className="text-xs font-bold uppercase tracking-wider">Painel principal</span>
-                </button>
-              )}
-              {hasTabPermission(user, 'monitoring') && (
-                <button onClick={() => handleTabChange('monitoring')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'monitoring' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
-                  <Shield size={18} /> 
-                  <span className="text-xs font-bold uppercase tracking-wider">Monitoramento</span>
-                </button>
-              )}
-              {hasTabPermission(user, 'occurrences') && (
-                <button onClick={() => handleTabChange('occurrences')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'occurrences' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
-                  <BarChart3 size={18} /> 
-                  <span className="text-xs font-bold uppercase tracking-wider">Ocorrências</span>
-                </button>
-              )}
-              {hasTabPermission(user, 'work-mgmt') && (
-                <button onClick={() => handleTabChange('work-mgmt')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'work-mgmt' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
-                  <ClipboardList size={18} /> 
-                  <span className="text-xs font-bold uppercase tracking-wider">Plantão</span>
-                </button>
-              )}
-            </div>
-          </div>
 
-          {/* GRUPO GESTÃO */}
-          <div>
-            <p className="px-4 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] opacity-50">Gestão & Acesso</p>
-            <div className="space-y-1">
-              {hasTabPermission(user, 'third-party-mgmt') && (
-                <button onClick={() => handleTabChange('third-party-mgmt')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'third-party-mgmt' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
-                  <Users size={18} /> 
-                  <span className="text-xs font-bold uppercase tracking-wider">Fluxo de Acesso</span>
-                </button>
-              )}
-              {hasTabPermission(user, 'registration') && (
-                <button onClick={() => handleTabChange('registration')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all relative ${activeTab === 'registration' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
-                  <UserPlus size={18} /> 
-                  <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold uppercase tracking-wider">Cadastro</span>
-                      {unreadNotificationsCount > 0 && (
-                          <div className="relative flex h-2 w-2">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></span>
-                          </div>
-                      )}
-                  </div>
-                </button>
-              )}
-              {hasTabPermission(user, 'registration-history') && (
-                <button onClick={() => handleTabChange('registration-history')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'registration-history' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
-                  <History size={18} /> 
-                  <span className="text-xs font-bold uppercase tracking-wider">Histórico</span>
-                </button>
-              )}
-              {hasTabPermission(user, 'finance') && (
-                <button onClick={() => handleTabChange('finance')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'finance' ? 'bg-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
-                  <DollarSign size={18} /> 
-                  <span className="text-xs font-bold uppercase tracking-wider">Financeiro</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* GRUPO SUPORTE & SISTEMA */}
-          <div>
-            <p className="px-4 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] opacity-50">Sistema</p>
-            <div className="space-y-1">
-              {hasTabPermission(user, 'manual') && (
-                <button onClick={() => handleTabChange('manual')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'manual' ? 'bg-blue-600 text-white shadow-lg font-black' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900 hover:text-white'}`}>
-                  <BookOpen size={18} /> 
-                  <span className="text-xs font-bold uppercase tracking-wider">Manual</span>
-                </button>
-              )}
-              {hasTabPermission(user, 'data') && (
-                <button onClick={() => handleTabChange('data')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'data' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}`}>
-                  <FileSpreadsheet size={18} /> 
-                  <span className="text-xs font-bold uppercase tracking-wider">Fonte Dados</span>
-                </button>
-              )}
-              {hasTabPermission(user, 'users') && (
-                <button onClick={() => handleTabChange('users')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${activeTab === 'users' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}`}>
-                  <Users size={18} /> 
-                  <span className="text-xs font-bold uppercase tracking-wider">Usuários</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </nav>
-        
-        <div className="mt-auto p-4 border-t border-slate-800/50 bg-slate-950/50">
-           <div className="flex items-center gap-3 mb-2 cursor-pointer relative" onClick={() => setShowProfileModal(true)}>
-              <div className="relative group shrink-0">
-                <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.name}&background=f59e0b&color=000`} alt="Avatar" className="w-11 h-11 rounded-full border-2 border-slate-800 object-cover group-hover:border-amber-500 transition-colors" />
-                
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-950"></div>
-                
-                {unreadNotificationsCount > 0 && (
-                   <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center">
-                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
-                       <div className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600 border border-white/20"></div>
-                   </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                  <p className="text-xs font-black text-white uppercase truncate tracking-tight">{user.name}</p>
-                  <p className="text-[9px] font-bold text-slate-500 uppercase truncate">{user.jobTitle || user.role.toUpperCase()}</p>
-              </div>
-           </div>
-           <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 mt-2 px-4 py-2 rounded-lg text-slate-500 hover:text-rose-500 hover:bg-rose-500/5 transition-all text-[10px] font-black uppercase tracking-widest"><LogOut size={14} /> <span>Sair</span></button>
-        </div>
-      </aside>
-
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200 dark:bg-[#121212] w-full relative">
-        <header className="h-16 sm:h-20 bg-white/80 dark:bg-[#0d0d0d]/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/50 flex items-center justify-between px-4 sm:px-8 sticky top-0 z-20 shrink-0">
-          <div className="flex items-center gap-4 sm:gap-6">
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors"><Menu className="w-5 h-5 sm:w-6 sm:h-6" /></button>
-            <div className="hidden sm:flex flex-col">
-                <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                    {activeTab === 'dashboard' ? 'Painel principal' : 
-                     activeTab === 'monitoring' ? 'Central de Monitoramento' :
-                     activeTab === 'occurrences' ? 'Ocorrências' :
-                     activeTab === 'occurrences-bi' ? 'Ocorrências' :
-                     activeTab === 'third-party-mgmt' ? 'Gestão de Acesso' :
-                     activeTab === 'registration' ? 'Cadastro de Acesso' :
-                     activeTab === 'registration-history' ? 'Histórico de Registros' :
-                     activeTab === 'finance' ? 'Gestão Financeira' :
-                     activeTab === 'work-mgmt' ? 'Controle Operacional' :
-                     activeTab === 'manual' ? 'Manual do Sistema' :
-                     activeTab === 'data' ? 'Fonte de Dados' :
-                     activeTab === 'users' ? 'Gestão de Usuários' : 'Sistema'}
-                </h2>
-                <div className="flex items-center gap-2 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
-                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Servidor Online</span>
+            {/* TOP NAVIGATION CHANNELS */}
+            <nav className="hidden lg:flex items-center gap-1">
+                {/* OPERACIONAL */}
+                <div className="relative group p-2">
+                    <button className="flex items-center gap-2 px-4 py-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-white transition-all text-xs font-black uppercase tracking-widest outline-none">
+                        Operacional
+                        <ChevronUp className="w-3 h-3 rotate-180 group-hover:rotate-0 transition-transform" />
+                    </button>
+                    <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#0d0d0d] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top scale-95 group-hover:scale-100 z-[110]">
+                        {hasTabPermission(user, 'dashboard') && (
+                            <button onClick={() => handleTabChange('dashboard')} className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${activeTab === 'dashboard' ? 'text-amber-500' : 'text-slate-500'}`}>
+                                <LayoutDashboard size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Painel principal</span>
+                            </button>
+                        )}
+                        {hasTabPermission(user, 'monitoring') && (
+                            <button onClick={() => handleTabChange('monitoring')} className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${activeTab === 'monitoring' ? 'text-amber-500' : 'text-slate-500'}`}>
+                                <Shield size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Monitoramento</span>
+                            </button>
+                        )}
+                        {hasTabPermission(user, 'occurrences') && (
+                            <button onClick={() => handleTabChange('occurrences')} className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${activeTab === 'occurrences' ? 'text-amber-500' : 'text-slate-500'}`}>
+                                <BarChart3 size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Ocorrências</span>
+                            </button>
+                        )}
+                        {hasTabPermission(user, 'work-mgmt') && (
+                            <button onClick={() => handleTabChange('work-mgmt')} className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${activeTab === 'work-mgmt' ? 'text-amber-500' : 'text-slate-500'}`}>
+                                <ClipboardList size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Plantão</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
-            </div>
+
+                {/* GESTÃO & ACESSO */}
+                <div className="relative group p-2">
+                    <button className="flex items-center gap-2 px-4 py-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-white transition-all text-xs font-black uppercase tracking-widest outline-none">
+                        Gestão & Acesso
+                        <ChevronUp className="w-3 h-3 rotate-180 group-hover:rotate-0 transition-transform" />
+                    </button>
+                    <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#0d0d0d] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top scale-95 group-hover:scale-100 z-[110]">
+                        {hasTabPermission(user, 'third-party-mgmt') && (
+                            <button onClick={() => handleTabChange('third-party-mgmt')} className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${activeTab === 'third-party-mgmt' ? 'text-amber-500' : 'text-slate-500'}`}>
+                                <Users size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Fluxo de Acesso</span>
+                            </button>
+                        )}
+                        {hasTabPermission(user, 'registration') && (
+                            <button onClick={() => handleTabChange('registration')} className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${activeTab === 'registration' ? 'text-amber-500' : 'text-slate-500'}`}>
+                                <UserPlus size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Cadastro</span>
+                                {unreadNotificationsCount > 0 && <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse ml-auto" />}
+                            </button>
+                        )}
+                        {hasTabPermission(user, 'registration-history') && (
+                            <button onClick={() => handleTabChange('registration-history')} className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${activeTab === 'registration-history' ? 'text-amber-500' : 'text-slate-500'}`}>
+                                <History size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Histórico</span>
+                            </button>
+                        )}
+                        {hasTabPermission(user, 'finance') && (
+                            <button onClick={() => handleTabChange('finance')} className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${activeTab === 'finance' ? 'text-amber-500' : 'text-slate-500'}`}>
+                                <DollarSign size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Financeiro</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* SISTEMA */}
+                <div className="relative group p-2">
+                    <button className="flex items-center gap-2 px-4 py-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-white transition-all text-xs font-black uppercase tracking-widest outline-none">
+                        Sistema
+                        <ChevronUp className="w-3 h-3 rotate-180 group-hover:rotate-0 transition-transform" />
+                    </button>
+                    <div className="absolute top-full right-0 lg:left-0 mt-1 w-56 bg-white dark:bg-[#0d0d0d] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top scale-95 group-hover:scale-100 z-[110]">
+                        {hasTabPermission(user, 'manual') && (
+                            <button onClick={() => handleTabChange('manual')} className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${activeTab === 'manual' ? 'text-blue-500' : 'text-slate-500'}`}>
+                                <BookOpen size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Manual</span>
+                            </button>
+                        )}
+                        {hasTabPermission(user, 'data') && (
+                            <button onClick={() => handleTabChange('data')} className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${activeTab === 'data' ? 'text-amber-500' : 'text-slate-500'}`}>
+                                <FileSpreadsheet size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Fonte Dados</span>
+                            </button>
+                        )}
+                        {hasTabPermission(user, 'users') && (
+                            <button onClick={() => handleTabChange('users')} className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${activeTab === 'users' ? 'text-amber-500' : 'text-slate-500'}`}>
+                                <Users size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Usuários</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </nav>
+
+            {/* MOBILE MENU */}
+            {mobileMenuOpen && (
+                <div className="lg:hidden absolute top-full left-0 right-0 bg-white dark:bg-[#0d0d0d] border-b border-slate-200 dark:border-slate-800 shadow-2xl z-[150] animate-fade-in divide-y divide-slate-100 dark:divide-slate-800/50 max-h-[80vh] overflow-y-auto">
+                    <div className="p-4">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">Operacional</p>
+                        <div className="grid grid-cols-1 gap-1">
+                            <button onClick={() => handleTabChange('dashboard')} className={`flex items-center gap-3 p-3 rounded-lg ${activeTab === 'dashboard' ? 'bg-amber-500/10 text-amber-500' : 'text-slate-600'}`}>
+                                <LayoutDashboard size={18} /> <span className="text-xs font-bold uppercase">Painel principal</span>
+                            </button>
+                            <button onClick={() => handleTabChange('monitoring')} className={`flex items-center gap-3 p-3 rounded-lg ${activeTab === 'monitoring' ? 'bg-amber-500/10 text-amber-500' : 'text-slate-600'}`}>
+                                <Shield size={18} /> <span className="text-xs font-bold uppercase">Monitoramento</span>
+                            </button>
+                            <button onClick={() => handleTabChange('occurrences')} className={`flex items-center gap-3 p-3 rounded-lg ${activeTab === 'occurrences' ? 'bg-amber-500/10 text-amber-500' : 'text-slate-600'}`}>
+                                <BarChart3 size={18} /> <span className="text-xs font-bold uppercase">Ocorrências</span>
+                            </button>
+                            <button onClick={() => handleTabChange('work-mgmt')} className={`flex items-center gap-3 p-3 rounded-lg ${activeTab === 'work-mgmt' ? 'bg-amber-500/10 text-amber-500' : 'text-slate-600'}`}>
+                                <ClipboardList size={18} /> <span className="text-xs font-bold uppercase">Plantão</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div className="p-4">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">Gestão & Acesso</p>
+                        <div className="grid grid-cols-1 gap-1">
+                            <button onClick={() => handleTabChange('third-party-mgmt')} className={`flex items-center gap-3 p-3 rounded-lg ${activeTab === 'third-party-mgmt' ? 'bg-amber-500/10 text-amber-500' : 'text-slate-600'}`}>
+                                <Users size={18} /> <span className="text-xs font-bold uppercase">Fluxo de Acesso</span>
+                            </button>
+                            <button onClick={() => handleTabChange('registration')} className={`flex items-center gap-3 p-3 rounded-lg ${activeTab === 'registration' ? 'bg-amber-500/10 text-amber-500' : 'text-slate-600'}`}>
+                                <UserPlus size={18} /> <span className="text-xs font-bold uppercase">Cadastro</span>
+                            </button>
+                            <button onClick={() => handleTabChange('registration-history')} className={`flex items-center gap-3 p-3 rounded-lg ${activeTab === 'registration-history' ? 'bg-amber-500/10 text-amber-500' : 'text-slate-600'}`}>
+                                <History size={18} /> <span className="text-xs font-bold uppercase">Histórico</span>
+                            </button>
+                            <button onClick={() => handleTabChange('finance')} className={`flex items-center gap-3 p-3 rounded-lg ${activeTab === 'finance' ? 'bg-amber-500/10 text-amber-500' : 'text-slate-600'}`}>
+                                <DollarSign size={18} /> <span className="text-xs font-bold uppercase">Financeiro</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div className="p-4">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">Sistema</p>
+                        <div className="grid grid-cols-1 gap-1">
+                            <button onClick={() => handleTabChange('manual')} className={`flex items-center gap-3 p-3 rounded-lg ${activeTab === 'manual' ? 'bg-blue-500/10 text-blue-500' : 'text-slate-600'}`}>
+                                <BookOpen size={18} /> <span className="text-xs font-bold uppercase">Manual</span>
+                            </button>
+                            <button onClick={() => handleTabChange('data')} className={`flex items-center gap-3 p-3 rounded-lg ${activeTab === 'data' ? 'bg-slate-500/10 text-slate-500' : 'text-slate-600'}`}>
+                                <FileSpreadsheet size={18} /> <span className="text-xs font-bold uppercase">Fonte Dados</span>
+                            </button>
+                            <button onClick={() => handleTabChange('users')} className={`flex items-center gap-3 p-3 rounded-lg ${activeTab === 'users' ? 'bg-slate-500/10 text-slate-500' : 'text-slate-600'}`}>
+                                <Users size={18} /> <span className="text-xs font-bold uppercase">Usuários</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
           </div>
+
           <div className="flex items-center gap-4">
-             <div className="hidden lg:flex items-center bg-slate-100 dark:bg-slate-950 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-inner">
+             <div className="hidden xl:flex items-center bg-slate-100 dark:bg-slate-950 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-inner">
                 <div className="text-xs font-mono font-black text-slate-600 dark:text-amber-500 tracking-widest flex items-center gap-3">
                     <Clock size={14} className="text-blue-500" />
                     {currentTime.toLocaleTimeString('pt-BR')}
@@ -1008,49 +1021,43 @@ const App: React.FC = () => {
                     {currentTime.toLocaleDateString('pt-BR')}
                 </div>
              </div>
-             <button onClick={() => setShowFeedbackModal(true)} className="p-2 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all flex items-center gap-1 group" title="Sugerir Melhoria"><MessageSquareHeart size={20} strokeWidth={2.5} /><span className="hidden xl:inline text-[10px] font-black uppercase tracking-widest">Feedback</span></button>
-             <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-white transition-colors">{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
-             <div className="relative">
-                <button 
-                  onClick={handleToggleNotifications} 
-                  className={`p-2 text-slate-400 hover:text-white focus:outline-none transition-colors relative ${unreadNotificationsCount > 0 ? 'animate-[pulse_1.5s_infinite]' : ''}`}
-                >
-                  <Bell size={20} />
-                  {unreadNotificationsCount > 0 && (
-                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white shadow-lg animate-fade-in">
-                      {unreadNotificationsCount}
-                    </span>
-                  )}
-                </button>
-                
-                {showNotifications && (
-                    <div className="absolute right-0 mt-2 w-72 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 overflow-hidden animate-fade-in">
-                        <div className="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
-                          <span className="text-xs font-bold uppercase text-slate-400">Notificações</span>
-                          <button onClick={markAllRead} className="text-[10px] text-amber-400 font-bold hover:text-white transition-colors">Limpar</button>
-                        </div>
-                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                          {notifications.length === 0 ? (
-                            <div className="p-8 text-center text-slate-600 text-[10px] uppercase font-bold tracking-widest">Vazio</div>
-                          ) : (
-                            notifications.map(n => (
-                              <div key={n.id} className={`p-3 border-b border-slate-800 flex gap-2 ${!n.read ? 'bg-amber-600/5' : 'opacity-60'}`}>
-                                <div className="flex-1">
-                                  <p className="text-xs text-white leading-relaxed font-medium">{n.message}</p>
-                                  <span className="text-[9px] text-slate-600 font-bold uppercase mt-1 block font-mono">{new Date(n.timestamp).toLocaleTimeString()}</span>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                    </div>
-                )}
+             
+             <div className="flex items-center gap-1 border-x border-slate-200 dark:border-slate-800 px-4 h-10">
+                <button onClick={() => setShowFeedbackModal(true)} className="p-2 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all flex items-center gap-1" title="Sugerir Melhoria"><MessageSquareHeart size={20} strokeWidth={2.5} /></button>
+                <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
+                <div className="relative">
+                    <button 
+                    onClick={handleToggleNotifications} 
+                    className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white focus:outline-none transition-colors relative"
+                    >
+                    <Bell size={20} />
+                    {unreadNotificationsCount > 0 && (
+                        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white shadow-lg animate-fade-in">
+                        {unreadNotificationsCount}
+                        </span>
+                    )}
+                    </button>
+                </div>
              </div>
-             <button onClick={() => setShowTour(true)} className="p-2 text-slate-400 hover:text-white transition-colors" title="Manual"><HelpCircle size={20} /></button>
-          </div>
-        </header>
 
-        <div className="bg-amber-600/10 border-b border-amber-600/20 py-2 px-4 flex items-center justify-center gap-3 animate-fade-in relative z-10">
+             <div className="flex items-center gap-3 pl-2 group cursor-pointer relative" onClick={() => setShowProfileModal(true)}>
+                <div className="flex flex-col text-right hidden sm:flex">
+                    <p className="text-xs font-black text-slate-900 dark:text-white uppercase truncate tracking-tight">{user.name}</p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase truncate">{user.jobTitle || user.role.toUpperCase()}</p>
+                </div>
+                <div className="relative shrink-0">
+                    <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.name}&background=f59e0b&color=000`} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-slate-200 dark:border-slate-800 object-cover group-hover:border-amber-500 transition-colors" />
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-[#0d0d0d]"></div>
+                </div>
+                <div className="absolute top-full right-0 mt-2 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[120]">
+                    <button onClick={handleLogout} className="flex items-center gap-2 px-6 py-3 rounded-lg text-slate-500 hover:text-rose-500 hover:bg-rose-500/5 transition-all text-[10px] font-black uppercase tracking-widest whitespace-nowrap"><LogOut size={14} /> <span>Sair do Sistema</span></button>
+                </div>
+             </div>
+          </div>
+      </header>
+
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200 dark:bg-[#121212] w-full relative">
+        <div className="bg-amber-600/10 border-b border-amber-600/20 py-2 px-4 flex items-center justify-center gap-3 animate-fade-in relative z-10 shrink-0">
              <Shield size={14} className="hidden md:inline text-amber-500" />
              <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest text-center">CCOS • AMBIENTE DE DEMONSTRAÇÃO E MONITORAMENTO</span>
              <Shield size={14} className="hidden md:inline text-amber-500" />
@@ -1211,8 +1218,8 @@ const App: React.FC = () => {
       {showProfileModal && <ProfileModal user={user} onClose={() => setShowProfileModal(false)} />}
       {showFeedbackModal && <FeedbackModal user={user} onClose={() => setShowFeedbackModal(false)} />}
       {showTour && <OnboardingTour role={user.role} onFinish={() => setShowTour(false)} />}
-      {passwordPromptTab && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          {passwordPromptTab && (
+          <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
               <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">
                   <h3 className="text-xl font-bold text-white mb-4">Acesso Restrito</h3>
                   <p className="text-sm text-slate-400 mb-4">Digite a senha para acessar esta área.</p>
@@ -1226,7 +1233,7 @@ const App: React.FC = () => {
                                   setIsUnlocked(true);
                                   setActiveTab(passwordPromptTab);
                                   setPasswordPromptTab(null);
-                                  if (window.innerWidth < 1024) setSidebarOpen(false);
+                                  setMobileMenuOpen(false);
                               } else {
                                   addToast('Senha incorreta!', 'alert');
                               }
@@ -1243,7 +1250,7 @@ const App: React.FC = () => {
                               setIsUnlocked(true);
                               setActiveTab(passwordPromptTab);
                               setPasswordPromptTab(null);
-                              if (window.innerWidth < 1024) setSidebarOpen(false);
+                              setMobileMenuOpen(false);
                           } else {
                               addToast('Senha incorreta!', 'alert');
                           }
