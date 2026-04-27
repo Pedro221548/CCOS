@@ -318,8 +318,8 @@ const PainelPrincipal: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [
         if (criticalKeywords.some(k => locUpper.includes(k))) return 'CRÍTICO';
         return 'MODERADO';
       };
-      return videoDevices.concat(alarmDevices).filter(c => c.status === 'OFFLINE').map(c => ({ ...c, priority: getPriority(c.location) })).sort((a, b) => a.priority === 'CRÍTICO' ? -1 : 1);
-  }, [videoDevices, alarmDevices]);
+      return videoDevices.filter(c => c.status === 'OFFLINE').map(c => ({ ...c, priority: getPriority(c.location) })).sort((a, b) => a.priority === 'CRÍTICO' ? -1 : 1);
+  }, [videoDevices]);
 
   const offlineAccessPoints = useMemo(() => {
       let subset = accessPoints;
@@ -430,17 +430,15 @@ const PainelPrincipal: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [
     msg += `   Requisições: ${requestStats.count} (${requestStats.range})\n\n`;
     
     if (stats.totalVideo > 0) msg += `📹 *CÂMERAS*\n   Total: ${stats.totalVideo} | 🟢 On: ${stats.onlineVideo} | 🔴 Off: ${stats.offlineVideo}\n   📉 Disponibilidade: ${stats.availVideo}%\n`;
-    if (stats.totalAlarm > 0) msg += `🚨 *ALARMES*\n   Total: ${stats.totalAlarm} | 🟢 On: ${stats.onlineAlarm} | 🔴 Off: ${stats.offlineAlarm}\n`;
     if (totalAccess > 0) msg += `🚪 *ACESSOS*\n   Total: ${totalAccess} | 🟢 On: ${accessOnline} | 🔴 Off: ${accessOffline}\n`;
     if (totalPeopleCount > 0) msg += `👷 *PESSOAS*\n   Total Presente: ${totalPeopleCount} (Terceiros: ${uniqueThirdPartyCount})\n`;
     msg += `\n`;
     if (offlineDevices.length > 0 || offlineAccessPoints.length > 0) {
-      msg += `❗ *DISPOSITIVOS OFFLINE (${stats.offlineVideo + stats.offlineAlarm + accessOffline}):*\n`;
+      msg += `❗ *DISPOSITIVOS OFFLINE (${stats.offlineVideo + accessOffline}):*\n`;
       offlineDevices.forEach(c => {
         const ticketStr = c.ticket ? ` [Chamado: ${c.ticket}]` : '';
         const obsStr = c.observation ? `\n   📝 Obs: ${c.observation}` : '';
-        const typeStr = c.channelType === 'alarm' ? '[ALARME]' : '[CÂMERA]';
-        msg += `❌ ${typeStr} *${c.name}*${ticketStr}\n   📍 ${c.location}${obsStr}\n`;
+        msg += `❌ [CÂMERA] *${c.name}*${ticketStr}\n   📍 ${c.location}${obsStr}\n`;
       });
       offlineAccessPoints.forEach(ap => {
         msg += `❌ [ACESSO] *${ap.name}*\n   📍 ${ap.location}\n`;

@@ -129,7 +129,7 @@ const StatsGrid: React.FC<StatsGridProps> = ({
             )}
 
             {/* Bento Grid KPIs - More balanced and clean */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm hover:border-blue-500/30 transition-all group">
                     <div className="flex justify-between items-start mb-4">
@@ -151,22 +151,6 @@ const StatsGrid: React.FC<StatsGridProps> = ({
                             animate={{ width: `${stats.availVideo}%` }}
                             className="h-full bg-blue-500"
                         />
-                    </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm hover:border-amber-500/30 transition-all group">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-                            <BellRing size={20} />
-                        </div>
-                        <div className="text-right">
-                            <p className="text-slate-400 text-[9px] uppercase font-black tracking-widest">Alarmes</p>
-                            <h3 className="text-2xl font-black text-slate-800 dark:text-white leading-none mt-1">{stats.totalAlarm}</h3>
-                        </div>
-                    </div>
-                    <div className="flex items-center justify-between text-[10px] font-bold">
-                        <span className="text-emerald-500">{stats.onlineAlarm} Ativos</span>
-                        <span className="text-rose-500">{stats.offlineAlarm} Falhas</span>
                     </div>
                 </div>
 

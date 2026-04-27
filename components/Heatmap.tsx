@@ -2,7 +2,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { User, ProcessedWorker } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
-import { Activity, Clock, Filter, X, AlertCircle, DoorClosed, ChevronDown, Calendar, RotateCcw } from 'lucide-react';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
+import { Activity, Clock, Filter, X, AlertCircle, DoorClosed, ChevronDown, Calendar, RotateCcw, Download } from 'lucide-react';
 import Checkbox from './ui/Checkbox';
 
 interface HeatmapProps {
@@ -15,6 +17,8 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
     const [selectedAccessPoints, setSelectedAccessPoints] = useState<string[]>([]);
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
+    const [startHour, setStartHour] = useState<number>(0);
+    const [endHour, setEndHour] = useState<number>(23);
     const [showAPDropdown, setShowAPDropdown] = useState(false);
     const [heatmapModalData, setHeatmapModalData] = useState<{ day: string, hour: number, people: ProcessedWorker[] } | null>(null);
     
@@ -95,6 +99,13 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
         if (endDate) {
             subset = subset.filter(w => w.date <= endDate);
         }
+        
+        // 5. Filtro de Hora
+        subset = subset.filter(w => {
+            if (!w.time) return false;
+            const hour = parseInt(w.time.split(':')[0], 10);
+            return hour >= startHour && hour <= endHour;
+        });
 
         return subset;
     }, [thirdPartyWorkers, selectedWarehouse, selectedAccessPoints, startDate, endDate, currentUser, allowedWarehouses]);
@@ -142,9 +153,55 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
         }
     };
 
-    const clearDateFilters = () => {
-        setStartDate('');
-        setEndDate('');
+    const handleExportExcel = async () => {
+        if (filteredWorkers.length === 0) return;
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Mapa de Calor');
+
+        // Configurar Colunas
+        worksheet.columns = [
+            { header: 'Nome', key: 'name', width: 30 },
+            { header: 'Empresa', key: 'company', width: 25 },
+            { header: 'Galpão', key: 'unit', width: 15 },
+            { header: 'Ponto de Acesso', key: 'accessPoint', width: 35 },
+            { header: 'Data', key: 'date', width: 12 },
+            { header: 'Hora', key: 'time', width: 10 },
+        ];
+        // Estilizar Cabeçalho
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF059669' } // Emerald-600
+        };
+        headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+        // Adicionar Dados
+        filteredWorkers.forEach(w => {
+            worksheet.addRow({
+                name: w.name,
+                company: w.company,
+                unit: w.unit,
+                accessPoint: w.accessPoint,
+                date: w.date,
+                time: w.time
+            });
+        });
+
+        // Auto-filtro
+        worksheet.autoFilter = 'A1:F1';
+
+        // Congelar cabeçalho
+        worksheet.views = [
+            { state: 'frozen', xSplit: 0, ySplit: 1 }
+        ];
+
+        // Gerar e salvar arquivo
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(blob, `mapa_de_calor_${selectedWarehouse}_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
     return (
@@ -162,34 +219,59 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-4 w-full xl:w-auto">
-                    {/* Filtro de Período */}
+                    {/* Filtro de Período com Hora Integrada */}
                     <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800 shadow-inner w-full sm:w-auto">
                         <div className="relative flex-1 sm:flex-none">
                             <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                             <input 
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
+                                type="datetime-local"
+                                value={startDate ? `${startDate}T${startHour.toString().padStart(2, '0')}:00` : ''}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val) {
+                                        const [d, t] = val.split('T');
+                                        setStartDate(d);
+                                        setStartHour(parseInt(t.split(':')[0], 10));
+                                    } else {
+                                        setStartDate('');
+                                        setStartHour(0);
+                                    }
+                                }}
                                 className="w-full sm:w-auto pl-8 pr-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] text-slate-200 focus:border-emerald-500 outline-none font-bold [color-scheme:dark]"
-                                title="Data Inicial"
+                                title="Data e Hora Inicial"
                             />
                         </div>
                         <span className="text-slate-600 font-black text-[10px] w-full sm:w-auto text-center sm:text-left">ATÉ</span>
                         <div className="relative flex-1 sm:flex-none">
                             <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                             <input 
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
+                                type="datetime-local"
+                                value={endDate ? `${endDate}T${endHour.toString().padStart(2, '0')}:59` : ''}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val) {
+                                        const [d, t] = val.split('T');
+                                        setEndDate(d);
+                                        setEndHour(parseInt(t.split(':')[0], 10));
+                                    } else {
+                                        setEndDate('');
+                                        setEndHour(23);
+                                    }
+                                }}
                                 className="w-full sm:w-auto pl-8 pr-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-[10px] text-slate-200 focus:border-emerald-500 outline-none font-bold [color-scheme:dark]"
-                                title="Data Final"
+                                title="Data e Hora Final"
                             />
                         </div>
-                        {(startDate || endDate) && (
+                        {(startDate || endDate || startHour !== 0 || endHour !== 23) && (
                             <button 
-                                onClick={clearDateFilters}
+                                onClick={() => {
+                                    setStartDate('');
+                                    setEndDate('');
+                                    setStartHour(0);
+                                    setEndHour(23);
+                                }}
                                 className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-all ml-auto sm:ml-0"
-                                title="Limpar Datas"
+                                title="Resetar Filtros de Tempo"
                             >
                                 <RotateCcw size={14} />
                             </button>
@@ -357,6 +439,22 @@ const Heatmap: React.FC<HeatmapProps> = ({ thirdPartyWorkers, currentUser }) => 
                             <div className="w-3 h-3 rounded bg-emerald-600 dark:bg-emerald-500 shadow-sm shadow-emerald-500/20"></div>
                             <span className="text-[9px] text-slate-500 font-bold uppercase">Crítico</span>
                         </div>
+                    </div>
+
+                    {/* Botão de Exportar Excel no final da seção */}
+                    <div className="mt-8 flex justify-center">
+                        <button
+                            onClick={handleExportExcel}
+                            disabled={filteredWorkers.length === 0}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-emerald-500/20 ${
+                                filteredWorkers.length === 0 
+                                ? 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50' 
+                                : 'bg-emerald-600 hover:bg-emerald-500 text-white hover:scale-105 active:scale-95'
+                            }`}
+                        >
+                            <Download size={18} />
+                            Exportar Dados Filtrados (Excel)
+                        </button>
                     </div>
                 </div>
             )}
