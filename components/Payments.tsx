@@ -160,6 +160,31 @@ const Payments: React.FC<PaymentsProps> = ({ payments, workers, currentUser }) =
     const [endDate, setEndDate] = useState('');
     const [isReportsOpen, setIsReportsOpen] = useState(false);
 
+    // Efeito para ajustar automaticamente o período para os últimos 15 dias de DADOS
+    useEffect(() => {
+        if (payments.length > 0) {
+            const maxDateStr = payments.reduce((max, p) => p.date > max ? p.date : max, '0000-00-00');
+            
+            // Só atualiza se o filtro estiver vazio ou se o usuário estiver "seguindo" a última data
+            const isFollowingLatest = !endDate || endDate === payments.reduce((max, p) => p.date > max ? p.date : max, '0000-00-00');
+            
+            if (maxDateStr !== '0000-00-00' && (!startDate || !endDate)) {
+                const maxD = new Date(maxDateStr + 'T12:00:00');
+                const startD = new Date(maxD);
+                startD.setDate(maxD.getDate() - 14);
+                
+                const newStart = startD.toISOString().split('T')[0];
+                const newEnd = maxDateStr;
+                
+                // Só seta se houver mudança real para evitar loop de render
+                if (newStart !== startDate || newEnd !== endDate) {
+                    setStartDate(newStart);
+                    setEndDate(newEnd);
+                }
+            }
+        }
+    }, [payments]);
+
     const allowedWarehouses = useMemo(() => {
         if (currentUser.role === 'admin') return WAREHOUSE_LIST;
         return currentUser.allowedWarehouses || [];

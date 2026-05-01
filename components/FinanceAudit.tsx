@@ -10,9 +10,26 @@ interface FinanceAuditProps {
 }
 
 const FinanceAudit: React.FC<FinanceAuditProps> = ({ workers, payments, currentUser }) => {
-    const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
-    const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [startDate, setStartDate] = useState<string>('');
+    const [endDate, setEndDate] = useState<string>('');
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Sincronizar período inicial com dados reais
+    React.useEffect(() => {
+        const allDataDates = [...workers.map(w => w.date), ...payments.map(p => p.date)];
+        if (allDataDates.length > 0) {
+            const maxDateStr = allDataDates.reduce((max, d) => d > max ? d : max, '0000-00-00');
+            
+            if (maxDateStr !== '0000-00-00' && (!startDate || !endDate)) {
+                const maxD = new Date(maxDateStr + 'T12:00:00');
+                const startD = new Date(maxD);
+                startD.setDate(maxD.getDate() - 14);
+                
+                setStartDate(startD.toISOString().split('T')[0]);
+                setEndDate(maxDateStr);
+            }
+        }
+    }, [workers, payments]);
 
     const auditData = useMemo(() => {
         // Names registered in finance
