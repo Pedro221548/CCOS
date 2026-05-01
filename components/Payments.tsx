@@ -52,7 +52,7 @@ const UnitPivotTable: React.FC<{
     };
 
     return (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl mb-8">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl mb-8 group/unit">
             {/* Header do Galpão */}
             <div className="bg-slate-950 px-6 py-4 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex items-center gap-6">
@@ -62,19 +62,19 @@ const UnitPivotTable: React.FC<{
                     </h3>
                     <button 
                         onClick={() => onExport(unitName, workers)}
-                        className="flex items-center gap-2 px-4 py-1.5 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white border border-emerald-600/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest active:scale-95"
+                        className="flex items-center gap-2 px-4 py-1.5 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-600/20 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest active:scale-95"
                     >
                         <Download size={14} /> Extrair Planilha
                     </button>
                 </div>
                 <div className="flex items-center gap-3">
                     {startDate && endDate && (
-                        <div className="flex items-center gap-2 px-3 py-1 bg-slate-800 rounded-lg border border-slate-700 text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+                        <div className="flex items-center gap-2 px-3 py-1 bg-slate-900 rounded-lg border border-slate-800 text-[9px] font-black text-slate-500 uppercase tracking-tighter">
                             <CalendarRange size={12} className="text-emerald-500" />
-                            Período: {startDate.split('-').reverse().join('/')} ~ {endDate.split('-').reverse().join('/')}
+                            <span className="opacity-60">Período:</span> {startDate.split('-').reverse().join('/')} ~ {endDate.split('-').reverse().join('/')}
                         </div>
                     )}
-                    <span className="text-[10px] font-black bg-slate-900 text-slate-500 px-3 py-1.5 rounded-full border border-slate-800">
+                    <span className="text-[10px] font-black bg-slate-900 text-slate-400 px-3 py-1.5 rounded-full border border-slate-800">
                         {Object.keys(workers).length} COLABORADORES
                     </span>
                 </div>
@@ -84,8 +84,8 @@ const UnitPivotTable: React.FC<{
             <div 
                 ref={topScrollRef}
                 onScroll={() => syncScroll('top')}
-                className="overflow-x-auto custom-scrollbar bg-slate-950/20 border-b border-slate-800/50"
-                style={{ minHeight: '12px' }}
+                className="overflow-x-auto custom-scrollbar-thin bg-slate-950/20 border-b border-slate-800/50"
+                style={{ height: '8px' }}
             >
                 <div style={{ width: `${tableWidth}px`, height: '1px' }}></div>
             </div>
@@ -94,45 +94,84 @@ const UnitPivotTable: React.FC<{
             <div 
                 ref={bottomScrollRef}
                 onScroll={() => syncScroll('bottom')}
-                className="overflow-x-auto custom-scrollbar"
+                className="overflow-x-auto custom-scrollbar overflow-y-hidden"
             >
                 <table ref={tableRef} className="w-full text-left border-collapse min-w-max">
-                    <thead className="bg-slate-950/50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-800">
+                    <thead className="bg-slate-950/80 backdrop-blur-sm text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-800 sticky top-0 z-20">
                         <tr>
-                            <th className="p-4 min-w-[250px] sticky left-0 bg-slate-950 z-10 border-r border-slate-800 shadow-[2px_0_5px_rgba(0,0,0,0.3)]">Nome</th>
+                            <th className="p-4 py-6 min-w-[300px] sticky left-0 bg-slate-950 z-30 border-r border-slate-800 shadow-[4px_0_10px_rgba(0,0,0,0.5)]">
+                                <div className="flex items-center gap-2">
+                                    <Users size={14} className="text-emerald-500" />
+                                    <span>Colaborador</span>
+                                </div>
+                            </th>
                             {sortedDates.map(date => (
-                                <th key={date} className="p-4 text-center border-r border-slate-800/50 min-w-[100px]">
-                                    {date.split('-').reverse().join('/')}
+                                <th key={date} className="p-4 py-6 text-center border-r border-slate-800/50 min-w-[110px] hover:bg-slate-900 transition-colors">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <span className="text-slate-300">{date.split('-').reverse().slice(0, 2).join('/')}</span>
+                                        <span className="text-[8px] opacity-40">{date.split('-')[0]}</span>
+                                    </div>
                                 </th>
                             ))}
-                            <th className="p-4 text-center bg-slate-950 sticky right-0 z-10 border-l border-slate-800 text-emerald-500 min-w-[120px] shadow-[-2px_0_5px_rgba(0,0,0,0.3)]">Total Geral</th>
+                            <th className="p-4 py-6 text-center bg-slate-950 sticky right-0 z-30 border-l border-slate-800 text-emerald-500 min-w-[130px] shadow-[-4px_0_10px_rgba(0,0,0,0.5)]">
+                                <div className="flex flex-col items-center">
+                                    <TrendingUp size={14} className="mb-1" />
+                                    <span>Total Geral</span>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/50">
-                        {/* 
-                           Fix: Explicitly cast untypedData to WorkerPivotData to avoid 'unknown' type errors during iteration.
-                        */}
                         {Object.entries(workers).map(([workerKey, untypedData]) => {
                             const data = untypedData as WorkerPivotData;
                             const totalPresence = Object.values(data.presence).reduce((a: number, b: number) => a + b, 0);
                             return (
-                                <tr key={workerKey} className="hover:bg-slate-800/30 transition-colors group">
-                                    <td className="p-4 sticky left-0 bg-slate-900 group-hover:bg-slate-800 border-r border-slate-800 shadow-[2px_0_5px_rgba(0,0,0,0.3)]">
-                                        <div className="flex flex-col">
-                                            <span className="font-bold text-slate-200 text-xs uppercase">{data.workerName}</span>
-                                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-tighter flex items-center gap-1 mt-0.5">
-                                                <Briefcase size={10} className="text-slate-600" />
-                                                {data.company}
-                                            </span>
+                                <tr key={workerKey} className="hover:bg-emerald-500/5 transition-all group/row border-b border-slate-800/30">
+                                    <td className="p-4 py-5 sticky left-0 bg-slate-900 group-hover/row:bg-slate-800/90 backdrop-blur-md z-10 border-r border-slate-800 shadow-[4px_0_10px_rgba(0,0,0,0.5)] transition-colors">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-black text-emerald-500 border border-slate-700">
+                                                {data.workerName.charAt(0)}
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="font-black text-slate-100 text-xs uppercase tracking-tight group-hover/row:text-emerald-400 transition-colors">{data.workerName}</span>
+                                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1 mt-0.5 opacity-60">
+                                                    <Briefcase size={10} />
+                                                    {data.company}
+                                                </span>
+                                            </div>
                                         </div>
                                     </td>
-                                    {sortedDates.map(date => (
-                                        <td key={date} className="p-4 text-center border-r border-slate-800/20 font-mono text-slate-400">
-                                            {data.presence[date] || ''}
-                                        </td>
-                                    ))}
-                                    <td className="p-4 text-center font-black text-emerald-400 bg-slate-900 group-hover:bg-slate-800 sticky right-0 border-l border-slate-800 shadow-[-2px_0_5px_rgba(0,0,0,0.3)]">
-                                        {totalPresence}
+                                    {sortedDates.map(date => {
+                                        const presents = data.presence[date] > 0;
+                                        return (
+                                            <td key={date} className={`p-4 text-center border-r border-slate-800/10 transition-all ${presents ? 'bg-emerald-500/[0.02]' : ''}`}>
+                                                {presents ? (
+                                                    <div className="flex items-center justify-center">
+                                                        <div className="relative flex items-center justify-center">
+                                                            <div className="absolute inset-0 bg-emerald-500/20 blur-md rounded-full animate-pulse"></div>
+                                                            <div className="w-6 h-6 rounded-lg bg-emerald-500 flex items-center justify-center text-slate-950 font-black text-[11px] shadow-lg shadow-emerald-500/20 rotate-3 group-hover/row:rotate-0 transition-transform">
+                                                                <ListChecks size={14} strokeWidth={3} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-1 h-1 bg-slate-800 rounded-full mx-auto opacity-20"></div>
+                                                )}
+                                            </td>
+                                        );
+                                    })}
+                                    <td className="p-4 py-5 text-center bg-slate-900 group-hover/row:bg-slate-800/90 backdrop-blur-md sticky right-0 z-10 border-l border-slate-800 shadow-[-4px_0_10px_rgba(0,0,0,0.5)] transition-colors">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <span className="text-sm font-black text-emerald-400 font-mono tracking-tighter">
+                                                {totalPresence.toString().padStart(2, '0')}
+                                            </span>
+                                            <div className="h-1 w-8 bg-slate-800 rounded-full overflow-hidden">
+                                                <div 
+                                                    className="h-full bg-emerald-500" 
+                                                    style={{ width: `${Math.min((totalPresence / sortedDates.length) * 100, 100)}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                             );
