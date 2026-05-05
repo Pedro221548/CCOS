@@ -253,12 +253,15 @@ const Payments: React.FC<PaymentsProps> = ({ payments, workers, currentUser }) =
         filteredBase.forEach(p => {
             if (!units[p.unit]) units[p.unit] = {};
             
-            const workerKey = `${p.workerName.toUpperCase()}|${p.company.toUpperCase()}`;
+            const pComp = (p.company || '').toUpperCase().trim();
+            const normalizedComp = pComp === 'MULT ALTA DIARISTA' ? 'MULT' : pComp;
+            
+            const workerKey = `${p.workerName.toUpperCase()}|${normalizedComp}`;
             
             if (!units[p.unit][workerKey]) {
                 units[p.unit][workerKey] = {
                     workerName: p.workerName,
-                    company: p.company,
+                    company: normalizedComp,
                     presence: {}
                 };
             }

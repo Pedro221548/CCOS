@@ -85,9 +85,12 @@ const FinanceAudit: React.FC<FinanceAuditProps> = ({ workers, payments, currentU
     const filteredMissing = useMemo(() => {
         return auditData.missing.filter(m => {
             const matchesDate = (!startDate || m.date >= startDate) && (!endDate || m.date <= endDate);
+            const mComp = (m.worker.company || '').toUpperCase().trim();
+            const normalizedComp = mComp === 'MULT ALTA DIARISTA' ? 'MULT' : mComp;
+
             const matchesSearch = !searchTerm || 
                 m.worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                m.worker.company.toLowerCase().includes(searchTerm.toLowerCase());
+                normalizedComp.toLowerCase().includes(searchTerm.toLowerCase());
             return matchesDate && matchesSearch;
         }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [auditData.missing, startDate, endDate, searchTerm]);
