@@ -68,6 +68,11 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], payme
 
         // 2. Filtrar e Identificar Empresas
         const validatedWorkers = workers.filter(w => {
+            // Fix up unit live based on access point or other fields
+            if (w.accessPoint && w.accessPoint.toUpperCase().includes('ASPEN')) {
+                w.unit = 'GALPÃO G3';
+            }
+
             // Filtros básicos de interface
             if (currentUser?.role === 'manager' && !hasWarehousePermission(currentUser.allowedWarehouses, w.unit)) return false;
             if (selectedDate && w.date !== 'N/A' && w.date !== selectedDate) return false;

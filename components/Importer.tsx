@@ -67,14 +67,15 @@ const normalizeWarehouse = (rawWarehouse: string | null, location: string | null
     if (idStr.includes('177.69.119.221')) return 'GALPÃO SP';
     if (idStr.includes('10.0.30.65') || idStr.includes('179.108.121.85')) return 'GALPÃO LSP';
 
-    const textToCheck = `${channelName} ${locName} ${modName} ${rawWarehouse}`.toUpperCase();
+    const textToCheck = ` ${channelName} ${locName} ${modName} ${rawWarehouse} `.toUpperCase();
 
     if (textToCheck.includes('LSP')) return 'GALPÃO LSP'; 
     if (textToCheck.includes('G5')) return 'GALPÃO G5';
     if (textToCheck.includes('G2')) return 'GALPÃO G2';
-    if (textToCheck.includes('G3')) return 'GALPÃO G3';
+    if (textToCheck.includes('G3') || textToCheck.includes('ASPEN')) return 'GALPÃO G3';
     
-    if (textToCheck.includes('SP-IP') || textToCheck.includes('SP0') || textToCheck.includes('SP_') || (textToCheck.includes('SP') && !textToCheck.includes('LSP'))) {
+    // Regra estrita pedida: " SP "
+    if (textToCheck.includes(' SP ')) {
         return 'GALPÃO SP';
     }
 
