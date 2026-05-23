@@ -30,6 +30,7 @@ const Manual = lazy(() => import('./components/Manual'));
 const Payments = lazy(() => import('./components/Payments'));
 const Registration = lazy(() => import('./components/Registration'));
 const RegistrationHistory = lazy(() => import('./components/RegistrationHistory'));
+const ThirdPartyRequests = lazy(() => import('./components/ThirdPartyRequests'));
 const FinanceAudit = lazy(() => import('./components/FinanceAudit'));
 const OccurrencesDashboard = lazy(() => import('./components/OccurrencesDashboard'));
 
@@ -50,7 +51,7 @@ const hasTabPermission = (user: User | null, tab: string) => {
     
     // Fornecedores têm acesso fixo
     if (user.role === 'provider') {
-        return ['registration', 'registration-history'].includes(tab);
+        return ['registration', 'registration-history', 'requests'].includes(tab);
     }
 
     if (!user.permissions) {
@@ -80,7 +81,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'occurrences' | 'occurrences-bi' | 'registration' | 'registration-history' | 'third-party-mgmt' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'monitoring' | 'occurrences' | 'occurrences-bi' | 'registration' | 'registration-history' | 'third-party-mgmt' | 'requests' | 'work-mgmt' | 'finance' | 'manual' | 'organizer' | 'data' | 'users'>('dashboard');
   const [monitoringSubTab, setMonitoringSubTab] = useState<'cameras' | 'alarms' | 'access'>('cameras');
   const [occurrencesSubTab, setOccurrencesSubTab] = useState<'occurrences' | 'requests'>('occurrences');
   const [thirdPartySubTab, setThirdPartySubTab] = useState<'status' | 'access-mgmt' | 'heatmap'>('status');
@@ -918,6 +919,12 @@ const App: React.FC = () => {
                                 <span className="text-[10px] font-black uppercase tracking-wider">Histórico</span>
                             </button>
                         )}
+                        {hasTabPermission(user, 'requests') && (
+                            <button onClick={() => handleTabChange('requests')} className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${activeTab === 'requests' ? 'text-amber-500' : 'text-slate-500'}`}>
+                                <Users size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Solicitações</span>
+                            </button>
+                        )}
                         {hasTabPermission(user, 'finance') && (
                             <button onClick={() => handleTabChange('finance')} className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${activeTab === 'finance' ? 'text-amber-500' : 'text-slate-500'}`}>
                                 <DollarSign size={16} />
@@ -987,6 +994,9 @@ const App: React.FC = () => {
                             </button>
                             <button onClick={() => handleTabChange('registration-history')} className={`flex items-center gap-3 p-3 rounded-lg ${activeTab === 'registration-history' ? 'bg-amber-500/10 text-amber-500' : 'text-slate-600'}`}>
                                 <History size={18} /> <span className="text-xs font-bold uppercase">Histórico</span>
+                            </button>
+                            <button onClick={() => handleTabChange('requests')} className={`flex items-center gap-3 p-3 rounded-lg ${activeTab === 'requests' ? 'bg-amber-500/10 text-amber-500' : 'text-slate-600'}`}>
+                                <Users size={18} /> <span className="text-xs font-bold uppercase">Solicitações</span>
                             </button>
                             <button onClick={() => handleTabChange('finance')} className={`flex items-center gap-3 p-3 rounded-lg ${activeTab === 'finance' ? 'bg-amber-500/10 text-amber-500' : 'text-slate-600'}`}>
                                 <DollarSign size={18} /> <span className="text-xs font-bold uppercase">Financeiro</span>
@@ -1091,6 +1101,7 @@ const App: React.FC = () => {
                 )}
                 {activeTab === 'registration' && <Registration currentUser={user} />}
                 {activeTab === 'registration-history' && <RegistrationHistory currentUser={user} />}
+                {activeTab === 'requests' && <ThirdPartyRequests currentUser={user} />}
                 {activeTab === 'monitoring' && (
                   <div className="space-y-8 animate-fade-in">
                     <div className="flex border-b border-slate-300 dark:border-slate-800/50 overflow-x-auto no-scrollbar">

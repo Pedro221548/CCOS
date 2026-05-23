@@ -235,7 +235,8 @@ const PainelPrincipal: React.FC<DashboardProps> = ({ data, thirdPartyWorkers = [
       const totalUniquePresences = new Set(currentDayWorkers.map(w => getUniquePresenceKey(w))).size;
       const thirdPartyOnly = currentDayWorkers.filter(w => {
           const comp = (w.company || '').toUpperCase().trim();
-          const normalizedComp = comp === 'MULT ALTA DIARISTA' ? 'MULT' : comp;
+          let normalizedComp = comp === 'MULT ALTA DIARISTA' ? 'MULT' : comp;
+          if (normalizedComp === 'B11 ALTA DIARISTA') normalizedComp = 'B11';
           return (['B11', 'MULT', 'MPI', 'FORMA', 'SUPERA LOG', 'MJM', 'PRIMUS', 'PRAYLOG', 'GMILL', 'BSB']).includes(normalizedComp);
       });
       const tpCount = new Set(thirdPartyOnly.map(w => getUniquePresenceKey(w))).size;

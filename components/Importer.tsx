@@ -235,6 +235,7 @@ const Importer: React.FC<ImporterProps> = ({
                 const fullSearchString = [locationString, row['Grupo de pessoas'], row['Pessoa'], row['Nome']].join(' ').toUpperCase();
                 let company = row['Grupo de pessoas'] ? row['Grupo de pessoas'].trim().toUpperCase() : null;
                 if (company === 'MULT ALTA DIARISTA') company = 'MULT';
+                if (company === 'B11 ALTA DIARISTA') company = 'B11';
                 
                 if (!company) {
                    if (fullSearchString.includes('PRAYLOG')) company = 'PRAYLOG';
@@ -388,6 +389,7 @@ const Importer: React.FC<ImporterProps> = ({
           const fullSearchString = [locationString, row['Grupo de pessoas'], row['Pessoa'], row['Nome']].join(' ').toUpperCase();
           let company = row['Grupo de pessoas'] ? row['Grupo de pessoas'].trim().toUpperCase() : null;
           if (company === 'MULT ALTA DIARISTA') company = 'MULT';
+          if (company === 'B11 ALTA DIARISTA') company = 'B11';
 
           if (!company) {
              if (fullSearchString.includes('PRAYLOG')) company = 'PRAYLOG';

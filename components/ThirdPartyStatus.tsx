@@ -76,6 +76,7 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], payme
             // Lógica de Identificação de Empresa
             let identifiedCompany = (w.company || '').trim().toUpperCase();
             if (identifiedCompany === 'MULT ALTA DIARISTA') identifiedCompany = 'MULT';
+            if (identifiedCompany === 'B11 ALTA DIARISTA') identifiedCompany = 'B11';
             
             // Se estiver vazio na planilha de acesso, tenta buscar no financeiro pelo nome exato
             if (!identifiedCompany || identifiedCompany === 'NÃO IDENTIFICADO') {
@@ -83,6 +84,7 @@ const ThirdPartyStatus: React.FC<ThirdPartyStatusProps> = ({ workers = [], payme
                 if (financeMap[nameKey]) {
                     identifiedCompany = financeMap[nameKey];
                     if (identifiedCompany === 'MULT ALTA DIARISTA') identifiedCompany = 'MULT';
+                    if (identifiedCompany === 'B11 ALTA DIARISTA') identifiedCompany = 'B11';
                 }
             }
 

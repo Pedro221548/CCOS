@@ -254,7 +254,8 @@ const Payments: React.FC<PaymentsProps> = ({ payments, workers, currentUser }) =
             if (!units[p.unit]) units[p.unit] = {};
             
             const pComp = (p.company || '').toUpperCase().trim();
-            const normalizedComp = pComp === 'MULT ALTA DIARISTA' ? 'MULT' : pComp;
+            let normalizedComp = pComp === 'MULT ALTA DIARISTA' ? 'MULT' : pComp;
+            if (normalizedComp === 'B11 ALTA DIARISTA') normalizedComp = 'B11';
             
             const workerKey = `${p.workerName.toUpperCase()}|${normalizedComp}`;
             

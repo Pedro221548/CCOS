@@ -125,6 +125,25 @@ export interface ThirdPartyPayment {
     category?: string;
 }
 
+export interface ThirdPartyRequest {
+    id: string;
+    supplierId: string;
+    requestType: 'quantity' | 'person';
+    quantity?: number;
+    names?: string[];
+    startDate: string;
+    endDate: string;
+    warehouse: string;
+    requesterName: string;
+    contactPhone: string;
+    status: 'pending' | 'evaluated' | 'confirmed' | 'rejected' | 'completed';
+    cost?: number;
+    evaluatedAt?: string;
+    confirmedAt?: string;
+    confirmedByProviderUser?: string;
+    createdAt: string;
+}
+
 export interface PaymentImport {
     id: string;
     fileName: string;

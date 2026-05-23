@@ -86,7 +86,8 @@ const FinanceAudit: React.FC<FinanceAuditProps> = ({ workers, payments, currentU
         return auditData.missing.filter(m => {
             const matchesDate = (!startDate || m.date >= startDate) && (!endDate || m.date <= endDate);
             const mComp = (m.worker.company || '').toUpperCase().trim();
-            const normalizedComp = mComp === 'MULT ALTA DIARISTA' ? 'MULT' : mComp;
+            let normalizedComp = mComp === 'MULT ALTA DIARISTA' ? 'MULT' : mComp;
+            if (normalizedComp === 'B11 ALTA DIARISTA') normalizedComp = 'B11';
 
             const matchesSearch = !searchTerm || 
                 m.worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

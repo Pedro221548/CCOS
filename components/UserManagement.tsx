@@ -22,6 +22,7 @@ const TAB_OPTIONS = [
     { id: 'third-party-mgmt', label: 'FLUXO DE ACESSO' },
     { id: 'registration', label: 'CADASTRO' },
     { id: 'registration-history', label: 'HISTÓRICO' },
+    { id: 'requests', label: 'SOLICITAÇÕES' },
     { id: 'finance', label: 'FINANCEIRO' },
     { id: 'occurrences', label: 'OCORRÊNCIAS' },
     { id: 'manual', label: 'MANUAL' },
