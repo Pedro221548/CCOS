@@ -42,6 +42,47 @@ const parseRowDate = (row: any): string => {
     return 'N/A';
 };
 
+const parseRowTime = (row: any): string => {
+    let timeStr = row['Hora'] || row['HORA'] || row['Time'] || row['Horário'] || null;
+    
+    // Se não encontrou nas colunas de hora, tenta extrair da coluna Data
+    if (!timeStr) {
+        const val = row['Data'] || row['DATA'] || row['Date'] || row['Dia'];
+        if (typeof val === 'number') {
+            const d = new Date(Math.round((val - 25569)*86400*1000));
+            d.setMinutes(d.getMinutes() + 1); // Adjust for precision loss
+            return d.toISOString().split('T')[1].substring(0, 5);
+        }
+        if (typeof val === 'string' && val.includes(' ')) {
+            const timePart = val.split(' ')[1].trim();
+            if (timePart) return timePart.substring(0, 5);
+        }
+    }
+    
+    if (!timeStr) return '-';
+    
+    if (typeof timeStr === 'number') {
+        // Fração de dia em Excel (0.5 = 12:00)
+        let totalSeconds = Math.round(timeStr * 86400);
+        if (Math.abs(timeStr) > 1) {
+            // Excel datetime em vez de apenas hora
+            const d = new Date(Math.round((timeStr - 25569)*86400*1000));
+            d.setMinutes(d.getMinutes() + 1);
+            return d.toISOString().split('T')[1].substring(0, 5);
+        }
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    }
+    
+    if (typeof timeStr === 'string') {
+        const match = timeStr.match(/\d{2}:\d{2}/);
+        if (match) return match[0];
+    }
+    
+    return '-';
+};
+
 const formatExcelDate = (val: any): string => {
     if (!val) return '-';
     if (typeof val === 'number') {
@@ -254,13 +295,14 @@ const Importer: React.FC<ImporterProps> = ({
                 if (!company) company = ''; 
 
                 const dateNormalized = parseRowDate(row);
-                let timeStr = row['Hora'] || '-';
-                if (typeof timeStr === 'string' && timeStr.includes(' ')) timeStr = timeStr.split(' ')[1]; 
+                const timeStr = parseRowTime(row);
+                const groupRaw = row['Grupo de pessoas'] || row['Grupo de Pessoa'] || row['Person Group'] || '-';
+                const cleanGroup = Array.from(new Set(String(groupRaw).split(',').map(p => p.trim()))).join(', ');
                 
                 newWorkers.push({
                     id: `w-${index}-${Date.now()}`,
                     name: rawName.trim(),
-                    company, unit, date: dateNormalized, time: timeStr, accessPoint: row['Ponto de Acesso'] || row['Ambiente'] || '-', eventType: finalEvent
+                    company, unit, date: dateNormalized, time: timeStr, accessPoint: row['Ponto de Acesso'] || row['Ambiente'] || '-', eventType: finalEvent, personGroup: cleanGroup
                 });
             });
             if (newWorkers.length > 0) {
@@ -408,13 +450,14 @@ const Importer: React.FC<ImporterProps> = ({
           if (!company) company = ''; 
 
           const dateNormalized = parseRowDate(row);
-          let timeStr = row['Hora'] || '-';
-          if (typeof timeStr === 'string' && timeStr.includes(' ')) timeStr = timeStr.split(' ')[1]; 
+          const timeStr = parseRowTime(row);
+          const groupRaw = row['Grupo de pessoas'] || row['Grupo de Pessoa'] || row['Person Group'] || '-';
+          const cleanGroup = Array.from(new Set(String(groupRaw).split(',').map(p => p.trim()))).join(', ');
           
           newWorkers.push({
               id: `w-${index}-${Date.now()}`,
               name: rawName.trim(),
-              company, unit, date: dateNormalized, time: timeStr, accessPoint: row['Ponto de Acesso'] || row['Ambiente'] || '-', eventType: finalEvent
+              company, unit, date: dateNormalized, time: timeStr, accessPoint: row['Ponto de Acesso'] || row['Ambiente'] || '-', eventType: finalEvent, personGroup: cleanGroup
           });
       });
       onImportThirdParty(newWorkers, fileName, dateRange.start, dateRange.end);

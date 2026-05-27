@@ -2,8 +2,10 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { User, ProcessedWorker, AccessPoint } from '../types';
 import { WAREHOUSE_LIST } from '../constants';
-import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, MessageCircle, Mail, X, ArrowUpRight, ArrowDownLeft, GripHorizontal, DoorClosed, Clock, Hourglass, RotateCcw, Briefcase } from 'lucide-react';
+import { Users, Filter, Search, Activity, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, MessageCircle, Mail, X, ArrowUpRight, ArrowDownLeft, GripHorizontal, DoorClosed, Clock, Hourglass, RotateCcw, Briefcase, Download } from 'lucide-react';
 import Checkbox from './ui/Checkbox';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 interface AccessManagementProps {
     accessPoints: AccessPoint[];
@@ -44,6 +46,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
     const [rel, setRel] = useState({ x: 0, y: 0 }); 
     const dragBoxRef = useRef<HTMLDivElement>(null);
     const apDropdownRef = useRef<HTMLDivElement>(null);
+    const exportDropdownRef = useRef<HTMLDivElement>(null);
 
     const isAuthorizedForReport = currentUser.role === 'admin' || currentUser.role === 'manager';
 
@@ -52,6 +55,9 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         const handleClickOutside = (event: MouseEvent) => {
             if (apDropdownRef.current && !apDropdownRef.current.contains(event.target as Node)) {
                 setShowAPDropdown(false);
+            }
+            if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
+                setShowExportOptions(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -201,7 +207,9 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
         const companyGroups: { [company: string]: { [personKey: string]: { id: string, name: string, company: string, history: ProcessedWorker[] } } } = {};
         
         filteredWorkers.forEach(w => {
-            const company = (w.company || 'Terceiros').trim() || 'Terceiros';
+            const companyRaw = (w.personGroup && w.personGroup !== '-') ? w.personGroup : w.company;
+            const company = (companyRaw || 'Não Agrupado').trim();
+            
             if (!companyGroups[company]) {
                 companyGroups[company] = {};
             }
@@ -230,6 +238,8 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
             
             return { company, people };
         }).sort((a, b) => {
+            if (a.company === 'Não Agrupado') return 1;
+            if (b.company === 'Não Agrupado') return -1;
             if (a.company === 'Terceiros') return 1;
             if (b.company === 'Terceiros') return -1;
             return a.company.localeCompare(b.company);
@@ -245,6 +255,175 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
 
     const togglePersonExpand = (key: string) => {
         setExpandedPersonKey(prev => prev === key ? null : key);
+    };
+
+    const [showExportOptions, setShowExportOptions] = useState(false);
+
+    const handleDetailedExport = async (type: 'all' | 'in_out') => {
+        try {
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet(type === 'in_out' ? 'Entradas_e_Saidas' : 'Todos_Acessos');
+
+            if (type === 'in_out') {
+                worksheet.columns = [
+                    { header: 'NOME', key: 'name', width: 40 },
+                    { header: 'DATA', key: 'date', width: 20 },
+                    { header: 'TURNO', key: 'turno', width: 15 },
+                    { header: 'ENTRADA', key: 'entry', width: 15 },
+                    { header: 'SAÍDA', key: 'exit', width: 15 },
+                    { header: 'HORAS TRABALHADAS', key: 'hoursStr', width: 25 },
+                    { header: 'HORAS TRABALHADAS -1H INTERVALO', key: 'hoursDiscountStr', width: 40 },
+                    { header: 'GRUPO DE PESSOAS', key: 'personGroup', width: 30 }
+                ];
+
+                const processedData: any[] = [];
+                groupedByCompany.forEach(group => {
+                    group.people.forEach(person => {
+                        const sortedHistory = person.history.slice().sort((a, b) => {
+                            return new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime();
+                        });
+
+                        const shifts: ProcessedWorker[][] = [];
+                        let currentShift: ProcessedWorker[] = [];
+
+                        sortedHistory.forEach(r => {
+                            if (currentShift.length === 0) {
+                                currentShift.push(r);
+                            } else {
+                                const prevRecord = currentShift[currentShift.length - 1];
+                                const firstRecord = currentShift[0];
+                                
+                                const prevTime = new Date(`${prevRecord.date}T${prevRecord.time}`).getTime();
+                                const firstTime = new Date(`${firstRecord.date}T${firstRecord.time}`).getTime();
+                                const currTime = new Date(`${r.date}T${r.time}`).getTime();
+                                
+                                const gapFromPrev = (currTime - prevTime) / (1000 * 60 * 60);
+                                const shiftDurationIfAdded = (currTime - firstTime) / (1000 * 60 * 60);
+
+                                if (shiftDurationIfAdded > 16 || gapFromPrev > 14) {
+                                    shifts.push(currentShift);
+                                    currentShift = [r];
+                                } else {
+                                    currentShift.push(r);
+                                }
+                            }
+                        });
+
+                        if (currentShift.length > 0) {
+                            shifts.push(currentShift);
+                        }
+
+                        shifts.forEach(shiftRecords => {
+                            const firstRecord = shiftRecords[0];
+                            const lastRecord = shiftRecords[shiftRecords.length - 1];
+                            const date = firstRecord.date;
+                            
+                            let entry = '-';
+                            let exit = '-';
+                            let totalMin = 0;
+                            let turno = '-';
+                            
+                            if (shiftRecords.length > 0) {
+                                entry = firstRecord.time;
+                                
+                                const entryHour = parseInt(entry.split(':')[0], 10);
+                                if (!isNaN(entryHour)) {
+                                    turno = (entryHour >= 18 || entryHour < 5) ? 'NOITE' : 'DIA';
+                                }
+
+                                if (shiftRecords.length > 1) {
+                                    exit = lastRecord.time;
+                                    const entryMs = new Date(`${firstRecord.date}T${firstRecord.time}`).getTime();
+                                    const exitMs = new Date(`${lastRecord.date}T${lastRecord.time}`).getTime();
+                                    totalMin = Math.round((exitMs - entryMs) / 60000);
+                                }
+                            }
+
+                            const hours = Math.floor(Math.max(0, totalMin) / 60);
+                            const mins = Math.max(0, totalMin) % 60;
+                            const hoursStr = totalMin > 0 ? `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}` : '-';
+                            
+                            const discountMin = Math.max(0, totalMin - 60);
+                            const dHours = Math.floor(discountMin / 60);
+                            const dMins = discountMin % 60;
+                            const hoursDiscountStr = totalMin > 0 ? `${String(dHours).padStart(2, '0')}:${String(dMins).padStart(2, '0')}` : '-';
+
+                            processedData.push({
+                                name: person.name,
+                                date: date.split('-').reverse().join('/'),
+                                turno,
+                                entry,
+                                exit: lastRecord.date !== firstRecord.date ? `${exit} (+1)` : exit,
+                                hoursStr,
+                                hoursDiscountStr,
+                                personGroup: person.company || '-',
+                                rawDate: date,
+                                rawName: person.name
+                            });
+                        });
+                    });
+                });
+
+                processedData.sort((a, b) => {
+                    const dateCmp = a.rawDate.localeCompare(b.rawDate);
+                    if (dateCmp !== 0) return dateCmp;
+                    return a.rawName.localeCompare(b.rawName);
+                });
+
+                worksheet.addRows(processedData);
+
+            } else {
+                worksheet.columns = [
+                    { header: 'NOME', key: 'name', width: 40 },
+                    { header: 'EMPRESA', key: 'company', width: 30 },
+                    { header: 'UNIDADE', key: 'unit', width: 15 },
+                    { header: 'DATA', key: 'date', width: 15 },
+                    { header: 'TURNO', key: 'turno', width: 15 },
+                    { header: 'HORA', key: 'time', width: 15 },
+                    { header: 'PORTA', key: 'accessPoint', width: 25 },
+                    { header: 'TIPO', key: 'eventType', width: 15 },
+                    { header: 'GRUPO DE PESSOAS', key: 'personGroup', width: 30 }
+                ];
+                
+                const rows = filteredWorkers.map(w => {
+                    let turno = '-';
+                    const hour = parseInt(w.time.split(':')[0], 10);
+                    if (!isNaN(hour)) {
+                        turno = (hour >= 18 || hour < 5) ? 'NOITE' : 'DIA';
+                    }
+                    return {
+                        name: w.name,
+                        company: w.company,
+                        unit: w.unit,
+                        date: w.date.split('-').reverse().join('/'),
+                        turno,
+                        time: w.time,
+                        accessPoint: w.accessPoint,
+                        eventType: w.eventType,
+                        personGroup: w.company || '-'
+                    };
+                });
+
+                worksheet.addRows(rows);
+            }
+
+            const headerRow = worksheet.getRow(1);
+            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            headerRow.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FF475569' } // slate-600
+            };
+            headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+            worksheet.autoFilter = type === 'in_out' ? 'A1:H1' : 'A1:I1';
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            saveAs(blob, `Relatorio_Acessos_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.xlsx`);
+            setShowExportOptions(false);
+        } catch (err) {
+            console.error('Error exporting excel', err);
+        }
     };
 
     const handleSelectRecord = (id: string) => {
@@ -468,6 +647,40 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                                     <p className="text-slate-600 text-[10px] uppercase font-black tracking-widest">Sem portas neste galpão</p>
                                                 </div>
                                             )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* EXPORTAR EXCEL BUTTON */}
+                                <div className="relative z-[49] w-full sm:w-auto" ref={exportDropdownRef}>
+                                    <button
+                                        onClick={() => setShowExportOptions(!showExportOptions)}
+                                        className="w-full sm:w-auto px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-colors shadow-lg shadow-emerald-500/20"
+                                        title="Exportar para Excel"
+                                    >
+                                        <Download size={16} /> Excel
+                                        <ChevronDown size={14} className={`transition-transform duration-300 ${showExportOptions ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    
+                                    {showExportOptions && (
+                                        <div className="absolute top-full right-0 mt-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl p-4 w-[280px] z-[100] animate-fade-in flex flex-col gap-3">
+                                            <h4 className="text-[10px] font-black uppercase text-slate-800 dark:text-white tracking-widest border-b border-slate-200 dark:border-slate-800 pb-2">
+                                                Tipo de Exportação
+                                            </h4>
+                                            <button
+                                                onClick={() => handleDetailedExport('in_out')}
+                                                className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-3"
+                                            >
+                                                <Clock size={16} className="text-emerald-500" /> 
+                                                <span>Apenas Entrada e Saída</span>
+                                            </button>
+                                            <button
+                                                onClick={() => handleDetailedExport('all')}
+                                                className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-3 border-t border-slate-100 dark:border-slate-800"
+                                            >
+                                                <Activity size={16} className="text-emerald-500" /> 
+                                                <span>Todos os Acessos</span>
+                                            </button>
                                         </div>
                                     )}
                                 </div>

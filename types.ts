@@ -194,6 +194,7 @@ export interface ProcessedWorker {
     date: string; 
     accessPoint: string;
     eventType: string; 
+    personGroup?: string;
 }
 
 export interface ThirdPartyImport {
