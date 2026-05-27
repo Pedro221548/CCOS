@@ -273,7 +273,8 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                     { header: 'SAÍDA', key: 'exit', width: 15 },
                     { header: 'HORAS TRABALHADAS', key: 'hoursStr', width: 25 },
                     { header: 'HORAS TRABALHADAS -1H INTERVALO', key: 'hoursDiscountStr', width: 40 },
-                    { header: 'GRUPO DE PESSOAS', key: 'personGroup', width: 30 }
+                    { header: 'GRUPO DE PESSOAS', key: 'personGroup', width: 30 },
+                    { header: 'PONTOS DE ACESSO', key: 'accessPoints', width: 40 }
                 ];
 
                 const processedData: any[] = [];
@@ -300,7 +301,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                 const gapFromPrev = (currTime - prevTime) / (1000 * 60 * 60);
                                 const shiftDurationIfAdded = (currTime - firstTime) / (1000 * 60 * 60);
 
-                                if (shiftDurationIfAdded > 16 || gapFromPrev > 14) {
+                                if (shiftDurationIfAdded > 14 || gapFromPrev > 14) {
                                     shifts.push(currentShift);
                                     currentShift = [r];
                                 } else {
@@ -348,6 +349,8 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                             const dMins = discountMin % 60;
                             const hoursDiscountStr = totalMin > 0 ? `${String(dHours).padStart(2, '0')}:${String(dMins).padStart(2, '0')}` : '-';
 
+                            const allAccessPoints = Array.from(new Set(shiftRecords.map(r => r.accessPoint))).filter(ap => ap && ap !== '-').join(', ');
+
                             processedData.push({
                                 name: person.name,
                                 date: date.split('-').reverse().join('/'),
@@ -357,6 +360,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                                 hoursStr,
                                 hoursDiscountStr,
                                 personGroup: person.company || '-',
+                                accessPoints: allAccessPoints,
                                 rawDate: date,
                                 rawName: person.name
                             });
@@ -415,7 +419,7 @@ const AccessManagement: React.FC<AccessManagementProps> = ({ accessPoints, third
                 fgColor: { argb: 'FF475569' } // slate-600
             };
             headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-            worksheet.autoFilter = type === 'in_out' ? 'A1:H1' : 'A1:I1';
+            worksheet.autoFilter = 'A1:I1';
 
             const buffer = await workbook.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

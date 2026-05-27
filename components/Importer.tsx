@@ -252,7 +252,9 @@ const Importer: React.FC<ImporterProps> = ({
             const wb = window.XLSX.read(bstr, { type: 'binary', cellDates: true });
             const wsname = wb.SheetNames[0];
             const ws = wb.Sheets[wsname];
-            const jsonData: any[] = window.XLSX.utils.sheet_to_json(ws);
+            const headers = window.XLSX.utils.sheet_to_json(ws, { header: 1 })[0] as string[] || [];
+            const colE = headers.length > 4 ? headers[4] : '';
+            const jsonData: any[] = window.XLSX.utils.sheet_to_json(ws, { defval: "" });
             const newWorkers: ProcessedWorker[] = [];
             jsonData.forEach((row, index) => {
                 const rawName = row['Pessoa'] || row['Nome'] || row['NOME'];
@@ -270,7 +272,7 @@ const Importer: React.FC<ImporterProps> = ({
                     finalEvent = rawEventType || 'OUTRO';
                 }
 
-                const locationString = [row['Ambiente'], row['Ponto de Acesso'], row['Tipo de ponto de acesso'], row['Local'], row['Nome do dispositivo'], row['Device']].join(' ').toUpperCase();
+                const locationString = [row['Ambiente'], row['Ponto de Acesso'], row['Tipo de ponto de acesso'], row['Local'], row['Nome do dispositivo'], row['Device'], colE ? row[colE] : ''].join(' ').toUpperCase();
                 const unit = normalizeWarehouse(null, locationString, null, null, locationString, null);
                 if (!unit || unit === 'Geral') return; 
 
@@ -302,7 +304,7 @@ const Importer: React.FC<ImporterProps> = ({
                 newWorkers.push({
                     id: `w-${index}-${Date.now()}`,
                     name: rawName.trim(),
-                    company, unit, date: dateNormalized, time: timeStr, accessPoint: row['Ponto de Acesso'] || row['Ambiente'] || '-', eventType: finalEvent, personGroup: cleanGroup
+                    company, unit, date: dateNormalized, time: timeStr, accessPoint: (colE ? row[colE] : null) || row['Ponto de Acesso'] || row['Ambiente'] || row['Nome do dispositivo'] || row['Device'] || '-', eventType: finalEvent, personGroup: cleanGroup
                 });
             });
             if (newWorkers.length > 0) {
@@ -407,7 +409,9 @@ const Importer: React.FC<ImporterProps> = ({
       const wb = window.XLSX.read(bstr, { type: 'binary', cellDates: true });
       const wsname = wb.SheetNames[0];
       const ws = wb.Sheets[wsname];
-      const jsonData: any[] = window.XLSX.utils.sheet_to_json(ws);
+      const headers = window.XLSX.utils.sheet_to_json(ws, { header: 1 })[0] as string[] || [];
+      const colE = headers.length > 4 ? headers[4] : '';
+      const jsonData: any[] = window.XLSX.utils.sheet_to_json(ws, { defval: "" });
       const newWorkers: ProcessedWorker[] = [];
       jsonData.forEach((row, index) => {
           const rawName = row['Pessoa'] || row['Nome'] || row['NOME'];
@@ -425,7 +429,7 @@ const Importer: React.FC<ImporterProps> = ({
               finalEvent = rawEventType || 'OUTRO';
           }
 
-          const locationString = [row['Ambiente'], row['Ponto de Acesso'], row['Tipo de ponto de acesso'], row['Local'], row['Nome do dispositivo'], row['Device']].join(' ').toUpperCase();
+          const locationString = [row['Ambiente'], row['Ponto de Acesso'], row['Tipo de ponto de acesso'], row['Local'], row['Nome do dispositivo'], row['Device'], colE ? row[colE] : ''].join(' ').toUpperCase();
           const unit = normalizeWarehouse(null, locationString, null, null, locationString, null);
           if (!unit || unit === 'Geral') return; 
 
@@ -457,7 +461,7 @@ const Importer: React.FC<ImporterProps> = ({
           newWorkers.push({
               id: `w-${index}-${Date.now()}`,
               name: rawName.trim(),
-              company, unit, date: dateNormalized, time: timeStr, accessPoint: row['Ponto de Acesso'] || row['Ambiente'] || '-', eventType: finalEvent, personGroup: cleanGroup
+              company, unit, date: dateNormalized, time: timeStr, accessPoint: (colE ? row[colE] : null) || row['Ponto de Acesso'] || row['Ambiente'] || row['Nome do dispositivo'] || row['Device'] || '-', eventType: finalEvent, personGroup: cleanGroup
           });
       });
       onImportThirdParty(newWorkers, fileName, dateRange.start, dateRange.end);
