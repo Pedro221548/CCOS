@@ -14,6 +14,7 @@ import { useNotificationSounds } from './hooks/useNotificationSounds';
 
 import ProfileModal from './components/ProfileModal';
 import FeedbackModal from './components/FeedbackModal';
+import HeaderClock from './components/HeaderClock';
 
 const PainelPrincipal = lazy(() => import('./components/PainelPrincipal'));
 const CameraList = lazy(() => import('./components/CameraList'));
@@ -96,7 +97,6 @@ const App: React.FC = () => {
   const [showTour, setShowTour] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [currentTime, setCurrentTime] = useState(new Date());
   
   const mainContentRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -121,13 +121,6 @@ const App: React.FC = () => {
   useEffect(() => { if(user) localStorage.setItem('cv_mon_tab', monitoringSubTab); }, [monitoringSubTab, user]);
   useEffect(() => { if(user) localStorage.setItem('cv_tp_tab', thirdPartySubTab); }, [thirdPartySubTab, user]);
   useEffect(() => { if(user) localStorage.setItem('cv_fin_tab', financeSubTab); }, [financeSubTab, user]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-        setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   const addToast = useCallback((message: string, type: Toast['type']) => {
     const id = Date.now().toString();
@@ -1032,15 +1025,7 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4">
-             <div className="hidden xl:flex items-center bg-slate-100 dark:bg-slate-950 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-inner">
-                <div className="text-xs font-mono font-black text-slate-600 dark:text-amber-500 tracking-widest flex items-center gap-3">
-                    <Clock size={14} className="text-blue-500" />
-                    {currentTime.toLocaleTimeString('pt-BR')}
-                    <span className="text-slate-300 dark:text-slate-800">|</span>
-                    <Calendar size={14} className="text-purple-500" />
-                    {currentTime.toLocaleDateString('pt-BR')}
-                </div>
-             </div>
+             <HeaderClock />
              
              <div className="flex items-center gap-1 border-x border-slate-200 dark:border-slate-800 px-4 h-10">
                 <button onClick={() => setShowFeedbackModal(true)} className="p-2 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all flex items-center gap-1" title="Sugerir Melhoria"><MessageSquareHeart size={20} strokeWidth={2.5} /></button>
